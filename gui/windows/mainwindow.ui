@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>343</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>icFlow3: Finite Element Simulation of Ice</string>
+  </property>
+  <widget class="QWidget" name="centralwidget"/>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>800</width>
+     <height>28</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="action_scene_reset"/>
+    <addaction name="action_scene_open"/>
+    <addaction name="action_scene_save_as"/>
+    <addaction name="separator"/>
+    <addaction name="action_import_floes"/>
+    <addaction name="separator"/>
+    <addaction name="action_quit"/>
+   </widget>
+   <widget class="QMenu" name="menuTools">
+    <property name="title">
+     <string>View</string>
+    </property>
+    <addaction name="separator"/>
+    <addaction name="action_Tentative"/>
+    <addaction name="action_show_axes"/>
+    <addaction name="action_show_scalar_bar"/>
+    <addaction name="action_draw_water_Level"/>
+    <addaction name="separator"/>
+    <addaction name="action_draw_Edges"/>
+    <addaction name="action_draw_Boundary"/>
+    <addaction name="action_draw_Arrows"/>
+    <addaction name="separator"/>
+    <addaction name="action_show_model"/>
+    <addaction name="action_show_plots"/>
+    <addaction name="actionMohr_s"/>
+    <addaction name="action_show_benchmark"/>
+   </widget>
+   <widget class="QMenu" name="menuTools_2">
+    <property name="title">
+     <string>Tools</string>
+    </property>
+    <addaction name="action_floe_remesh"/>
+    <addaction name="action_Trim"/>
+    <addaction name="action_camera_reset"/>
+    <addaction name="separator"/>
+    <addaction name="action_Fracture"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuTools"/>
+   <addaction name="menuTools_2"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QToolBar" name="toolBar">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <property name="movable">
+    <bool>true</bool>
+   </property>
+   <property name="allowedAreas">
+    <set>Qt::BottomToolBarArea|Qt::TopToolBarArea</set>
+   </property>
+   <property name="floatable">
+    <bool>false</bool>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="action_simulation_start"/>
+   <addaction name="action_simulation_single_step"/>
+   <addaction name="separator"/>
+   <addaction name="action_Tentative"/>
+  </widget>
+  <action name="action_camera_reset">
+   <property name="text">
+    <string>Reset Camera</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+R</string>
+   </property>
+  </action>
+  <action name="action_simulation_start">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/ic/icons/media-playback-start.svg</normaloff>
+     <normalon>:/ic/icons/media-playback-pause.svg</normalon>:/ic/icons/media-playback-start.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Start</string>
+   </property>
+   <property name="shortcut">
+    <string>F5</string>
+   </property>
+  </action>
+  <action name="action_scene_open">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icons/open.png</normaloff>:/icons/open.png</iconset>
+   </property>
+   <property name="text">
+    <string>Open Scene...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="action_scene_save_as">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icons/floppy-128.png</normaloff>:/icons/floppy-128.png</iconset>
+   </property>
+   <property name="text">
+    <string>Save Scene As...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="action_mesh_remove">
+   <property name="text">
+    <string>Remove</string>
+   </property>
+   <property name="toolTip">
+    <string>Remove object from the model</string>
+   </property>
+  </action>
+  <action name="action_scene_reset">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icons/new.png</normaloff>:/icons/new.png</iconset>
+   </property>
+   <property name="text">
+    <string>Reset Scene</string>
+   </property>
+   <property name="toolTip">
+    <string>Create new scene</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+N</string>
+   </property>
+  </action>
+  <action name="action_import_3D_boundary">
+   <property name="text">
+    <string>Import STL 3D Closed Boundary</string>
+   </property>
+  </action>
+  <action name="action_import_floes">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/ic/icons/document-import.svg</normaloff>:/ic/icons/document-import.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Import Floes</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+I</string>
+   </property>
+  </action>
+  <action name="action_floe_remesh">
+   <property name="text">
+    <string>Remesh</string>
+   </property>
+  </action>
+  <action name="action_quit">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icons/but-quit.png</normaloff>:/icons/but-quit.png</iconset>
+   </property>
+   <property name="text">
+    <string>Quit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="action_simulation_single_step">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/ic/icons/system-log-out.svg</normaloff>:/ic/icons/system-log-out.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Single Step</string>
+   </property>
+   <property name="toolTip">
+    <string>Single step</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+D</string>
+   </property>
+  </action>
+  <action name="action_show_axes">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Axes</string>
+   </property>
+  </action>
+  <action name="action_show_benchmark">
+   <property name="text">
+    <string>Benchmark</string>
+   </property>
+   <property name="shortcut">
+    <string>F4</string>
+   </property>
+  </action>
+  <action name="action_show_model">
+   <property name="text">
+    <string>Model</string>
+   </property>
+   <property name="shortcut">
+    <string>F1</string>
+   </property>
+  </action>
+  <action name="action_show_plots">
+   <property name="text">
+    <string>Plots</string>
+   </property>
+   <property name="shortcut">
+    <string>F2</string>
+   </property>
+  </action>
+  <action name="action_show_scalar_bar">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Scalar Bar</string>
+   </property>
+  </action>
+  <action name="action_Trim">
+   <property name="text">
+    <string>Trim</string>
+   </property>
+  </action>
+  <action name="actionMohr_s">
+   <property name="text">
+    <string>Mohr's</string>
+   </property>
+   <property name="shortcut">
+    <string>F3</string>
+   </property>
+  </action>
+  <action name="action_Fracture">
+   <property name="text">
+    <string>Fracture </string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+F</string>
+   </property>
+  </action>
+  <action name="action_Tentative">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icons/realLeaf4.png</normaloff>:/icons/realLeaf4.png</iconset>
+   </property>
+   <property name="text">
+    <string>Tentative</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+T</string>
+   </property>
+  </action>
+  <action name="action_draw_Edges">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Edges</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+E</string>
+   </property>
+  </action>
+  <action name="action_draw_Boundary">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Boundary</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+B</string>
+   </property>
+  </action>
+  <action name="action_draw_Arrows">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Arrows</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+A</string>
+   </property>
+  </action>
+  <action name="action_draw_water_Level">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Water Level</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+L</string>
+   </property>
+  </action>
+ </widget>
+ <resources>
+  <include location="../icons.qrc"/>
+ </resources>
+ <connections/>
+</ui>
