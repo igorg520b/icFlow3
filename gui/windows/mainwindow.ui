@@ -62,7 +62,7 @@
     <addaction name="action_Trim"/>
     <addaction name="action_camera_reset"/>
     <addaction name="separator"/>
-    <addaction name="action_Fracture"/>
+    <addaction name="action_Screenshot"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
@@ -275,14 +275,6 @@
     <string>F3</string>
    </property>
   </action>
-  <action name="action_Fracture">
-   <property name="text">
-    <string>Fracture </string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+F</string>
-   </property>
-  </action>
   <action name="action_Tentative">
    <property name="checkable">
     <bool>true</bool>
@@ -343,6 +335,14 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+L</string>
+   </property>
+  </action>
+  <action name="action_Screenshot">
+   <property name="text">
+    <string>Screenshot</string>
+   </property>
+   <property name="shortcut">
+    <string>F9</string>
    </property>
   </action>
  </widget>

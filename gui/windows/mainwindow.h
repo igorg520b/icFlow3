@@ -56,6 +56,8 @@
 #include <vtkCallbackCommand.h>
 #include <vtkInteractorStyleRubberBandPick.h>
 
+#include <vtkWindowToImageFilter.h>
+#include <vtkPNGWriter.h>
 
 #include <iostream>
 #include <fstream>
@@ -129,8 +131,6 @@ private slots:
 
     void on_actionMohr_s_triggered();
 
-    void on_action_Fracture_triggered();
-
     void on_action_Tentative_triggered(bool checked);
 
     void on_action_draw_Edges_triggered(bool checked);
@@ -145,6 +145,8 @@ private slots:
 
 
     void on_action_draw_water_Level_triggered(bool checked);
+
+    void on_action_Screenshot_triggered();
 
 private:
     PreferencesGUI prefsGUI;
@@ -185,6 +187,8 @@ private:
     vtkNew<vtkAxesActor> axes;
     vtkNew<vtkScalarBarActor> scalarBar;
     vtkNew<vtkPointPicker> pointPicker;
+    vtkNew<vtkWindowToImageFilter> windowToImageFilter;
+    vtkNew<vtkPNGWriter> writer;
 
     void Reset();
     void OpenSceneFile(QString fileName);

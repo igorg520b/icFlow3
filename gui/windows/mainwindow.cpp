@@ -122,6 +122,13 @@ MainWindow::MainWindow(QWidget *parent)
     pointPicker->AddObserver(vtkCommand::EndPickEvent, pickCallback);
     pickCallback->SetClientData((void*)this);
 
+    // for screenshot
+    windowToImageFilter->SetInput(renderWindow);
+    windowToImageFilter->SetScale(1); // image quality
+    windowToImageFilter->SetInputBufferTypeToRGBA(); //also record the alpha (transparency) channel
+    windowToImageFilter->ReadFrontBufferOff(); // read from the back buffer
+    writer->SetInputConnection(windowToImageFilter->GetOutputPort());
+
     // splitters
     splitter_main = new QSplitter(Qt::Orientation::Horizontal);
     splitter_main->addWidget(splitter_left_panel);
@@ -480,12 +487,12 @@ void MainWindow::on_action_camera_reset_triggered()
     vtkCamera* camera = renderer->GetActiveCamera();
     qDebug() << "reset the camera in case if it gets extreme values of zoom or position";
 
-    renderer->ResetCamera();
-    double x,y,z;
-    camera->GetPosition(x,y,z);
-    qDebug() << "camera position before: " << x << "," << y << "," << z;
+//    renderer->ResetCamera();
+//    double x,y,z;
+//    camera->GetPosition(x,y,z);
+//    qDebug() << "camera position before: " << x << "," << y << "," << z;
 
-    camera->SetClippingRange(1e-3,1e5);
+    camera->SetClippingRange(1e1,1e3);
     camera->SetFocalPoint(0.0, 0.0, 0.0);
     camera->SetPosition(0.0, 0.0, 70.0);
     camera->SetViewUp(0.0, 1.0, 0.0);
@@ -750,16 +757,6 @@ void MainWindow::on_actionMohr_s_triggered()
     save_fan_data_for_testing();
 }
 
-void MainWindow::on_action_Fracture_triggered()
-{
-    // for testing
-/*    controller.model.floes.ComputeFractureDirections(controller.prms, true); // also updates the vlc actors
-    controller.model.FractureStep(controller.prms,
-                                  controller.prms.InitialTimeStep,
-                                  controller.ts.SimulationTime);
-*/
-}
-
 void MainWindow::save_fan_data_for_testing()
 {
     /*
@@ -840,4 +837,13 @@ void MainWindow::on_action_draw_water_Level_triggered(bool checked)
     prefsGUI.ShowWaterLevel = checked;
     controller.model.floes_vtk.actor_water->SetVisibility(checked);
     renderWindow->Render();
+}
+
+void MainWindow::on_action_Screenshot_triggered()
+{
+    windowToImageFilter->Update();
+    QString outputPath = QString::number(controller.getCurrentStep()) + ".png";
+    qDebug() << "taking screenshot: " << outputPath;
+    writer->SetFileName(outputPath.toUtf8().constData());
+    writer->Write();
 }

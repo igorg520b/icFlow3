@@ -28,6 +28,7 @@ find_package(VTK COMPONENTS
   vtkIOGeometry
   vtkRenderingAnnotation
   vtkRenderingLabel
+  vtkIOImage
   QUIET
 )
 if (NOT VTK_FOUND)
