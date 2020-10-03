@@ -40,7 +40,7 @@ public:
     Eigen::Matrix<double,DOFS,1> ut, xt, vt, at; // at step n+1
 
     // forces per node (gravity and any test forces)
-    void ComputeElasticForce(SimParams &prms, double timeStep, double totalTime, double added_mass_coeff);
+    void ComputeElasticForce(SimParams &prms, double timeStep, double totalTime);
     void Assemble(icy::LinearSystem &ls) const;   // distributed F and dF into linear system
     void AcceptTentativeValues();
     Eigen::Matrix<double,DOFS,1> F;
@@ -100,7 +100,9 @@ public:
 
     static double OceanWave(double x, double y, double t);
     static double Smoothstep(double edge0, double edge1, double x);
-    static double RiverRapids(double x, double t);
+    static double SmoothstepDeriv(double edge0, double edge1, double x);
+    static double WaterLine(double x, double y, double t, SimParams &prms);
+    static double WaterLineDt(double x, double y, double t, SimParams &prms); // derivative with respect to time
 };
 
 #endif // NODE_H

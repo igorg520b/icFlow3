@@ -86,7 +86,7 @@ long icy::Model::ComputeElasticForces(SimParams &prms, double timeStep, double t
 
 #pragma omp parallel for
     for(std::size_t i=0;i<nNodes;i++)
-        (*floes.nodes)[i]->ComputeElasticForce(prms, timeStep, totalTime, 3);
+        (*floes.nodes)[i]->ComputeElasticForce(prms, timeStep, totalTime);
 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
@@ -191,7 +191,7 @@ void icy::Model::FractureStep(SimParams &prms, double timeStep, double totalTime
     if(!updateRequested) {updateRequested = true; emit requestGeometryUpdate(); }
 }
 
-void icy::Model::UnsafeUpdateGeometry(int mode, double simulationTime)
+void icy::Model::UnsafeUpdateGeometry(double simulationTime, SimParams &prms)
 {
     mutex.lock();   // prevent modifying nodes, elems and edges while updating VTK arrays
     updateRequested = false;    // reset flag, so that new requests will be issued
@@ -213,7 +213,7 @@ void icy::Model::UnsafeUpdateGeometry(int mode, double simulationTime)
         floes_vtk.UnsafeUpdateValues(floes.nodes.get(), floes.elems.get());
     }
     mutex.unlock();
-    floes_vtk.UnsafeUpdateWaterLine(mode, simulationTime);
+    floes_vtk.UnsafeUpdateWaterLine(simulationTime, prms);
 }
 
 void icy::Model::RestoreFromSerializationBuffers(SimParams &prms)

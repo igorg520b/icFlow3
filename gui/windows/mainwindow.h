@@ -177,7 +177,7 @@ private:
     QChart *chart_pie;
     QPieSeries *series_pie;
 
-    QLineSeries *series[5], *series_mohr, *series_mohr_avg;
+    QLineSeries *series[5], *series_mohr;
     QChart *chart_line, *chart_line_mohr;
 
     // VTK objects

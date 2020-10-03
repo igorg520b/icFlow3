@@ -41,7 +41,7 @@ public:
 
     void FractureStep(SimParams &prms, double timeStep, double totalTime);
 
-    void UnsafeUpdateGeometry(int mode, double simulationTime); // to be called from the main thread
+    void UnsafeUpdateGeometry(double simulationTime, SimParams &prms); // to be called from the main thread
 
     void RestoreFromSerializationBuffers(SimParams &prms); // called from controller after loading data from a file
 

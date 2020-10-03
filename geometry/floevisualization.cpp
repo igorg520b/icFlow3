@@ -22,7 +22,6 @@ icy::FloeVisualization::FloeVisualization()
     dataSetMapper->SetInputData(ugrid);
     dataSetMapper->UseLookupTableScalarRangeOn();
     actor_mesh->SetMapper(dataSetMapper);
-//    actor_mesh->GetProperty()->SetColor(colors->GetColor3d("Seashell").GetData());
     actor_mesh->GetProperty()->SetColor(218/255.0,228/255.0,242/255.0);
     actor_mesh->GetProperty()->SetEdgeColor(161.0/255.0, 176.0/255.0, 215.0/255.0);
     actor_mesh->GetProperty()->LightingOff();
@@ -65,8 +64,8 @@ icy::FloeVisualization::FloeVisualization()
     InitializeLUT();
 
     // water level
-    points_water->SetNumberOfPoints(gridSize*gridSize);
-    grid_water->SetDimensions(gridSize, gridSize, 1);
+    points_water->SetNumberOfPoints(gridSizeX*gridSizeY);
+    grid_water->SetDimensions(gridSizeX, gridSizeY, 1);
     grid_water->SetPoints(points_water);
     mapper_water->SetInputData(grid_water);
     actor_water->SetMapper(mapper_water);
@@ -417,58 +416,30 @@ void icy::FloeVisualization::UnsafeUpdateArrows(std::vector<icy::Node*> *nodes)
 }
 
 
-void icy::FloeVisualization::UnsafeUpdateWaterLine(int mode, double totalTime)
+void icy::FloeVisualization::UnsafeUpdateWaterLine(double totalTime, SimParams &prms)
 {
-    if(mode == 1)
-    {
-        // update water level
-        for(unsigned i=0;i<gridSize;i++)
-            for(unsigned j=0;j<gridSize;j++) {
-                double x = 10.0 * ((double)i/(double)gridSize-0.5);
-                double y = 5.0 * ((double)j/(double)gridSize-0.5);
-                double riverRapids = 0.5*icy::Node::RiverRapids(x, totalTime*0.3-4);
-                points_water->SetPoint(j+i*gridSize, x,y,riverRapids);
-            }
-        points_water->Modified();
-    }
-    else if(mode == 2)
-    {
-        for(unsigned i=0;i<gridSize;i++)
-            for(unsigned j=0;j<gridSize;j++) {
-                double x = 10.0 * ((double)i/(double)gridSize-0.5);
-                double y = 5.0 * ((double)j/(double)gridSize-0.5);
-                points_water->SetPoint(j+i*gridSize, x,y,0);
-            }
-        points_water->Modified();
-    }
-    else if(mode == 3)
-    {
-        for(unsigned i=0;i<gridSize;i++)
-            for(unsigned j=0;j<gridSize;j++) {
-                double x = 10.0 * ((double)i/(double)gridSize-0.5);
-                double y = 5.0 * ((double)j/(double)gridSize-0.5);
-                double rest_position = sin(x*1.5);
-                rest_position *= 0.07*sin(totalTime * 2 * M_PI / 10);
-                if(totalTime < 10) rest_position *= totalTime/10;
-                points_water->SetPoint(j+i*gridSize, x,y,rest_position);
-            }
-        points_water->Modified();
+    int mode = prms.loadType;
 
-    }
-    else if(mode == 4)
+    if(mode == 5 || mode == 6 || mode == 7)
     {
-        for(unsigned i=0;i<gridSize;i++)
-            for(unsigned j=0;j<gridSize;j++) {
-                double x = 10.0 * ((double)i/(double)gridSize-0.5);
-                double y = 5.0 * ((double)j/(double)gridSize-0.5);
-                double rest_position = sin(x*1)+sin(y*1+1);
-                rest_position *= 0.05*sin(totalTime * 2 * M_PI / 10);
-                if(totalTime < 10) rest_position *= totalTime/10;
-                points_water->SetPoint(j+i*gridSize, x,y,rest_position);
+        for(unsigned i=0;i<gridSizeX;i++)
+            for(unsigned j=0;j<gridSizeY;j++) {
+                double x = 55.0 * ((double)i/(double)gridSizeX-0.5);
+                double y = 12.0 * ((double)j/(double)gridSizeY-0.5);
+                double rest_position = icy::Node::WaterLine(x, y, totalTime, prms);
+                points_water->SetPoint(i+j*gridSizeX, x,y,rest_position);
             }
-        points_water->Modified();
+    }
+    if(mode == 1 || mode == 2 || mode == 3 || mode == 4)
+    {
+        for(unsigned i=0;i<gridSizeX;i++)
+            for(unsigned j=0;j<gridSizeY;j++) {
+                double x = 10.0 * ((double)i/(double)gridSizeX-0.5);
+                double y = 5.0 * ((double)j/(double)gridSizeY-0.5);
+                double rest_position = icy::Node::WaterLine(x, y, totalTime, prms);
+                points_water->SetPoint(i+j*gridSizeX, x,y,rest_position);
+            }
     }
 
-
-
+    points_water->Modified();
 }

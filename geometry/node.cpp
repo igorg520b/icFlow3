@@ -13,9 +13,7 @@ icy::Node::Node()
 }
 
 
-
-
-void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double totalTime, double added_mass_coeff)
+void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double totalTime)
 {
     if(prescribed || lsId < 0) return;
     double beta = prms.NewmarkBeta;
@@ -23,19 +21,44 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
     double mass = area*prms.Thickness*prms.IceDensity;
     if(mass <= 0) throw std::runtime_error("zero nodal mass");
 
+
     F = Eigen::Matrix<double,DOFS,1>::Zero();
-    F = at*mass*added_mass_coeff;
+    F = at;
 //    F(2) -= gravity*mass;
     F(3) = 0;
     F(4) = 0;
 
-    dF = Eigen::Matrix<double,DOFS,DOFS>::Identity()*(mass*added_mass_coeff/(beta*timeStep*timeStep));
+    dF = Eigen::Matrix<double,DOFS,DOFS>::Identity()*(mass/(beta*timeStep*timeStep));
     dF(3,3) = 0;
     dF(4,4) = 0;
 
-
     vertical_force = 0;
+    double spring = area*prms.WaterDensity*std::abs(prms.gravity);
+    double water_line = WaterLine(x_initial(0), x_initial(1), totalTime, prms);
 
+    double disp_t = xt(2)-water_line;
+    double disp_n = xn(2)-water_line;
+
+    F(2) += disp_t*spring*(1-alpha);
+    F(2) += disp_n*spring*alpha;
+    dF(2,2) += spring*(1-alpha);
+    vertical_force = disp_t*spring*(1-alpha) + disp_n*spring*alpha;
+
+    // damping force
+    double vert_velocity = WaterLineDt(x_initial(0), x_initial(1), totalTime, prms);
+//    double max_velocity_difference = 3;
+    double velocity_difference = vt.z()-vert_velocity;
+//    if(velocity_difference > max_velocity_difference) velocity_difference = max_velocity_difference;
+//    else if(velocity_difference < -max_velocity_difference) velocity_difference = -max_velocity_difference;
+
+    F(2) += prms.Damping*mass*(velocity_difference)/timeStep;
+    dF(2,2) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
+
+
+
+
+
+/*
     if(prms.loadType == 1)
     {
         // river rapids
@@ -131,50 +154,10 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
         F(2) += disp_n*spring*alpha;
         vertical_force = disp_t*spring*(1-alpha) + disp_n*spring*alpha;
     }
-    else if(prms.loadType == 5)
-    {
-        // river rapids
-        double spring = area*prms.WaterDensity*std::abs(prms.gravity);
-        double riverRapids = 0.5*RiverRapids(x_initial.x(), totalTime*0.3-25.3);
-        double a = prms.Thickness*prms.IceDensity/prms.WaterDensity;
-        double c = prms.Thickness - a;
+    */
 
-        double disp_t = xt(2)-riverRapids;
-        if(disp_t > -c && disp_t < a) dF(2,2) += spring*(1-alpha);
-        else if(disp_t < -c) disp_t = -c;
-        else if(disp_t > a) disp_t = a;
-
-        double disp_n = xn(2)-riverRapids;
-        if(disp_n < -c) disp_n = -c;
-        else if(disp_n > a) disp_n = a;
-
-        F(2) += disp_t*spring*(1-alpha);
-        F(2) += disp_n*spring*alpha;
-        vertical_force = disp_t*spring*(1-alpha) + disp_n*spring*alpha;
-    }
-    else if(prms.loadType == 6)
-    {
-        // standing wave(s)
-        double spring = area*prms.WaterDensity*std::abs(prms.gravity)*1500;
-        double rest_position = prms.wave_height*cos(x_initial.x()*2*M_PI/3.99)*sin(totalTime * 2 * M_PI / 1.6);
-        if(totalTime < 2) rest_position *= totalTime/2;
-        double a = prms.Thickness*prms.IceDensity/prms.WaterDensity;
-        double c = prms.Thickness - a;
-
-        double disp_t = xt(2)-rest_position;
-//        if(disp_t > -c && disp_t < a) dF(2,2) += spring*(1-alpha);
-//        else if(disp_t < -c) disp_t = -c;
-//        else if(disp_t > a) disp_t = a;
-        dF(2,2) += spring*(1-alpha);
-
-        double disp_n = xn(2)-rest_position;
-//        if(disp_n < -c) disp_n = -c;
-//        else if(disp_n > a) disp_n = a;
-
-        F(2) += disp_t*spring*(1-alpha);
-        F(2) += disp_n*spring*alpha;
-        vertical_force = disp_t*spring*(1-alpha) + disp_n*spring*alpha;
-    }
+    /*
+    else
     else if(prms.loadType == 7)
     {
         // standing wave(s)
@@ -202,11 +185,8 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
         F(2) += disp_n*spring*alpha;
         vertical_force = disp_t*spring*(1-alpha) + disp_n*spring*alpha;
     }
+*/
 
-
-    // damping force
-    F(2) += prms.Damping*mass*vt.z()/timeStep;
-    dF(2,2) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
 
 
     // assert
@@ -502,7 +482,9 @@ void icy::Node::ComputeFanVariables(SimParams &prms)
     } // num_disc
 
     // exclude small-angle cuts at the boundary
-    if(isBoundary && (idxSepStressResult < num_disc/10 || idxSepStressResult > num_disc*9/10))
+    if(isBoundary && (idxSepStressResult < num_disc/10 ||
+                      idxSepStressResult > num_disc*9/10) ||
+            end_angle < M_PI/2)
         max_normal_traction = 0;
 }
 
@@ -544,13 +526,57 @@ double icy::Node::OceanWave(double x, double y, double t)
 double icy::Node::Smoothstep(double edge0, double edge1, double x)
 {
     x = (x-edge0)/(edge1-edge0);
-    if(x>1.0) x=1.0;
-    else if(x<0) x=0;
-    return x * x * (3 - 2 * x);
+    if(x>1.0) return 1;
+    else if(x<0) return 0;
+    else return x * x * (3 - 2 * x);
 }
 
-double icy::Node::RiverRapids(double x, double t)
+double icy::Node::SmoothstepDeriv(double edge0, double edge1, double x)
 {
-    return (-Smoothstep(-t, -t+1, x));
+    x = (x-edge0)/(edge1-edge0);
+    if(x>1.0 || x<0) return 0;
+    else return 6*x*(1-x)/(edge1-edge0);
 }
 
+double icy::Node::WaterLine(double x, double y, double t, SimParams &prms)
+{
+    if(prms.loadType == 5) return -prms.wave_height*Smoothstep(0, 1.0, x+t-25.3);
+    else if(prms.loadType == 6) {
+        double result = prms.wave_height*cos(x*2*M_PI/3.99)*sin(t * 2 * M_PI / 1.6);
+        if(t < 2) result *= t/2;
+        return result;
+    }
+    else if(prms.loadType == 7)
+    {
+        double wave1 = prms.wave_height*cos(x*2*M_PI/3.99)*sin(t * 2 * M_PI / 1.6);
+        double wave2 = prms.wave_height*0.1*cos(y*2*M_PI/5)*sin(2+t * 2 * M_PI / 1.2);
+        double wave3 = prms.wave_height*0.1*cos(y*2*M_PI/10)*sin(1+t * 2 * M_PI / 2);
+        if(t < 2) wave1 *= t/2;
+        if(t < 4) wave2 *= t/4;
+        if(t < 6) wave3 *= t/6;
+        return wave1+wave2+wave3;
+    }
+    else return 0;
+}
+
+double icy::Node::WaterLineDt(double x, double y, double t, SimParams &prms)
+{
+    if(prms.loadType == 5) return -prms.wave_height*SmoothstepDeriv(0, 1.0, x+t-25.3);
+    else if(prms.loadType == 6)
+    {
+        double result = prms.wave_height*cos(x*2*M_PI/3.99)*cos(t * 2 * M_PI / 1.6)* 2 * M_PI / 1.6;
+        if(t < 2) result *= t/2;
+        return result;
+    }
+    else if(prms.loadType == 7)
+    {
+        double wave1 = prms.wave_height*cos(x*2*M_PI/3.99)*cos(t * 2 * M_PI / 1.6)* 2 * M_PI / 1.6;
+        double wave2 = prms.wave_height*0.1*cos(y*2*M_PI/5)*cos(2+t * 2 * M_PI / 1.2)* 2 * M_PI / 1.2;
+        double wave3 = prms.wave_height*0.1*cos(y*2*M_PI/10)*cos(1+t * 2 * M_PI / 2)* 2 * M_PI / 2;
+        if(t < 2) wave1 *= t/2;
+        if(t < 4) wave2 *= t/4;
+        if(t < 6) wave3 *= t/6;
+        return wave1+wave2+wave3;
+    }
+    else return 0;
+}

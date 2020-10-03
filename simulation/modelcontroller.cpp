@@ -185,7 +185,7 @@ void icy::ModelController::Step()
         }while(!diverges && (!converged || ts.count_iterations<prms.IterationsMax));
         ts.count_attempts++;
 
-        if(converged) ts.solution_reached=true;
+        if(converged || ts.TimeScaleFactor >=4) ts.solution_reached=true;
         else ts.TimeScaleFactor += 4;
 
     } while(!ts.solution_reached);

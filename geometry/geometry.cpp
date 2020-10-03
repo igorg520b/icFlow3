@@ -68,9 +68,18 @@ void icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
         return;
     }
 
-    auto it_nd = std::max_element(breakable_range.begin(), breakable_range.end(),
-                                  [](Node *nd1, Node *nd2) {
-            return nd1->max_normal_traction < nd2->max_normal_traction; });
+    // give priority to an existing crack tip
+    std::vector<Node*>::iterator it_nd = std::find_if(breakable_range.begin(),
+                                                      breakable_range.end(),
+                                                      [](Node *nd) {return nd->crack_tip;});
+
+    // if no tips, break the node under strongest load
+    if(it_nd == breakable_range.end())
+    {
+        it_nd = std::max_element(breakable_range.begin(), breakable_range.end(),
+                                      [](Node *nd1, Node *nd2) {
+                return nd1->max_normal_traction < nd2->max_normal_traction; });
+    }
 
     maxNode = *it_nd;
     maxNode->dir*=3;

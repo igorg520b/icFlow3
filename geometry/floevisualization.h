@@ -102,7 +102,8 @@ public:
     vtkNew<vtkActor> actor_arrows;
 
     // surface
-    static constexpr unsigned gridSize = 50;
+    static constexpr unsigned gridSizeX = 100;
+    static constexpr unsigned gridSizeY = 50;
     vtkNew<vtkStructuredGrid> grid_water;
     vtkNew<vtkPoints> points_water;
     vtkNew<vtkDataSetMapper> mapper_water;
@@ -121,7 +122,7 @@ public:
     void UnsafeUpdateArrows(std::vector<icy::Node*> *nodes);
     void UnsafeUpdateSelection(std::vector<icy::Node*> *nodes,
                                vtkIdType selectedPoint = -1);
-    void UnsafeUpdateWaterLine(int mode, double simulationTime);
+    void UnsafeUpdateWaterLine(double simulationTime, SimParams &prms);
 
 
 

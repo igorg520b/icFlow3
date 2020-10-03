@@ -33,11 +33,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     chart_line_mohr = new QChart();
     series_mohr = new QLineSeries();
-    series_mohr_avg = new QLineSeries();
     series_mohr->setName("ARCSim_method");
-    series_mohr_avg->setName("node_average");
     chart_line_mohr->addSeries(series_mohr);
-    chart_line_mohr->addSeries(series_mohr_avg);
     chart_line_mohr->createDefaultAxes();
 
     chartView = new QChartView();
@@ -451,7 +448,7 @@ void MainWindow::background_worker_paused()
 
 void MainWindow::render_results()
 {
-    controller.model.UnsafeUpdateGeometry(controller.prms.loadType, controller.ts.SimulationTime);
+    controller.model.UnsafeUpdateGeometry(controller.ts.SimulationTime, controller.prms);
     renderWindow->Render();
 }
 
@@ -710,6 +707,9 @@ void MainWindow::on_action_show_plots_triggered()
 
 void MainWindow::on_actionMohr_s_triggered()
 {
+    int idx = controller.model.floes_vtk.selectedPointId;
+    if(idx<0) return;
+
     chartView->setChart(chart_line_mohr);
     QList<int> sizes = splitter_main->sizes();
     int s = std::max(sizes[1], sizes[2]);
@@ -717,72 +717,49 @@ void MainWindow::on_actionMohr_s_triggered()
     qt_vtk_widget->hide();
     splitter_main->setSizes(QList<int>() << sizes[0] << s << s);
 
-    int idx = controller.model.floes_vtk.selectedPointId;
     series_mohr->clear();
-    series_mohr_avg->clear();
 
     double ymin = DBL_MAX, ymax = -DBL_MAX;
     double xmin = DBL_MAX, xmax = -DBL_MAX;
-    if(idx >= 0)
-    {
-        icy::Node *nd = (*controller.model.floes.nodes)[idx];
-        for(int i=0;i<icy::Node::num_disc;i++)
-        {
-            icy::Node::SepStressResult &ssr = nd->sep_stress_results[i];
-            double val_x = ssr.trac_normal_bottom;
-            double val_y = ssr.trac_tangential_bottom;
-
-            xmin = std::min(xmin, val_x);
-            xmax = std::max(xmax, val_x);
-            ymin = std::min(ymin, val_y);
-            ymax = std::max(ymax, val_y);
-
-            xmin = std::min(xmin, ssr.trac_avg_normal);
-            xmax = std::max(xmax, ssr.trac_avg_normal);
-            ymin = std::min(ymin, ssr.trac_avg_tangential);
-            ymax = std::max(ymax, ssr.trac_avg_tangential);
-
-            series_mohr->append(val_x,val_y);
-            series_mohr_avg->append(ssr.trac_avg_normal,ssr.trac_avg_tangential);
-        }
-        double span_y = ymax-ymin;
-        double span_x = xmax-xmin;
-        double span = std::max(span_y, span_x)*0.65;
-        double avgx = (xmax+xmin)/2;
-
-        QList<QAbstractAxis*> axes = chart_line_mohr->axes();
-        axes[0]->setRange(avgx-span, avgx+span);
-        axes[1]->setRange(-span, span);
-    }
-    save_fan_data_for_testing();
-}
-
-void MainWindow::save_fan_data_for_testing()
-{
-    /*
-    int idx = controller.model.floes.selectedPointId;
-    if(idx<0) return;
-    std::string fileName = std::to_string(idx);
-    std::ofstream myfile(fileName, std::ios_base::out | std::ios_base::trunc);
     icy::Node *nd = (*controller.model.floes.nodes)[idx];
-    myfile << nd->isBoundary << '\n';
+    for(int i=0;i<icy::Node::num_disc;i++)
+    {
+        icy::Node::SepStressResult &ssr = nd->sep_stress_results[i];
+        double val_x = ssr.trac_normal_bottom;
+        double val_y = ssr.trac_tangential_bottom;
+        xmin = std::min(xmin, val_x);
+        xmax = std::max(xmax, val_x);
+        ymin = std::min(ymin, val_y);
+        ymax = std::max(ymax, val_y);
+        series_mohr->append(val_x,val_y);
+    }
+    double span_y = ymax-ymin;
+    double span_x = xmax-xmin;
+    double span = std::max(span_y, span_x)*0.65;
+    double avgx = (xmax+xmin)/2;
 
+    QList<QAbstractAxis*> axes = chart_line_mohr->axes();
+    axes[0]->setRange(avgx-span, avgx+span);
+    axes[1]->setRange(-span, span);
+
+    // export fan data for testing
+    std::cout << "fan:" << std::endl;
     std::size_t nFan = nd->fan.size();
     for (std::size_t f=0; f < nFan; f++) {
         icy::Node::FanPrecomp &fp = nd->fan[f];
-        Eigen::Vector3d u = fp.e0->getVec(nd);
-        Eigen::Vector3d v = fp.e1->getVec(nd);
-        myfile << u.x() << "," << u.y() << "," << u.z() << ',';
-        myfile << v.x() << "," << v.y() << "," << v.z() << ',';
+        Eigen::Vector3d u = fp.e[0]->getVec(nd);
+        Eigen::Vector3d v = fp.e[1]->getVec(nd);
+        std::cout << "model->AddSector(" << u.x() << "," << u.y() << ",";
+        std::cout << v.x() << "," << v.y() << ",";
         double sx = fp.face->str_b_bottom.coeff(0);
         double sy = fp.face->str_b_bottom.coeff(1);
         double txy = fp.face->str_b_bottom.coeff(2);
-        myfile << sx << "," << sy << "," << txy << '\n';
+        std::cout << sx << "," << sy << "," << txy << ");" << '\n';
     }
-
-    myfile.close();
-    */
+    std::cout << std::endl;
 }
+
+
 
 void MainWindow::on_action_Tentative_triggered(bool checked)
 {
