@@ -134,8 +134,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     setCentralWidget(splitter_main);
 
-
-
     // toolbar
     comboBox = new QComboBox();
     ui->toolBar->addWidget(comboBox);
@@ -146,7 +144,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             [=](int index){ comboboxIndexChanged(index); });
-
 
     // slider
     slider = new QSlider(Qt::Horizontal);
@@ -269,7 +266,6 @@ void MainWindow::customMenuRequested(QPoint pos)
     else if(qv1.toInt()==2) menuSolidIndividual->exec(tree->mapToGlobal(pos));
 }
 
-
 void MainWindow::on_action_scene_open_triggered()
 {
     if(worker->running) return; // ensure that backgroundworker is stopped
@@ -296,8 +292,6 @@ void MainWindow::OpenSceneFile(QString fileName)
     renderWindow->Render();
     updateGUI();
 }
-
-
 
 void MainWindow::on_action_scene_save_as_triggered()
 {
@@ -326,12 +320,7 @@ void MainWindow::on_action_scene_save_as_triggered()
     updateGUI();    // current step becomes 0
 }
 
-void MainWindow::on_action_scene_reset_triggered()
-{
-    qDebug() << "reset scene from user menu";
-    Reset();
-}
-
+void MainWindow::on_action_scene_reset_triggered() { Reset(); }
 
 void MainWindow::on_action_import_3D_boundary_triggered()
 {
@@ -357,7 +346,6 @@ void MainWindow::on_action_import_floes_triggered()
     QString fileName = QFileDialog::getOpenFileName(this, "Open 2D STL Patch",
                                                     prefsGUI.LastFolderFloes,
                                                     "Mesh Files (*.stl)");
-//    QString fileName("/home/s2/Projects-Qt/icFlow3/meshes/floes/floe2.stl");
     if (fileName.isEmpty()) return;
     QFileInfo fileInfo(fileName);
     prefsGUI.LastFolderFloes = fileInfo.dir().path();
@@ -399,7 +387,6 @@ void MainWindow::treeItemSelected()
     }
 }
 
-
 void MainWindow::on_action_quit_triggered() { this->close(); }
 
 void MainWindow::closeEvent( QCloseEvent* event )
@@ -424,7 +411,6 @@ void MainWindow::closeEvent( QCloseEvent* event )
 
     // kill backgroundworker
     worker->Finalize();
-//    Reset();
 
     for(auto &solid : controller.model.solids) {
         renderer->RemoveActor(solid->actor_mesh);
@@ -469,7 +455,6 @@ void MainWindow::Reset()
     updateGUI();
     setWindowTitle(wtitle);
     qDebug() << "finished MainWindow::Reset()";
-
 }
 
 void MainWindow::on_action_simulation_single_step_triggered()
@@ -482,21 +467,11 @@ void MainWindow::on_action_simulation_single_step_triggered()
 void MainWindow::on_action_camera_reset_triggered()
 {
     vtkCamera* camera = renderer->GetActiveCamera();
-    qDebug() << "reset the camera in case if it gets extreme values of zoom or position";
-
-//    renderer->ResetCamera();
-//    double x,y,z;
-//    camera->GetPosition(x,y,z);
-//    qDebug() << "camera position before: " << x << "," << y << "," << z;
-
     camera->SetClippingRange(1e1,1e3);
     camera->SetFocalPoint(0.0, 0.0, 0.0);
     camera->SetPosition(0.0, 0.0, 70.0);
     camera->SetViewUp(0.0, 1.0, 0.0);
     camera->Modified();
-    //    camera->ParallelProjectionOn();
-    //    camera->SetParallelScale(50.0); // tweak as needed
-
     renderWindow->Render();
 }
 
@@ -510,6 +485,7 @@ void MainWindow::sliderValueChanged(int val)
     progress_updated();
 }
 
+void MainWindow::on_action_GotoStep0_triggered() { slider->setValue(0); }
 
 
 
@@ -536,6 +512,7 @@ void MainWindow::updateGUI()
     ui->action_scene_save_as->setEnabled(!r);
     ui->action_import_3D_boundary->setEnabled(!r);
     ui->action_simulation_single_step->setEnabled(!r);
+    ui->action_GotoStep0->setEnabled(!r);
 
     statusLabel->setText(r ? "running" : "paused");
     if(!r) ui->action_simulation_start->setEnabled(true);
@@ -684,7 +661,6 @@ void MainWindow::on_action_show_plots_triggered()
             ymin = std::min(ymin, val3);
             ymin = std::min(ymin, val4);
 
-
             ymax = std::max(ymax, val0);
             ymax = std::max(ymax, val1);
             ymax = std::max(ymax, val2);
@@ -824,3 +800,4 @@ void MainWindow::on_action_Screenshot_triggered()
     writer->SetFileName(outputPath.toUtf8().constData());
     writer->Write();
 }
+

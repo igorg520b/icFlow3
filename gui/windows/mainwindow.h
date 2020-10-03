@@ -148,6 +148,8 @@ private slots:
 
     void on_action_Screenshot_triggered();
 
+    void on_action_GotoStep0_triggered();
+
 private:
     PreferencesGUI prefsGUI;
     QDir outputDirectory;

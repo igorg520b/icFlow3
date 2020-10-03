@@ -94,6 +94,8 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="action_GotoStep0"/>
+   <addaction name="separator"/>
    <addaction name="action_simulation_start"/>
    <addaction name="action_simulation_single_step"/>
    <addaction name="separator"/>
@@ -343,6 +345,18 @@
    </property>
    <property name="shortcut">
     <string>F9</string>
+   </property>
+  </action>
+  <action name="action_GotoStep0">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/ic/icons/go-first.svg</normaloff>:/ic/icons/go-first.svg</iconset>
+   </property>
+   <property name="text">
+    <string>GotoStep0</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+1</string>
    </property>
   </action>
  </widget>
