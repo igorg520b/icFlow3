@@ -1,5 +1,6 @@
 #include <cmath>
 #include <cfloat>
+#include <algorithm>
 #include "node.h"
 #include "model.h"
 #include "parameters_sim.h"
@@ -423,19 +424,34 @@ void icy::Node::evaluate_tractions(double angle_fwd, SepStressResult &ssr, const
         ssr.trac_normal_bottom*=coeff;
         ssr.trac_normal_top*=coeff;
     }
+
+    ssr.trac_normal_max = std::max(ssr.trac_normal_top, ssr.trac_normal_bottom);
 }
 
-double icy::Node::normal_traction(const double angle_fwd) const
+double icy::Node::normal_traction(double angle_fwd, double weakening_coeff) const
 {
-
+    SepStressResult tmpSsr;
+    evaluate_tractions(angle_fwd, tmpSsr, weakening_coeff);
+    return tmpSsr.trac_normal_max;
 }
 
-double icy::Node::tangential_traction(const double angle_fwd) const
+void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
 {
+    max_normal_traction = -DBL_MAX;
+    dir = Eigen::Vector3d::Zero();
+    unsigned gridPts = fan.size();
 
+    if(timeLoadedAboveThreshold < prms.temporal_attenuation || gridPts == 1) return;
+
+    if(!isBoundary) gridPts--;
+
+    double grid_results[gridPts];
+    for(unsigned i=0; i<gridPts; i++) grid_results[i] = normal_traction(fan[i].angle0, prms.weakening_coeff);
+    double *highest_grid_pt = std::max_element(grid_results, &grid_results[gridPts]);
+    unsigned highest_pt_idx = std::distance(grid_results, highest_grid_pt);
+
+    int sector1, sector2;
 }
-
-
 
 void icy::Node::ComputeFanVariables(SimParams &prms)
 {
@@ -453,19 +469,13 @@ void icy::Node::ComputeFanVariables(SimParams &prms)
 
         evaluate_tractions(angle_fwd, ssr, prms.weakening_coeff);
 
-        if(max_normal_traction < ssr.trac_normal_top) {
-            max_normal_traction = ssr.trac_normal_top;
+        if(max_normal_traction < ssr.trac_normal_max) {
+            max_normal_traction = ssr.trac_normal_max;
             idxSepStressResult = i;
             dir = ssr.tn;
         }
-
-        if(max_normal_traction < ssr.trac_normal_bottom) {
-            max_normal_traction = ssr.trac_normal_bottom;
-            idxSepStressResult = i;
-            dir = ssr.tn;
-        }
-
     } // num_disc
+    result_with_max_traction = sep_stress_results[idxSepStressResult];
 
     // exclude small-angle cuts at the boundary
     if(isBoundary && (idxSepStressResult < num_disc/10 ||

@@ -139,7 +139,7 @@ void icy::Geometry::SplitNode(SimParams &prms)
     icy::Node *mainSplit = nullptr;
 
     // subsequent calculations are based on the fracture direction where the traction is maximal
-    icy::Node::SepStressResult &ssr = nd->sep_stress_results[nd->idxSepStressResult];
+    icy::Node::SepStressResult &ssr = nd->result_with_max_traction;
 
     // make sure that the interior node has two split faces
     bool isBoundary = (ssr.faces[1] == nullptr);

@@ -78,32 +78,26 @@ public:
         Eigen::Vector3d traction_top[2], traction_bottom[2];
         double phi[2];
         double theta[2];
-
-
-//        double sep_stress_top, sep_stress_bottom;
-//        double t0_normal_top, t0_tangential_top, t1_normal_top, t1_tangential_top;
-//        double t0_normal_bottom, t0_tangential_bottom, t1_normal_bottom, t1_tangential_bottom;
-//        double trac_avg_normal, trac_avg_tangential;    // computed by averaging stress tensor
         double trac_normal_top, trac_tangential_top;
         double trac_normal_bottom, trac_tangential_bottom;
+        double trac_normal_max;
         Eigen::Vector3d tn, tn_p;
         icy::Edge* e[4];
     };
 
     void evaluate_tractions(double angle_fwd, SepStressResult &ssr, const double weakening_coeff) const;
-    double normal_traction(const double angle_fwd) const;
-    double tangential_traction(const double angle_fwd) const;
+    double normal_traction(double angle_fwd, double weakening_coeff) const;
+
+    void ComputeFanVariablesAlt(SimParams &prms);     // compute tractions - alt version
+    SepStressResult result_with_max_traction;
+    Eigen::Vector3d dir;
+    double max_normal_traction;
 
     void ComputeFanVariables(SimParams &prms);     // compute tractions
-
-
 
     static const int num_disc = 200;
     SepStressResult sep_stress_results[num_disc];
     int idxSepStressResult;
-    Eigen::Vector3d dir;
-//    Eigen::Matrix3d str_bottom_avg, str_top_avg;
-    double max_normal_traction;
 
     // additional fracture parameters
     bool crack_tip, core_node, support_node;
