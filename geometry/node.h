@@ -50,9 +50,9 @@ public:
     Eigen::Vector3d str_b, str_m, str_b_top, str_b_bottom;
     Eigen::Vector2d str_s, str_b_top_principal, str_b_bottom_principal;
 
-    struct FanPrecomp
+    struct Sector
     {
-        FanPrecomp(icy::Element *elem, icy::Node *nd);
+        Sector(icy::Element *elem, icy::Node *nd);
         icy::Element *face;
         double centerAngle; // angle from the node to the center of the adjacent element
         icy::Node* nd[2];
@@ -62,29 +62,41 @@ public:
         Eigen::Vector3d t0_top, t1_top, t0_bottom, t1_bottom;
     };
 
-    std::vector<FanPrecomp> fan;
+    std::vector<Sector> fan;
     Eigen::Vector3d normal_n;   // averaged normal of the surrounding elements
 
     // set the size and initialize with adjacent elements
-    void PrepareFan();
-    void ComputeFanVariables(SimParams &prms);     // compute tractions
+    void PrepareFan();  // performed when topology changes
+    void InitializeFan(); // performed when tentative displacements and stress distribution change
+    double fan_angle_span;  // assigned in InitializeFan();
 
     // separation stress
     struct SepStressResult
     {
-        Eigen::Vector3d traction_top[2], traction_bottom[2];
+        double angle_fwd, angle_bwd;
         icy::Element* faces[2];
-        double angle_fwd, angle_bwd, sep_stress_top, sep_stress_bottom;
+        Eigen::Vector3d traction_top[2], traction_bottom[2];
         double phi[2];
         double theta[2];
-        double t0_normal_top, t0_tangential_top, t1_normal_top, t1_tangential_top;
-        double t0_normal_bottom, t0_tangential_bottom, t1_normal_bottom, t1_tangential_bottom;
-        double trac_avg_normal, trac_avg_tangential;    // computed by averaging stress tensor
+
+
+//        double sep_stress_top, sep_stress_bottom;
+//        double t0_normal_top, t0_tangential_top, t1_normal_top, t1_tangential_top;
+//        double t0_normal_bottom, t0_tangential_bottom, t1_normal_bottom, t1_tangential_bottom;
+//        double trac_avg_normal, trac_avg_tangential;    // computed by averaging stress tensor
         double trac_normal_top, trac_tangential_top;
         double trac_normal_bottom, trac_tangential_bottom;
-        Eigen::Vector3d tn, tn_perp;
+        Eigen::Vector3d tn, tn_p;
         icy::Edge* e[4];
     };
+
+    void evaluate_tractions(double angle_fwd, SepStressResult &ssr, const double weakening_coeff) const;
+    double normal_traction(const double angle_fwd) const;
+    double tangential_traction(const double angle_fwd) const;
+
+    void ComputeFanVariables(SimParams &prms);     // compute tractions
+
+
 
     static const int num_disc = 200;
     SepStressResult sep_stress_results[num_disc];

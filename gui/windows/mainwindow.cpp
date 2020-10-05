@@ -722,7 +722,7 @@ void MainWindow::on_actionMohr_s_triggered()
     std::cout << "fan:" << std::endl;
     std::size_t nFan = nd->fan.size();
     for (std::size_t f=0; f < nFan; f++) {
-        icy::Node::FanPrecomp &fp = nd->fan[f];
+        icy::Node::Sector &fp = nd->fan[f];
         Eigen::Vector3d u = fp.e[0]->getVec(nd);
         Eigen::Vector3d v = fp.e[1]->getVec(nd);
         std::cout << "model->AddSector(" << u.x() << "," << u.y() << ",";

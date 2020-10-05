@@ -360,7 +360,7 @@ void icy::FloeVisualization::UnsafeUpdateSelection(std::vector<icy::Node*> *node
         std::size_t nFan = nd->fan.size();
         for(std::size_t i=0;i<nFan;i++)
         {
-            icy::Node::FanPrecomp &f = nd->fan[i];
+            icy::Node::Sector &f = nd->fan[i];
             for(int j=0;j<3;j++) pts2[j] = f.face->nds[j]->locId;
             ugrid_selection->InsertNextCell(VTK_TRIANGLE,3,pts2);
             edgeNumbers->InsertNextValue(i);

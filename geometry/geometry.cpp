@@ -39,6 +39,7 @@ void icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
     for(std::size_t i=0;i<nNodes;i++)
     {
         icy::Node *nd = (*nodes)[i];
+        nd->InitializeFan();
         nd->ComputeFanVariables(prms);
 
         if(startingFracture)
@@ -147,7 +148,7 @@ void icy::Geometry::SplitNode(SimParams &prms)
     // iterate over the "fan" and replace nd with mainSplit on the elements between angle_fwd and angle_bwd
     if(isBoundary)
     {
-        for(icy::Node::FanPrecomp &f : nd->fan)
+        for(icy::Node::Sector &f : nd->fan)
             if(f.angle0 > ssr.angle_fwd && f.angle1 > ssr.angle_fwd) {
                 if(mainSplit == nullptr) mainSplit = AddNode(nd);
                 f.face->ReplaceNode(nd, mainSplit);
@@ -155,7 +156,7 @@ void icy::Geometry::SplitNode(SimParams &prms)
     }
     else if(ssr.angle_fwd > ssr.angle_bwd)
     {
-        for(icy::Node::FanPrecomp &f : nd->fan)
+        for(icy::Node::Sector &f : nd->fan)
             if((f.angle0 > ssr.angle_fwd || f.angle0 < ssr.angle_bwd)
                     && (f.angle1 > ssr.angle_fwd || f.angle1 < ssr.angle_bwd)) {
                 if(mainSplit == nullptr) mainSplit = AddNode(nd);
@@ -165,7 +166,7 @@ void icy::Geometry::SplitNode(SimParams &prms)
     else
     {
         // (ssr.angle_fwd < ssr.angle_bwd)
-        for(icy::Node::FanPrecomp &f : nd->fan)
+        for(icy::Node::Sector &f : nd->fan)
             if(f.angle0 > ssr.angle_fwd && f.angle1 > ssr.angle_fwd &&
                     f.angle0 < ssr.angle_bwd && f.angle1 < ssr.angle_bwd) {
                 if(mainSplit == nullptr) mainSplit = AddNode(nd);
@@ -324,10 +325,10 @@ void icy::Geometry::SplitAlongExistingEdge(Edge *edge, Node *centerNode, Node* &
 
     auto fan_iter = std::find_if(oppositeNode->fan.begin(),
                                  oppositeNode->fan.end(),
-                                 [existingFace](icy::Node::FanPrecomp &f)
+                                 [existingFace](icy::Node::Sector &f)
     {return f.face == existingFace;});
     if(fan_iter == oppositeNode->fan.end()) throw std::runtime_error("existing face not in the fan");
-    icy::Node::FanPrecomp &fanItem = *fan_iter;
+    icy::Node::Sector &fanItem = *fan_iter;
     int whichEdge;
     if(fanItem.nd[0] == centerNode) whichEdge = 0;
     else if(fanItem.nd[1] == centerNode) whichEdge = 1;

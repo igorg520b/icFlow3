@@ -269,7 +269,7 @@ void icy::Geometry::CreateEdges()
             // process adjacent elements
             icy::Node *nd = elem->nds[i];
             nd->area += elem->area_initial/3;
-            icy::Node::FanPrecomp f(elem, nd);
+            icy::Node::Sector f(elem, nd);
             nd->fan.push_back(f);
 
             // process edges
