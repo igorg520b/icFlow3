@@ -626,6 +626,7 @@ void MainWindow::PickCallbackFunction(vtkObject* caller,
 
 void MainWindow::on_action_show_plots_triggered()
 {
+    /*
     chartView->setChart(chart_line);
     QList<int> sizes = splitter_main->sizes();
     int s = std::max(sizes[1], sizes[2]);
@@ -678,11 +679,12 @@ void MainWindow::on_action_show_plots_triggered()
         axes[0]->setRange(0, 2*M_PI);
         axes[1]->setRange(ymin-0.1*span,ymax+0.1*span);
     }
-
+*/
 }
 
 void MainWindow::on_actionMohr_s_triggered()
 {
+    /*
     int idx = controller.model.floes_vtk.selectedPointId;
     if(idx<0) return;
 
@@ -733,6 +735,7 @@ void MainWindow::on_actionMohr_s_triggered()
         std::cout << sx << "," << sy << "," << txy << ");" << '\n';
     }
     std::cout << std::endl;
+    */
 }
 
 

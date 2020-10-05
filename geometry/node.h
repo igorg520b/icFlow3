@@ -95,9 +95,6 @@ public:
 
     void ComputeFanVariables(SimParams &prms);     // compute tractions
 
-    static const int num_disc = 200;
-    SepStressResult sep_stress_results[num_disc];
-    int idxSepStressResult;
 
     // additional fracture parameters
     bool crack_tip, core_node, support_node;
@@ -109,6 +106,11 @@ public:
     static double SmoothstepDeriv(double edge0, double edge1, double x);
     static double WaterLine(double x, double y, double t, SimParams &prms);
     static double WaterLineDt(double x, double y, double t, SimParams &prms); // derivative with respect to time
+
+private:
+    int idxSepStressResult;
+    static const int num_disc = 200;
+    SepStressResult sep_stress_results[num_disc];
 };
 
 #endif // NODE_H

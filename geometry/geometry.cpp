@@ -40,7 +40,8 @@ void icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
     {
         icy::Node *nd = (*nodes)[i];
         nd->InitializeFan();
-        nd->ComputeFanVariables(prms);
+//        nd->ComputeFanVariables(prms);
+        nd->ComputeFanVariablesAlt(prms);
 
         if(startingFracture)
         {

@@ -5,6 +5,7 @@
 #include "model.h"
 #include "parameters_sim.h"
 #include "element.h"
+#include "boost/math/tools/minima.hpp"
 
 icy::Node::Node()
 {
@@ -260,13 +261,12 @@ void icy::Node::PrepareFan()
     if(isBoundary)
     {
         // find the fan element with the border on the CW direction
-        auto cw_boundary = std::find_if(fan.begin(), fan.end(),
-                                        [](const Sector &f){return f.e[0]->isBoundary;});
+        auto cw_boundary = std::find_if(fan.begin(), fan.end(), [](const Sector &f){return f.e[0]->isBoundary;});
         if(cw_boundary == fan.end()) throw std::runtime_error("cw boundary not found");
         std::rotate(fan.begin(), cw_boundary, fan.end());
     }
 
-    // assert that nodes of the fan connect
+    // assert that the nodes of the fan connect
     for(std::size_t i = 0;i<fan.size()-1;i++)
     {
         if(fan[i].nd[1] != fan[i+1].nd[0])
@@ -437,20 +437,64 @@ double icy::Node::normal_traction(double angle_fwd, double weakening_coeff) cons
 
 void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
 {
-    max_normal_traction = -DBL_MAX;
-    dir = Eigen::Vector3d::Zero();
-    unsigned gridPts = fan.size();
+    max_normal_traction = 0;
+    unsigned nFan = fan.size();
 
-    if(timeLoadedAboveThreshold < prms.temporal_attenuation || gridPts == 1) return;
+    double weakening_coeff = prms.weakening_coeff;
 
-    if(!isBoundary) gridPts--;
+    unsigned gridPts = isBoundary ? nFan+1 : nFan;
 
     double grid_results[gridPts];
-    for(unsigned i=0; i<gridPts; i++) grid_results[i] = normal_traction(fan[i].angle0, prms.weakening_coeff);
-    double *highest_grid_pt = std::max_element(grid_results, &grid_results[gridPts]);
-    unsigned highest_pt_idx = std::distance(grid_results, highest_grid_pt);
+    for(unsigned i=0; i<nFan; i++) grid_results[i] = normal_traction(fan[i].angle0, weakening_coeff);
+    if(isBoundary) grid_results[nFan] = normal_traction(fan[nFan-1].angle1, weakening_coeff);
 
+    double *highest_grid_pt = std::max_element(grid_results, &grid_results[gridPts]);
+    unsigned idx = std::distance(grid_results, highest_grid_pt);
+
+    // reject if the grid max is low
+    if(*highest_grid_pt < prms.normal_traction_threshold/3) return;
+
+    // sectors
     int sector1, sector2;
+
+    if(isBoundary && (idx == 0 || idx==gridPts-1))
+    {
+        sector1 = idx == 0 ? 0 : gridPts-2;
+        sector2 = -1;
+    }
+    else
+    {
+        sector1 = idx;
+        sector2 = (idx-1+nFan)%nFan;
+    }
+
+    int bits = std::numeric_limits<float>::digits;
+
+    boost::uintmax_t max_iter = 30;
+    auto [fracture_angle, max1] = boost::math::tools::brent_find_minima(
+                    [=](double x){return -normal_traction(x, weakening_coeff);},
+        fan[sector1].angle0, fan[sector1].angle1, bits, max_iter);
+    max_normal_traction = -max1;
+
+    if(sector2 > -1)
+    {
+        max_iter = 30;
+        auto [fracture_angle2, max2] = boost::math::tools::brent_find_minima(
+                        [=](double x){return -normal_traction(x, weakening_coeff);},
+            fan[sector2].angle0, fan[sector2].angle1, bits, max_iter);
+        max2 = -max2;
+        if(max2 > max_normal_traction) fracture_angle = fracture_angle2;
+    }
+
+    evaluate_tractions(fracture_angle, result_with_max_traction, weakening_coeff);
+    max_normal_traction = result_with_max_traction.trac_normal_max;
+    dir = result_with_max_traction.tn;
+
+    const double threshold_angle = fan_angle_span/10;
+    if(isBoundary && (fracture_angle < threshold_angle ||
+                      fracture_angle > fan_angle_span-threshold_angle || fan_angle_span < M_PI/2))
+    {max_normal_traction=0; return;}
+
 }
 
 void icy::Node::ComputeFanVariables(SimParams &prms)
@@ -463,10 +507,7 @@ void icy::Node::ComputeFanVariables(SimParams &prms)
     // discretize (CCW)
     for (std::size_t i=0; i<num_disc; i++) {
         SepStressResult &ssr = sep_stress_results[i];
-        // ssr.tn = Eigen::Vector3d::Zero();
-
         double angle_fwd = (double)i*fan_angle_span/num_disc;
-
         evaluate_tractions(angle_fwd, ssr, prms.weakening_coeff);
 
         if(max_normal_traction < ssr.trac_normal_max) {
