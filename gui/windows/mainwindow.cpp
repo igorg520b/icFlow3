@@ -31,21 +31,25 @@ MainWindow::MainWindow(QWidget *parent)
     series[3]->setName("t1 tang");
     series[4]->setName("t0-t1 tang");
 
-    chart_line_mohr = new QChart();
-    series_mohr = new QLineSeries();
-    series_mohr->setName("ARCSim_method");
+    chart_line_mohr = new QChart;
+    series_mohr = new QLineSeries;
+    series_mohr->setName("ARCSim");
     chart_line_mohr->addSeries(series_mohr);
+
+    mohr_sectors = new QScatterSeries;
+    mohr_sectors->setName("sectors");
+    chart_line_mohr->addSeries(mohr_sectors);
     chart_line_mohr->createDefaultAxes();
 
-    chartView = new QChartView();
+    chartView = new QChartView;
     chartView->setRenderHint(QPainter::Antialiasing);
     chartView->hide();
 
-    series_pie = new QPieSeries();
+    series_pie = new QPieSeries;
     series_pie->setHoleSize(0.35);
     series_pie->append("Protein 4.2%", 4.2);
 
-    chart_pie = new QChart();
+    chart_pie = new QChart;
     chart_pie->setTitle("Donut with a lemon glaze (100g)");
     chart_pie->addSeries(series_pie);
     chart_pie->legend()->setAlignment(Qt::AlignBottom);
@@ -54,7 +58,7 @@ MainWindow::MainWindow(QWidget *parent)
     chartView->setChart(chart_pie);
 
     // tree
-    tree = new QTreeWidget();
+    tree = new QTreeWidget;
     tree->setHeaderHidden(true);
     tree->setContextMenuPolicy(Qt::ContextMenuPolicy::CustomContextMenu);
     connect(tree, SIGNAL(customContextMenuRequested(QPoint)), SLOT(customMenuRequested(QPoint)));
@@ -684,7 +688,8 @@ void MainWindow::on_action_show_plots_triggered()
 
 void MainWindow::on_actionMohr_s_triggered()
 {
-    /*
+    const unsigned nPoints = 500;
+
     int idx = controller.model.floes_vtk.selectedPointId;
     if(idx<0) return;
 
@@ -696,21 +701,32 @@ void MainWindow::on_actionMohr_s_triggered()
     splitter_main->setSizes(QList<int>() << sizes[0] << s << s);
 
     series_mohr->clear();
+    mohr_sectors->clear();
 
+    std::vector<std::tuple<double,double,double>> res_curve;
     double ymin = DBL_MAX, ymax = -DBL_MAX;
     double xmin = DBL_MAX, xmax = -DBL_MAX;
     icy::Node *nd = (*controller.model.floes.nodes)[idx];
-    for(int i=0;i<icy::Node::num_disc;i++)
+    std::cout << std::endl << "{";
+    for(unsigned i=0;i<nPoints;i++)
     {
-        icy::Node::SepStressResult &ssr = nd->sep_stress_results[i];
-        double val_x = ssr.trac_normal_bottom;
-        double val_y = ssr.trac_tangential_bottom;
+        double angle = nd->fan_angle_span*(double)i/(double)(nPoints-1);
+
+        icy::Node::SepStressResult tmpSsr;
+        nd->evaluate_tractions(angle, tmpSsr, controller.prms.weakening_coeff);
+
+        double val_x = tmpSsr.trac_normal_top;
+        double val_y = tmpSsr.trac_tangential_top;
         xmin = std::min(xmin, val_x);
         xmax = std::max(xmax, val_x);
         ymin = std::min(ymin, val_y);
         ymax = std::max(ymax, val_y);
         series_mohr->append(val_x,val_y);
+        res_curve.push_back(std::make_tuple(angle, val_x, val_y));
+        std::cout << "{" << angle << "," << val_x/1000 << "," << val_y/1000 << "}";
+        if(i!=nPoints-1) std::cout << ",";
     }
+    std::cout << "}" << std::endl;
     double span_y = ymax-ymin;
     double span_x = xmax-xmin;
     double span = std::max(span_y, span_x)*0.65;
@@ -720,6 +736,34 @@ void MainWindow::on_actionMohr_s_triggered()
     axes[0]->setRange(avgx-span, avgx+span);
     axes[1]->setRange(-span, span);
 
+    // sectors
+
+    std::vector<std::tuple<double,double,double>> res_sectors;
+    std::cout << std::endl << "{";
+    for(icy::Node::Sector &s : nd->fan)
+    {
+        double angle = s.angle1;
+        icy::Node::SepStressResult tmpSsr;
+        nd->evaluate_tractions(angle, tmpSsr, controller.prms.weakening_coeff);
+
+        double val_x = tmpSsr.trac_normal_top;
+        double val_y = tmpSsr.trac_tangential_top;
+        mohr_sectors->append(val_x, val_y);
+        res_sectors.push_back(std::make_tuple(angle, val_x, val_y));
+        std::cout << "{" << angle << "," << val_x/1000 << "," << val_y/1000 << "},";
+    }
+    icy::Node::SepStressResult tmpSsr;
+    nd->evaluate_tractions(0, tmpSsr, controller.prms.weakening_coeff);
+    double val_x = tmpSsr.trac_normal_top;
+    double val_y = tmpSsr.trac_tangential_top;
+    mohr_sectors->append(val_x, val_y);
+    res_sectors.push_back(std::make_tuple(0, val_x, val_y));
+    std::cout << "{" << 0 << "," << val_x/1000 << "," << val_y/1000 << "}";
+    std::cout << "}" << std::endl;
+
+
+
+    /*
     // export fan data for testing
     std::cout << "fan:" << std::endl;
     std::size_t nFan = nd->fan.size();

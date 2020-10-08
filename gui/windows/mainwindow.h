@@ -180,6 +180,7 @@ private:
     QPieSeries *series_pie;
 
     QLineSeries *series[5], *series_mohr;
+    QScatterSeries *mohr_sectors;
     QChart *chart_line, *chart_line_mohr;
 
     // VTK objects

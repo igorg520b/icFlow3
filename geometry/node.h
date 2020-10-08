@@ -95,7 +95,6 @@ public:
 
     void ComputeFanVariables(SimParams &prms);     // compute tractions
 
-
     // additional fracture parameters
     bool crack_tip, core_node, support_node;
     double timeLoadedAboveThreshold;
