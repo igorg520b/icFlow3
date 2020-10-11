@@ -107,6 +107,7 @@ target_include_directories(fl3 PUBLIC /usr/include/hdf5/serial)
 
 # some paths need to be set manually
 target_include_directories(fl3 PUBLIC /home/s2/intel/mkl/include)
+#target_include_directories(fl3 PUBLIC /home/s2/Projects-libraries/eigen-3.3.8)
 target_include_directories(fl3 PUBLIC /home/s2/Projects-libraries/eigen)
 target_include_directories(fl3 PUBLIC /home/s2/Projects-libraries/oneTBB/include/)
 target_include_directories(fl3 PUBLIC /home/s2/Projects-libraries/oneTBB/include/tbb/)

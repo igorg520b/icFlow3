@@ -31,7 +31,7 @@ void icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
     EvaluateStresses(prms);
     DistributeStresses();
 
-    double threashold = prms.normal_traction_threshold;
+    float threashold = prms.normal_traction_threshold;
 
     std::size_t nNodes = nodes->size();
     // compute max traction and potential fracture direction
@@ -56,7 +56,7 @@ void icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
 
         if(nd->crack_tip && nd->max_normal_traction > threashold)
             nd->core_node = true;
-        if(!nd->core_node) nd->dir=Eigen::Vector3d::Zero();
+        if(!nd->core_node) nd->dir=Eigen::Vector2f::Zero();
     }
 
     // put "core_nodes" into breakable_range
@@ -187,12 +187,16 @@ void icy::Geometry::SplitNode(SimParams &prms)
     double whereToSplit = forwardEdge ? factor1/(factor0+factor1) : factor0/(factor0+factor1);
 
     icy::Edge *splitEdge0 = getEdgeByNodalIdx(nd0idx, nd1idx);
+
+    /*
     Eigen::Vector3d dir = ssr.tn;
     if(nd->crack_tip)
     {
         dir+=2*nd->weakening_direction;
         dir.normalize();
     }
+    */
+
     SplitEdge(splitEdge0, whereToSplit, nd, mainSplit, forwardEdge, prms, ssr.tn);
 
     if(ssr.faces[1] != nullptr)
@@ -211,7 +215,7 @@ void icy::Geometry::SplitNode(SimParams &prms)
         SplitEdge(splitEdge0, whereToSplit, nd, mainSplit, !forwardEdge, prms, -ssr.tn);
     }
 
-    nd->weakening_direction = Eigen::Vector3d::Zero();
+    nd->weakening_direction = Eigen::Vector2f::Zero();
     nd->crack_tip = false;
 
     CreateEdges();
@@ -223,7 +227,7 @@ void icy::Geometry::SplitNode(SimParams &prms)
 void icy::Geometry::SplitEdge(icy::Edge *edge, double where,
                               icy::Node *centerNode, icy::Node* &splitNode,
                               bool forwardDirection,
-                              SimParams &prms, Eigen::Vector3d dir)
+                              SimParams &prms, Eigen::Vector2f dir)
 {
     if(where < prms.fracture_epsilon) {
         SplitAlongExistingEdge(edge, centerNode, splitNode, 1, forwardDirection, dir);
@@ -235,7 +239,6 @@ void icy::Geometry::SplitEdge(icy::Edge *edge, double where,
         return;
     }
 
-    // qDebug() << "SplitEdge";
     if(splitNode == nullptr) splitNode = AddNode(centerNode);
 
     if(edge->isBoundary)
@@ -274,7 +277,6 @@ void icy::Geometry::SplitEdge(icy::Edge *edge, double where,
         // CRACK TIP NODE
         icy::Node *split0 = AddNode();
         split0->InitializeFromAdjacent(edge->nds[0], edge->nds[1], where);
-//        split0->weakening_direction = (split0->xt - centerNode->xt).block(0,0,3,1).normalized();
         split0->weakening_direction = dir;
         split0->crack_tip = true;
 
@@ -305,7 +307,7 @@ void icy::Geometry::SplitEdge(icy::Edge *edge, double where,
 }
 
 void icy::Geometry::SplitAlongExistingEdge(Edge *edge, Node *centerNode, Node* &splitNode,
-                                           int oppositeNodeIdx, bool forwardDirection, Eigen::Vector3d dir)
+                                           int oppositeNodeIdx, bool forwardDirection, Eigen::Vector2f dir)
 {
     // qDebug() << "SplitAlongExistingEdge; oppositeNodeIdx: " << oppositeNodeIdx;
 
@@ -349,7 +351,6 @@ void icy::Geometry::SplitAlongExistingEdge(Edge *edge, Node *centerNode, Node* &
     {
         // CRACK TIP NODE
         oppositeNode->weakening_direction = dir;
-//        oppositeNode->weakening_direction = (oppositeNode->xt - centerNode->xt).block(0,0,3,1).normalized();
         oppositeNode->crack_tip = true;
     }
     else

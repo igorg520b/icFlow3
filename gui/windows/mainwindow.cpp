@@ -599,12 +599,13 @@ void MainWindow::comboboxIndexChanged(int index)
                                                   (icy::FloeVisualization::VisOpt)index);
     prefsGUI.VisualizationOption = index;
     renderWindow->Render();
+    scalarBar->SetVisibility(prefsGUI.ShowScalarBar && prefsGUI.VisualizationOption!=0);
 }
 
 void MainWindow::on_action_show_scalar_bar_triggered(bool checked)
 {
     prefsGUI.ShowScalarBar = checked;
-    scalarBar->SetVisibility(checked);
+    scalarBar->SetVisibility(prefsGUI.ShowScalarBar && prefsGUI.VisualizationOption!=0);
     renderWindow->Render();
 }
 

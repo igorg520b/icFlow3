@@ -21,7 +21,7 @@ public:
 
     double getAngle(icy::Node *center_node) const;
     icy::Element* get_CCW_Element(icy::Node *center_node) const; // adjacent element from ccw side; deprecated
-    Eigen::Vector3d getVec(icy::Node *center_node) const;     // as vector at step n
+    Eigen::Vector2f getVec(icy::Node *center_node) const;     // as vector at step n
     icy::Node* getOtherNode(icy::Node *center_node) const;
     // icy::Node* getOppositeNode(int idx);
     icy::Element* getTheOnlyElement();

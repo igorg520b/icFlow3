@@ -42,7 +42,7 @@ public:
     // sress values / visualization
     Eigen::Vector3d str_b, str_m, str_b_top, str_b_bottom;
     Eigen::Vector2d str_s[3], str_b_top_principal, str_b_bottom_principal;
-    Eigen::Matrix3d str_top, str_bottom;    // stress on top and bottom surface of the plate, as 3x3 matrix
+    Eigen::Matrix2f str_top, str_bottom;    // stress on top and bottom surface of the plate, as 3x3 matrix
 
     void InitializePersistentVariables(); // everything that depends on initial position (not K and M)
     // K and M are computed after rho, Y and nu are set/changed

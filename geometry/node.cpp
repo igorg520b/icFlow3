@@ -25,7 +25,7 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
 
     F = Eigen::Matrix<double,DOFS,1>::Zero();
     F = at;
-//    F(2) -= gravity*mass;
+    F(2) -= prms.gravity*mass;
     F(3) = 0;
     F(4) = 0;
 
@@ -43,6 +43,8 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
 
         double disp_t = xt(2)-water_line;
         double disp_n = xn(2)-water_line;
+        std::clamp(disp_t, -prms.Thickness*2, prms.Thickness*2);
+        std::clamp(disp_n, -prms.Thickness*2, prms.Thickness*2);
 
         F(2) += disp_t*spring*(1-alpha);
         F(2) += disp_n*spring*alpha;
@@ -64,8 +66,6 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
         // other types of loading
 
     }
-
-
 
 
 
@@ -195,7 +195,8 @@ double icy::Node::WaterLineDt(double x, double y, double t, SimParams &prms)
 void icy::Node::Reset()
 {
     x_initial=ut=xt=vt=at=un=xn=vn=an=Eigen::Matrix<double,DOFS,1>::Zero();
-    weakening_direction = normal_n = Eigen::Vector3d::Zero();
+    weakening_direction = Eigen::Vector2f::Zero();
+    normal_n = Eigen::Vector3d::Zero();
     prescribed = false;
     area = 0;
     adjacent_nodes.clear();
@@ -286,35 +287,34 @@ void icy::Node::PrepareFan()
 
 void icy::Node::InitializeFan()
 {
-    auto get_angle = [](Eigen::Vector3d u, Eigen::Vector3d v)
+    auto get_angle = [](Eigen::Vector2f u, Eigen::Vector2f v)
     {
-        double dot = u.dot(v)/(u.norm()*v.norm());
+        double dot = u.dot(v);
+//        double dot = u.dot(v)/(u.norm()*v.norm());
         if(dot > 1) dot = 1.0;
         else if(dot < -1.0) dot = -1.0;
         return acos(dot);
     };
 
     // TODO: make sure that normal_n is already computed at this stage
-    normal_n = Eigen::Vector3d::Zero();
-    for(Sector &f : fan) normal_n += f.face->normal_n;
-    normal_n.normalize();
+//    normal_n = Eigen::Vector3d::Zero();
+//    for(Sector &f : fan) normal_n += f.face->normal_n;
+//    normal_n.normalize();
 
     fan_angle_span = 0;
 
     for(Sector &f : fan)
     {
-        Eigen::Vector3d u = f.e[0]->getVec(this);
-        Eigen::Vector3d v = f.e[1]->getVec(this);
-        f.u_normalized = u.normalized();
-        f.v_normalized = v.normalized();
+        f.u_normalized = f.e[0]->getVec(this).normalized();
+        f.v_normalized = f.e[1]->getVec(this).normalized();
 
         f.angle0 = fan_angle_span;
-        f.angle_span = get_angle(u,v);
+        f.angle_span = get_angle(f.u_normalized,f.v_normalized);
         fan_angle_span += f.angle_span;
         f.angle1 = fan_angle_span;
 
-        f.u_p = normal_n.cross(u).normalized();
-        f.v_p = normal_n.cross(v).normalized();
+        f.u_p << -f.u_normalized.y(), f.u_normalized.x();
+        f.v_p << -f.v_normalized.y(), f.v_normalized.x();
 
         f.t0_top << f.face->str_top * f.u_p;
         f.t1_top << f.face->str_top * f.v_p;
@@ -324,10 +324,10 @@ void icy::Node::InitializeFan()
 }
 
 
-void icy::Node::evaluate_tractions(double angle_fwd, SepStressResult &ssr, const double weakening_coeff) const
+void icy::Node::evaluate_tractions(float angle_fwd, SepStressResult &ssr, const float weakening_coeff) const
 {
-    ssr.traction_top[0] = ssr.traction_top[1] = Eigen::Vector3d::Zero();
-    ssr.traction_bottom[0] = ssr.traction_bottom[1] = Eigen::Vector3d::Zero();
+    ssr.traction_top[0] = ssr.traction_top[1] = Eigen::Vector2f::Zero();
+    ssr.traction_bottom[0] = ssr.traction_bottom[1] = Eigen::Vector2f::Zero();
     ssr.faces[0] = ssr.faces[1] = nullptr;
 
     if(angle_fwd == fan_angle_span) angle_fwd -= 1e-10;
@@ -352,14 +352,15 @@ void icy::Node::evaluate_tractions(double angle_fwd, SepStressResult &ssr, const
             ssr.e[0] = fp.e[0];
             ssr.e[1] = fp.e[1];
 
-            double phi = ssr.phi[0] = angle_fwd - fp.angle0;
+            float phi = ssr.phi[0] = angle_fwd - fp.angle0;
             ssr.theta[0] = fp.angle1 - angle_fwd;
 
-            double ratio = phi/fp.angle_span;
+            float ratio = phi/fp.angle_span;
             ssr.tn = (fp.u_normalized*(1-ratio) + fp.v_normalized*ratio).normalized();
-            ssr.tn_p = normal_n.cross(ssr.tn).normalized();
-            Eigen::Vector3d tmult_top = fp.face->str_top * ssr.tn_p;
-            Eigen::Vector3d tmult_bottom = fp.face->str_bottom * ssr.tn_p;
+            ssr.tn_p = (fp.u_p*(1-ratio) + fp.v_p*ratio).normalized(); // perpendicular to tn
+            //ssr.tn_p = normal_n.cross(ssr.tn).normalized();
+            Eigen::Vector2f tmult_top = fp.face->str_top * ssr.tn_p;
+            Eigen::Vector2f tmult_bottom = fp.face->str_bottom * ssr.tn_p;
 
             ssr.traction_top[sector] += tmult_top - fp.t0_top;
             ssr.traction_bottom[sector] += tmult_bottom - fp.t0_bottom;
@@ -373,14 +374,16 @@ void icy::Node::evaluate_tractions(double angle_fwd, SepStressResult &ssr, const
             ssr.e[2] = fp.e[0];
             ssr.e[3] = fp.e[1];
 
-            double phi = ssr.phi[1] = angle_bwd - fp.angle0;
+            float phi = ssr.phi[1] = angle_bwd - fp.angle0;
             ssr.theta[1] = fp.angle1 - angle_bwd;
 
-            double ratio = phi/fp.angle_span;
-            Eigen::Vector3d tn_bwd = fp.u_normalized*(1-ratio) + fp.v_normalized*ratio;
-            Eigen::Vector3d tn_p = normal_n.cross(tn_bwd).normalized();
-            Eigen::Vector3d tmult_top = fp.face->str_top * tn_p;
-            Eigen::Vector3d tmult_bottom = fp.face->str_bottom * tn_p;
+            float ratio = phi/fp.angle_span;
+            //Eigen::Vector2f tn_bwd = fp.u_normalized*(1-ratio) + fp.v_normalized*ratio;
+            Eigen::Vector2f tn_p = (fp.u_p*(1-ratio) + fp.v_p*ratio).normalized(); // perpendicular to tn
+
+//            Eigen::Vector3f tn_p = normal_n.cross(tn_bwd).normalized();
+            Eigen::Vector2f tmult_top = fp.face->str_top * tn_p;
+            Eigen::Vector2f tmult_bottom = fp.face->str_bottom * tn_p;
 
             ssr.traction_top[sector] += tmult_top - fp.t0_top;
             ssr.traction_bottom[sector] += tmult_bottom - fp.t0_bottom;
@@ -395,17 +398,17 @@ void icy::Node::evaluate_tractions(double angle_fwd, SepStressResult &ssr, const
         }
     }   // nFans
 
-    double t0_tangential_top = ssr.traction_top[0].dot(ssr.tn);
-    double t1_tangential_top = ssr.traction_top[1].dot(ssr.tn);
-    double t0_normal_top = ssr.tn_p.dot(ssr.traction_top[0]);
-    double t1_normal_top = -ssr.tn_p.dot(ssr.traction_top[1]);
+    float t0_tangential_top = ssr.traction_top[0].dot(ssr.tn);
+    float t1_tangential_top = ssr.traction_top[1].dot(ssr.tn);
+    float t0_normal_top = ssr.tn_p.dot(ssr.traction_top[0]);
+    float t1_normal_top = -ssr.tn_p.dot(ssr.traction_top[1]);
     ssr.trac_normal_top = t0_normal_top + t1_normal_top;
     ssr.trac_tangential_top = t0_tangential_top - t1_tangential_top;
 
-    double t0_tangential_bottom = ssr.traction_bottom[0].dot(ssr.tn);
-    double t1_tangential_bottom = ssr.traction_bottom[1].dot(ssr.tn);
-    double t0_normal_bottom = ssr.tn_p.dot(ssr.traction_bottom[0]);
-    double t1_normal_bottom = -ssr.tn_p.dot(ssr.traction_bottom[1]);
+    float t0_tangential_bottom = ssr.traction_bottom[0].dot(ssr.tn);
+    float t1_tangential_bottom = ssr.traction_bottom[1].dot(ssr.tn);
+    float t0_normal_bottom = ssr.tn_p.dot(ssr.traction_bottom[0]);
+    float t1_normal_bottom = -ssr.tn_p.dot(ssr.traction_bottom[1]);
     ssr.trac_normal_bottom = t0_normal_bottom + t1_normal_bottom;
     ssr.trac_tangential_bottom = t0_tangential_bottom - t1_tangential_bottom;
 
@@ -420,7 +423,7 @@ void icy::Node::evaluate_tractions(double angle_fwd, SepStressResult &ssr, const
     if(crack_tip)
     {
         // TODO: replace pow(...) with a something simpler to compute
-        double coeff = ((1-weakening_coeff)+(weakening_coeff)*pow((weakening_direction.dot(ssr.tn)+1)/2, 5));
+        float coeff = ((1-weakening_coeff)+(weakening_coeff)*pow((weakening_direction.dot(ssr.tn)+1)/2, 5));
         ssr.trac_normal_bottom*=coeff;
         ssr.trac_normal_top*=coeff;
     }
@@ -428,7 +431,7 @@ void icy::Node::evaluate_tractions(double angle_fwd, SepStressResult &ssr, const
     ssr.trac_normal_max = std::max(ssr.trac_normal_top, ssr.trac_normal_bottom);
 }
 
-double icy::Node::normal_traction(double angle_fwd, double weakening_coeff) const
+float icy::Node::normal_traction(float angle_fwd, float weakening_coeff) const
 {
     SepStressResult tmpSsr;
     evaluate_tractions(angle_fwd, tmpSsr, weakening_coeff);
@@ -444,11 +447,11 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
 
     unsigned gridPts = isBoundary ? nFan+1 : nFan;
 
-    double grid_results[gridPts];
+    float grid_results[gridPts];
     for(unsigned i=0; i<nFan; i++) grid_results[i] = normal_traction(fan[i].angle0, weakening_coeff);
     if(isBoundary) grid_results[nFan] = normal_traction(fan[nFan-1].angle1, weakening_coeff);
 
-    double *highest_grid_pt = std::max_element(grid_results, &grid_results[gridPts]);
+    float *highest_grid_pt = std::max_element(grid_results, &grid_results[gridPts]);
     unsigned idx = std::distance(grid_results, highest_grid_pt);
 
     // reject if the grid max is low
@@ -470,7 +473,7 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
 
     int bits = std::numeric_limits<float>::digits;
 
-    boost::uintmax_t max_iter = 30;
+    boost::uintmax_t max_iter = 20;
     auto [fracture_angle, max1] = boost::math::tools::brent_find_minima(
                     [=](double x){return -normal_traction(x, weakening_coeff);},
         fan[sector1].angle0, fan[sector1].angle1, bits, max_iter);
@@ -478,7 +481,7 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
 
     if(sector2 > -1)
     {
-        max_iter = 30;
+        max_iter = 20;
         auto [fracture_angle2, max2] = boost::math::tools::brent_find_minima(
                         [=](double x){return -normal_traction(x, weakening_coeff);},
             fan[sector2].angle0, fan[sector2].angle1, bits, max_iter);
@@ -490,39 +493,11 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
     max_normal_traction = result_with_max_traction.trac_normal_max;
     dir = result_with_max_traction.tn;
 
-    const double threshold_angle = fan_angle_span/10;
+    const float threshold_angle = fan_angle_span*0.1;
     if(isBoundary && (fracture_angle < threshold_angle ||
                       fracture_angle > fan_angle_span-threshold_angle || fan_angle_span < M_PI/2))
     {max_normal_traction=0; return;}
 
-}
-
-void icy::Node::ComputeFanVariables(SimParams &prms)
-{
-    idxSepStressResult = -1;
-    max_normal_traction = -DBL_MAX;
-
-    dir = Eigen::Vector3d::Zero();
-
-    // discretize (CCW)
-    for (std::size_t i=0; i<num_disc; i++) {
-        SepStressResult &ssr = sep_stress_results[i];
-        double angle_fwd = (double)i*fan_angle_span/num_disc;
-        evaluate_tractions(angle_fwd, ssr, prms.weakening_coeff);
-
-        if(max_normal_traction < ssr.trac_normal_max) {
-            max_normal_traction = ssr.trac_normal_max;
-            idxSepStressResult = i;
-            dir = ssr.tn;
-        }
-    } // num_disc
-    result_with_max_traction = sep_stress_results[idxSepStressResult];
-
-    // exclude small-angle cuts at the boundary
-    if(isBoundary && (idxSepStressResult < num_disc/10 ||
-                      idxSepStressResult > num_disc*9/10 ||
-            fan_angle_span < M_PI/2))
-        max_normal_traction = 0;
 }
 
 icy::Node::Sector::Sector(icy::Element *elem, icy::Node *ndd) : face(elem)
@@ -535,5 +510,7 @@ icy::Node::Sector::Sector(icy::Element *elem, icy::Node *ndd) : face(elem)
     nd[0] = face->getCWNode(ndd);
     nd[1] = face->getCCWNode(ndd);
 }
+
+
 
 

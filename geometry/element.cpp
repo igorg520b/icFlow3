@@ -221,28 +221,27 @@ void icy::Element::EvaluateStresses(icy::SimParams &prms,
     // stress on top/bottom of the plate and corresponding principal stresses
     str_b_top = elasticityMatrix*bmat_b*u*area_initial*(-thickness/2);
 
-    double sx = str_b_top.coeff(0);
-    double sy = str_b_top.coeff(1);
-    double txy = str_b_top.coeff(2);
-    str_top << sx, txy, 0, txy, sy, 0, 0, 0, 0;
+    float sx = (float)str_b_top.coeff(0);
+    float sy = str_b_top.coeff(1);
+    float txy = str_b_top.coeff(2);
+    str_top << sx, txy, txy, sy;
 
-    double coeff1 = sqrt((sx-sy)*(sx-sy)+txy*txy*4.0);
-    double s1 = 0.5*(sx+sy+coeff1);
-    double s2 = 0.5*(sx+sy-coeff1);
-    str_b_top_principal << s1, s2;
+//    double coeff1 = sqrt((sx-sy)*(sx-sy)+txy*txy*4.0);
+//    double s1 = 0.5*(sx+sy+coeff1);
+//    double s2 = 0.5*(sx+sy-coeff1);
+//    str_b_top_principal << s1, s2;
 
     str_b_bottom = elasticityMatrix*bmat_b*u*area_initial*(thickness/2);
 
     sx = str_b_bottom.coeff(0) + str_m(0);
     sy = str_b_bottom.coeff(1) + str_m(1);
     txy = str_b_bottom.coeff(2) + str_m(2);
-    str_bottom << sx, txy, 0, txy, sy, 0, 0, 0, 0;
-//    str_bottom_positive = make_positive(str_bottom);
+    str_bottom << sx, txy, txy, sy;
 
-    coeff1 = sqrt((sx-sy)*(sx-sy)+txy*txy*4.0);
-    s1 = 0.5*(sx+sy+coeff1);
-    s2 = 0.5*(sx+sy-coeff1);
-    str_b_bottom_principal << s1, s2;
+//    coeff1 = sqrt((sx-sy)*(sx-sy)+txy*txy*4.0);
+//    s1 = 0.5*(sx+sy+coeff1);
+//    s2 = 0.5*(sx+sy-coeff1);
+//    str_b_bottom_principal << s1, s2;
 
     ComputeNormal();
 }

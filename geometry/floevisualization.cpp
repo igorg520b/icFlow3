@@ -21,6 +21,7 @@ icy::FloeVisualization::FloeVisualization()
 
     dataSetMapper->SetInputData(ugrid);
     dataSetMapper->UseLookupTableScalarRangeOn();
+    dataSetMapper->SetLookupTable(hueLut);
     actor_mesh->SetMapper(dataSetMapper);
     actor_mesh->GetProperty()->SetColor(218/255.0,228/255.0,242/255.0);
     actor_mesh->GetProperty()->SetEdgeColor(161.0/255.0, 176.0/255.0, 215.0/255.0);
@@ -60,8 +61,6 @@ icy::FloeVisualization::FloeVisualization()
     actor_arrows->GetProperty()->SetColor(colors->GetColor3d("Black").GetData());
 
     actor_labels->VisibilityOff();
-
-    InitializeLUT();
 
     // water level
     points_water->SetNumberOfPoints(gridSizeX*gridSizeY);
@@ -133,7 +132,20 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<icy::Node*> *nodes,
                                                 std::vector<icy::Element*> *elems,
                                                 int option)
 {
-    if(option >= 0) VisualizingVariable = (VisOpt)option;
+    if(option >= 0)
+    {
+        VisualizingVariable = (VisOpt)option;
+        // set lookup table
+        if(VisualizingVariable == VisOpt::vert_force ||
+                VisualizingVariable == VisOpt::boundary ||
+                VisualizingVariable == VisOpt::deflection ||
+                VisualizingVariable == VisOpt::max_normal_traction)
+        {
+            InitializeLUT(1);
+        }
+        else if(VisualizingVariable == VisOpt::fracture_support) InitializeLUT(4);
+        else InitializeLUT(3);
+    }
 
     if(VisualizingVariable == VisOpt::none || nodes->size() == 0) {
         dataSetMapper->ScalarVisibilityOff();
@@ -148,22 +160,18 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<icy::Node*> *nodes,
     {
     case VisOpt::vert_force:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->vertical_force);
-        dataSetMapper->SetLookupTable(hueLut);
         break;
 
     case VisOpt::boundary:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->isBoundary ? 1 : 0);
-        dataSetMapper->SetLookupTable(hueLut);
         break;
 
     case VisOpt::deflection:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->xn.z());
-        dataSetMapper->SetLookupTable(hueLut);
         break;
 
     case VisOpt::max_normal_traction:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->max_normal_traction);
-        dataSetMapper->SetLookupTable(hueLut);
         break;
 
     case VisOpt::fracture_support:
@@ -175,121 +183,97 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<icy::Node*> *nodes,
             else value = 0;
             visualized_values->SetValue(nd->locId, value);
         }
-        dataSetMapper->SetLookupTable(defaultLut);
-        defaultLut->SetTableRange(-1, 1.3);
         break;
 
     case VisOpt::AbsMx:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, std::abs(nd->str_b[0]));
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::Mx:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b[0]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::My:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b[1]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::Mxy:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b[2]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::Mx_e:
         visualized_values->SetNumberOfValues(elems->size());
         for(std::size_t i=0;i<elems->size();i++) visualized_values->SetValue(i, (*elems)[i]->str_b[0]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::My_e:
         visualized_values->SetNumberOfValues(elems->size());
         for(std::size_t i=0;i<elems->size();i++) visualized_values->SetValue(i, (*elems)[i]->str_b[1]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::Mxy_e:
         visualized_values->SetNumberOfValues(elems->size());
         for(std::size_t i=0;i<elems->size();i++) visualized_values->SetValue(i, (*elems)[i]->str_b[2]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::Tx:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_m[0]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::Ty:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_m[1]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::Txy:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_m[2]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::Qx:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_s[0]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::Qy:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_s[1]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::stx:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_top[0]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::sty:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_top[1]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::stxy:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_top[2]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::st1:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_top_principal[0]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::st2:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_top_principal[1]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::sbx:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_bottom[0]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::sby:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_bottom[1]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::sbxy:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_bottom[2]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::sb1:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_bottom_principal[0]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     case VisOpt::sb2:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_bottom_principal[1]);
-        dataSetMapper->SetLookupTable(defaultLut);
         break;
 
     default:
@@ -324,18 +308,47 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<icy::Node*> *nodes,
         double minmax[2];
         visualized_values->GetValueRange(minmax);
         hueLut->SetTableRange(minmax[0], minmax[1]);
-        defaultLut->SetTableRange(minmax[0], minmax[1]);
+    } else if(VisualizingVariable == VisOpt::fracture_support)
+    {
+        hueLut->SetTableRange(-1,1.3);
     }
 
 
     UnsafeUpdateArrows(nodes);
 }
 
-void icy::FloeVisualization::InitializeLUT()
+void icy::FloeVisualization::InitializeLUT(int table)
 {
-    hueLut->SetNumberOfTableValues(257);
-    for ( int i=0; i<257; i++) {
-            hueLut->SetTableValue(i, (double)lutArray[i][0], (double)lutArray[i][1], (double)lutArray[i][2], 1.0);
+    const int n = 51;
+    hueLut->SetNumberOfTableValues(n);
+
+    if(table==0)
+        for ( int i=0; i<n; i++)
+                hueLut->SetTableValue(i, (double)lutArrayThermometer[i][0],
+                        (double)lutArrayThermometer[i][1],
+                        (double)lutArrayThermometer[i][2], 1.0);
+
+    else if(table==1)
+    for ( int i=0; i<n; i++)
+            hueLut->SetTableValue(i, (double)lutArrayTerrain[i][0],
+                    (double)lutArrayTerrain[i][1],
+                    (double)lutArrayTerrain[i][2], 1.0);
+    else if(table==2)
+    for ( int i=0; i<n; i++)
+            hueLut->SetTableValue(i, (double)lutArrayTemperature[i][0],
+                    (double)lutArrayTemperature[i][1],
+                    (double)lutArrayTemperature[i][2], 1.0);
+    else if(table==3)
+    for ( int i=0; i<n; i++)
+            hueLut->SetTableValue(i, (double)lutArrayTemperatureAdj[i][0],
+                    (double)lutArrayTemperatureAdj[i][1],
+                    (double)lutArrayTemperatureAdj[i][2], 1.0);
+    else if(table==4) {
+        hueLut->SetNumberOfTableValues(6);
+    for ( int i=0; i<6; i++)
+            hueLut->SetTableValue(i, (double)lutArrayBands[i][0],
+                    (double)lutArrayBands[i][1],
+                    (double)lutArrayBands[i][2], 1.0);
     }
 }
 

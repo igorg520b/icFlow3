@@ -54,12 +54,12 @@ public:
     {
         Sector(icy::Element *elem, icy::Node *nd);
         icy::Element *face;
-        double centerAngle; // angle from the node to the center of the adjacent element
+        float centerAngle; // angle from the node to the center of the adjacent element
         icy::Node* nd[2];
         icy::Edge* e[2]; // begins with CW boundary; ends with CCW boundary
-        double angle0, angle1, angle_span;
-        Eigen::Vector3d u_normalized, v_normalized, u_p, v_p;
-        Eigen::Vector3d t0_top, t1_top, t0_bottom, t1_bottom;
+        float angle0, angle1, angle_span;
+        Eigen::Vector2f u_normalized, v_normalized, u_p, v_p;
+        Eigen::Vector2f t0_top, t1_top, t0_bottom, t1_bottom;
     };
 
     std::vector<Sector> fan;
@@ -68,37 +68,34 @@ public:
     // set the size and initialize with adjacent elements
     void PrepareFan();  // performed when topology changes
     void InitializeFan(); // performed when tentative displacements and stress distribution change
-    double fan_angle_span;  // assigned in InitializeFan();
+    float fan_angle_span;  // assigned in InitializeFan();
 
     // separation stress
     struct SepStressResult
     {
-        double angle_fwd, angle_bwd;
+        float angle_fwd, angle_bwd;
         icy::Element* faces[2];
-        Eigen::Vector3d traction_top[2], traction_bottom[2];
-        double phi[2];
-        double theta[2];
-        double trac_normal_top, trac_tangential_top;
-        double trac_normal_bottom, trac_tangential_bottom;
-        double trac_normal_max;
-        Eigen::Vector3d tn, tn_p;
+        Eigen::Vector2f traction_top[2], traction_bottom[2];
+        Eigen::Vector2f tn, tn_p;
+        float phi[2], theta[2];
+        float trac_normal_top, trac_tangential_top, trac_normal_bottom, trac_tangential_bottom, trac_normal_max;
         icy::Edge* e[4];
     };
 
-    void evaluate_tractions(double angle_fwd, SepStressResult &ssr, const double weakening_coeff) const;
-    double normal_traction(double angle_fwd, double weakening_coeff) const;
+    void evaluate_tractions(float angle_fwd, SepStressResult &ssr, const float weakening_coeff) const;
+    float normal_traction(float angle_fwd, float weakening_coeff) const;
 
     void ComputeFanVariablesAlt(SimParams &prms);     // compute tractions - alt version
     SepStressResult result_with_max_traction;
-    Eigen::Vector3d dir;
-    double max_normal_traction;
+    Eigen::Vector2f dir;
+    Eigen::Vector2f weakening_direction;    // only used if crack_tip==true
+    float max_normal_traction;
 
-    void ComputeFanVariables(SimParams &prms);     // compute tractions
+//    void ComputeFanVariables(SimParams &prms);     // compute tractions
 
     // additional fracture parameters
     bool crack_tip, core_node, support_node;
     double timeLoadedAboveThreshold;
-    Eigen::Vector3d weakening_direction;
 
     static double OceanWave(double x, double y, double t);
     static double Smoothstep(double edge0, double edge1, double x);

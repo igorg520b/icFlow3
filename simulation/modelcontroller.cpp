@@ -182,10 +182,10 @@ void icy::ModelController::Step()
             }
 
             //qDebug() << "continue: " << (!diverges && (!converged || ts.count_iterations<prms.IterationsMax))<< "; converged: " << converged;
-        }while(!diverges && (!converged || ts.count_iterations<prms.IterationsMax));
+        }while(!diverges && !converged && ts.count_iterations<prms.IterationsMax);
         ts.count_attempts++;
 
-        if(converged || ts.TimeScaleFactor >=4) ts.solution_reached=true;
+        if(converged || ts.TimeScaleFactor >=16) ts.solution_reached=true;
         else ts.TimeScaleFactor += 4;
 
     } while(!ts.solution_reached);

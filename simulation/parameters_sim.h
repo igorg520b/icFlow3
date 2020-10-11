@@ -73,14 +73,14 @@ public:
     int loadType;       // for testing
 
     // fracture
-    double normal_traction_threshold;
-    double fracture_epsilon;
+    float normal_traction_threshold;
+    float fracture_epsilon;
     double CharacteristicLengthMax; // initial meshing
     int substep_radius; // how many neighbor levels involved in local substep
     bool fracture_enable;
     int fracture_max_substeps;
     int substep_iterations;
-    double weakening_coeff;
+    float weakening_coeff;
     double temporal_attenuation;
     double wave_height;
 
@@ -88,10 +88,10 @@ public:
 
     void Reset() {
         SaveResult = false;
-        MaxSteps = 300;
+        MaxSteps = 3000;
 
         // integration
-        InitialTimeStep = 0.2;
+        InitialTimeStep = 0.05;
 
         ConvergenceEpsilon = 0.01;
         ConvergenceCutoff = 1E-8;
@@ -103,26 +103,26 @@ public:
         WaterDensity = 997;
         IceDensity = 910;
 
-        Damping = 1.4;
+        Damping = 1.0;
         Thickness = 0.1;
 
-        loadType = 1;
+        loadType = 5;
 
         PoissonsRatio = 0.3;
         YoungsModulus = 3.7e9;
 
         setHHTalpha(0.3);
 
-        normal_traction_threshold = 900;
+        normal_traction_threshold = 47000;
         fracture_epsilon = 0.1;
-        CharacteristicLengthMax = 0.1;
-        substep_radius = 10;
+        CharacteristicLengthMax = 0.5;
+        substep_radius = 7;
         fracture_enable = true;
-        fracture_max_substeps=200;
-        substep_iterations = 3;
-        weakening_coeff = 0.5;
-        temporal_attenuation = 1.5;
-        wave_height = 0.1;
+        fracture_max_substeps=1000;
+        substep_iterations = 2;
+        weakening_coeff = 0.7;
+        temporal_attenuation = 0.2;
+        wave_height = 0.6;
 
         emit propertyChanged();
     }

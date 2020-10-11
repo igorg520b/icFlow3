@@ -36,7 +36,6 @@ void icy::Edge::Initialize(icy::Node* nd0, icy::Node* nd1, icy::Element* elem0, 
     {
         nd0->isBoundary = nd1->isBoundary = true;
     }
-
 }
 
 // determine if nds[0],nds[1] are contained in elem.nds in forward order
@@ -71,9 +70,12 @@ icy::Element* icy::Edge::get_CCW_Element(icy::Node *center_node) const
     else throw std::runtime_error("node does not belong to the edge");
 }
 
-Eigen::Vector3d icy::Edge::getVec(icy::Node *center_node) const
+Eigen::Vector2f icy::Edge::getVec(icy::Node *center_node) const
 {
-    return (getOtherNode(center_node)->xt - center_node->xt).block(0,0,3,1);
+    Node* other = getOtherNode(center_node);
+    float x = (float)(other->xt.x()-center_node->xt.x());
+    float y = (float)(other->xt.y()-center_node->xt.y());
+    return Eigen::Vector2f(x,y);
 }
 
 icy::Node* icy::Edge::getOtherNode(icy::Node *center_node) const
@@ -82,12 +84,7 @@ icy::Node* icy::Edge::getOtherNode(icy::Node *center_node) const
     else if(center_node == nds[1]) return nds[0];
     else throw std::runtime_error("center node does not belong to the edge");
 }
-/*
-icy::Node* icy::Edge::getOppositeNode(int idx)
-{
-    return elems[idx]->getOppositeNode(this);
-}
-*/
+
 icy::Element* icy::Edge::getTheOnlyElement()
 {
     return elems[0]==nullptr ? elems[1] : elems[0];

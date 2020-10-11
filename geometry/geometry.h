@@ -104,10 +104,10 @@ private:
     // returns newly inserted face for the fan
     void SplitEdge(icy::Edge *edge, double where,
                    icy::Node *centerNode, icy::Node* &splitNode, bool forwardDirection, SimParams &prms,
-                   Eigen::Vector3d dir);
+                   Eigen::Vector2f dir);
 
     void SplitAlongExistingEdge(Edge *edge, Node *centerNode, Node* &splitNode,
-                                int oppositeNodeIdx, bool forwardDirection, Eigen::Vector3d dir);
+                                int oppositeNodeIdx, bool forwardDirection, Eigen::Vector2f dir);
 
     void MeshingStepTwo(double CharacteristicLengthMax);
 
