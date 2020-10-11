@@ -177,9 +177,9 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<icy::Node*> *nodes,
     case VisOpt::fracture_support:
         for(icy::Node* nd : *nodes) {
             double value;
-            if(nd->crack_tip) value = 1.3;
-            else if(nd->core_node) value = 1;
-            else if(nd->support_node) value = 0.5;
+            if(nd->crack_tip) value = 3;
+            else if(nd->core_node) value = 2;
+            else if(nd->support_node) value = 1;
             else value = 0;
             visualized_values->SetValue(nd->locId, value);
         }
@@ -310,7 +310,7 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<icy::Node*> *nodes,
         hueLut->SetTableRange(minmax[0], minmax[1]);
     } else if(VisualizingVariable == VisOpt::fracture_support)
     {
-        hueLut->SetTableRange(-1,1.3);
+        hueLut->SetTableRange(-0.5,5.5);
     }
 
 
