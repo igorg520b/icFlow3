@@ -192,6 +192,7 @@ void icy::ModelController::Step()
 
     model.AcceptTentativeValues(prms);
     Fracture();
+    if(abort_requested) {Aborting(); return;}
 
     ts.nElems = model.floes.getElemCount();
     ts.nNodes = model.floes.getNodeCount();
@@ -203,7 +204,6 @@ void icy::ModelController::Step()
     emit stepCompleted();
 }
 
-
 void icy::ModelController::_Write()
 {
     model.floes.WriteToSerializationBuffers();
@@ -213,7 +213,6 @@ void icy::ModelController::_Write()
 
 void icy::ModelController::RequestAbort()
 {
-    qDebug() << "icy::ModelController::RequestAbort()";
     abort_requested = true;
     // if needed, abort the solver
 }
@@ -234,7 +233,7 @@ void icy::ModelController::Fracture()
     int count=0;
     model.floes_vtk.update_minmax = false;
 
-    while(model.floes.maxNode != nullptr && count < prms.fracture_max_substeps)
+    while(model.floes.maxNode != nullptr && count < prms.fracture_max_substeps && !abort_requested)
     {
         model.FractureStep(prms, ts.TimeStep, ts.SimulationTime);
         count++;

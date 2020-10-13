@@ -21,7 +21,7 @@ public:
     Serializer serializer;
     std::vector<icy::FrameInfo> stepStats;  // information about each time step
     icy::FrameInfo ts;  // tentative step info (the step itself may fail)
-    bool requestToStop = false;
+    bool requestToStop = false; // ModelController request backgroundworker to stop calling Step()
 
     void SaveAs(QString fileName);
     void Load(QString fileName);        // load initial setup from file
