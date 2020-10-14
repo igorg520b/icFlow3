@@ -17,20 +17,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&controller, SIGNAL(stepCompleted()), SLOT(updateGUI()));
     connect(worker, SIGNAL(workerPaused()), SLOT(background_worker_paused()));
 
-    // chart
-    chart_line = new QChart();
-    for(int i=0;i<5;i++)
-    {
-        series[i] = new QLineSeries();
-        chart_line->addSeries(series[i]);
-    }
-    chart_line->createDefaultAxes();
-    series[0]->setName("phi");
-    series[1]->setName("t0+t1 norm");
-    series[2]->setName("t0 tang");
-    series[3]->setName("t1 tang");
-    series[4]->setName("t0-t1 tang");
-
+    // chart, Mohr's circle
     chart_line_mohr = new QChart;
     series_mohr = new QLineSeries;
     series_mohr->setName("ARCSim");
@@ -43,19 +30,34 @@ MainWindow::MainWindow(QWidget *parent)
 
     chartView = new QChartView;
     chartView->setRenderHint(QPainter::Antialiasing);
-    chartView->hide();
+    chartView->setChart(chart_line_mohr);
 
-    series_pie = new QPieSeries;
-    series_pie->setHoleSize(0.35);
-    series_pie->append("Protein 4.2%", 4.2);
 
-    chart_pie = new QChart;
-    chart_pie->setTitle("Donut with a lemon glaze (100g)");
-    chart_pie->addSeries(series_pie);
-    chart_pie->legend()->setAlignment(Qt::AlignBottom);
-    chart_pie->setTheme(QChart::ChartThemeBlueCerulean);
-    chart_pie->legend()->setFont(QFont("Arial", 14));
-    chartView->setChart(chart_pie);
+    // pie chart for benchmarking
+    chartView_motion = new QChartView;
+    chartView_motion->setRenderHint(QPainter::Antialiasing);
+
+    chartView_fracture = new QChartView;
+    chartView_fracture->setRenderHint(QPainter::Antialiasing);
+
+    series_pie_motion = new QPieSeries;
+    series_pie_fracture = new QPieSeries;
+    series_pie_motion->setHoleSize(0.35);
+    series_pie_fracture->setHoleSize(0.35);
+
+    chart_pie_motion = new QChart;
+    chart_pie_motion->addSeries(series_pie_motion);
+    chart_pie_motion->legend()->setAlignment(Qt::AlignBottom);
+    chart_pie_motion->setTheme(QChart::ChartThemeBlueCerulean);
+    chart_pie_motion->legend()->setFont(QFont("Arial", 14));
+    chartView_motion->setChart(chart_pie_motion);
+
+    chart_pie_fracture = new QChart;
+    chart_pie_fracture->addSeries(series_pie_fracture);
+    chart_pie_fracture->legend()->setAlignment(Qt::AlignBottom);
+    chart_pie_fracture->setTheme(QChart::ChartThemeBlueCerulean);
+    chart_pie_fracture->legend()->setFont(QFont("Arial", 14));
+    chartView_fracture->setChart(chart_pie_fracture);
 
     // tree
     tree = new QTreeWidget;
@@ -89,7 +91,6 @@ MainWindow::MainWindow(QWidget *parent)
     tiSolids->setExpanded(true);
 
     // VTK
-
     qt_vtk_widget = new QVTKOpenGLNativeWidget();
     qt_vtk_widget->setRenderWindow(renderWindow);
     renderer->SetBackground(colors->GetColor3d("White").GetData());
@@ -123,19 +124,23 @@ MainWindow::MainWindow(QWidget *parent)
     pointPicker->AddObserver(vtkCommand::EndPickEvent, pickCallback);
     pickCallback->SetClientData((void*)this);
 
-    // for screenshot
+    // VTK - screenshot
     windowToImageFilter->SetInput(renderWindow);
     windowToImageFilter->SetScale(1); // image quality
     windowToImageFilter->SetInputBufferTypeToRGBA(); //also record the alpha (transparency) channel
     windowToImageFilter->ReadFrontBufferOff(); // read from the back buffer
     writer->SetInputConnection(windowToImageFilter->GetOutputPort());
 
-    // splitters
+    // right frame
+    right_side_container = new QWidget;
+    right_side_layout = new QHBoxLayout;
+    right_side_container->setLayout(right_side_layout);
+    right_side_layout->addWidget(qt_vtk_widget);
+
+    // splitter
     splitter_main = new QSplitter(Qt::Orientation::Horizontal);
     splitter_main->addWidget(splitter_left_panel);
-    splitter_main->addWidget(qt_vtk_widget);
-    splitter_main->addWidget(chartView);
-
+    splitter_main->addWidget(right_side_container);
     setCentralWidget(splitter_main);
 
     // toolbar
@@ -160,6 +165,7 @@ MainWindow::MainWindow(QWidget *parent)
     // statusbar
     statusLabel = new QLabel("-");
     progressBar = new QProgressBar(this);
+    progressBar->hide();
 
     statusLabelAttempt = new QLabel("Att: ");
     statusLabelIteration = new QLabel("Iter: ");
@@ -547,159 +553,82 @@ void MainWindow::on_action_show_axes_triggered(bool checked)
 
 void MainWindow::on_action_show_benchmark_triggered()
 {
-    series_pie->clear();
-    series_pie->setPieStartAngle(45);
-    series_pie->setPieEndAngle(45+360);
+    series_pie_fracture->clear();
+    series_pie_motion->clear();
+    series_pie_motion->setPieStartAngle(45);
+    series_pie_motion->setPieEndAngle(45+360);
+
+    series_pie_motion->setName("Motion (per solve)");
+    series_pie_fracture->setName("Fracture (per step)");
+
     if(controller.stepStats.size() > 0)
     {
         long long total;
         long long n_solves;
-        std::vector<std::pair<std::string, long>> results;
-        icy::FrameInfo::BenchmarkingSummarize(controller.stepStats, results, total, n_solves);
+        std::vector<std::pair<std::string, long>> results_motion;
+        std::vector<std::pair<std::string, long>> results_fracture;
+        icy::FrameInfo::BenchmarkingSummarize(controller.stepStats, results_motion, results_fracture, total, n_solves);
         total/=1000000;
-        for(const auto &p : results) {
+
+        for(const auto &p : results_motion) {
             long val = p.second;
             if(val > 0) {
                 QString str= QString::fromStdString(p.first) + " " + QString::number(val)+ " \xC2\xB5s";
-                series_pie->append(str, val);
+                series_pie_motion->append(str, val);
             }
         }
-        series_pie->setLabelsVisible();
+
+        for(const auto &p : results_fracture) {
+            long val = p.second;
+            if(val > 0) {
+                QString str= QString::fromStdString(p.first) + " " + QString::number(val)+ " \xC2\xB5s";
+                series_pie_fracture->append(str, val);
+            }
+        }
+
         QString strTotal = QString::number(total);
         QString strSolves = QString::number(n_solves);
         QString strSteps = QString::number(controller.stepStats.size());
         QString str = "Total " + strTotal + " s; solves " + strSolves + "; steps " + strSteps;
-        chart_pie->setTitle(str);
+        chart_pie_motion->setTitle(str);
     } else {
-        chart_pie->setTitle("No data");
+        chart_pie_motion->setTitle("No data");
+        chart_pie_fracture->setTitle("No data");
+    }
+    series_pie_motion->setLabelsVisible();
+    series_pie_fracture->setLabelsVisible();
+
+    QLayoutItem *qli;
+    while ((qli = right_side_layout->takeAt(0)) != nullptr) {
+        if (qli->widget()) qli->widget()->setParent(nullptr);
+        delete qli;
     }
 
-    chartView->setChart(chart_pie);
-    QList<int> sizes = splitter_main->sizes();
-    int s = std::max(sizes[1], sizes[2]);
-    //qDebug() << "sizes: " << sizes;
-    chartView->show();
-    qt_vtk_widget->hide();
-    splitter_main->setSizes(QList<int>() << sizes[0] << s << s);
+    right_side_layout->addWidget(chartView_motion, 1);
+    right_side_layout->addWidget(chartView_fracture, 1);
 }
 
 void MainWindow::on_action_show_model_triggered()
 {
-    QList<int> sizes = splitter_main->sizes();
-    int s = std::max(sizes[1], sizes[2]);
-    qt_vtk_widget->show();
-    chartView->hide();
-    splitter_main->setSizes(QList<int>() << sizes[0] << s << s);
-}
-
-void MainWindow::comboboxIndexChanged(int index)
-{
-    controller.model.floes_vtk.UnsafeUpdateValues(controller.model.floes.nodes.get(),
-                                                  controller.model.floes.elems.get(),
-                                                  (icy::FloeVisualization::VisOpt)index);
-    prefsGUI.VisualizationOption = index;
-    renderWindow->Render();
-    scalarBar->SetVisibility(prefsGUI.ShowScalarBar && prefsGUI.VisualizationOption!=0);
-}
-
-void MainWindow::on_action_show_scalar_bar_triggered(bool checked)
-{
-    prefsGUI.ShowScalarBar = checked;
-    scalarBar->SetVisibility(prefsGUI.ShowScalarBar && prefsGUI.VisualizationOption!=0);
-    renderWindow->Render();
-}
-
-void MainWindow::on_action_Trim_triggered()
-{
-    // for testing
-    controller.Trim();
-    renderWindow->Render();
-    updateGUI();
-}
-
-void MainWindow::PickCallbackFunction(vtkObject* caller,
-                          long unsigned int vtkNotUsed(eventId),
-                          void* clientData,
-                          void* vtkNotUsed(callData))
-{
-    vtkPointPicker* pp = static_cast<vtkPointPicker*>(caller);
-    MainWindow *mw = (MainWindow*)clientData;
-    mw->controller.model.floes_vtk.UnsafeUpdateSelection(mw->controller.model.floes.nodes.get(),
-                                                     pp->GetPointId());
-    mw->renderWindow->Render();
-}
-
-void MainWindow::on_action_show_plots_triggered()
-{
-    /*
-    chartView->setChart(chart_line);
-    QList<int> sizes = splitter_main->sizes();
-    int s = std::max(sizes[1], sizes[2]);
-    //qDebug() << "sizes: " << sizes;
-    chartView->show();
-    qt_vtk_widget->hide();
-    splitter_main->setSizes(QList<int>() << sizes[0] << s << s);
-
-    int idx = controller.model.floes_vtk.selectedPointId;
-    series[0]->clear();
-    series[1]->clear();
-    series[2]->clear();
-    series[3]->clear();
-    series[4]->clear();
-    double ymin = DBL_MAX, ymax = -DBL_MAX;
-    if(idx >= 0)
-    {
-        icy::Node *nd = (*controller.model.floes.nodes)[idx];
-        for(int i=0;i<icy::Node::num_disc;i++)
-        {
-            icy::Node::SepStressResult &ssr = nd->sep_stress_results[i];
-            double x = ssr.angle_fwd;
-
-            double val0 = ssr.phi[0];
-            double val1 = ssr.trac_normal_bottom;
-            double val2 = 0;
-            double val3 = 0;
-            double val4 = ssr.trac_tangential_bottom;
-
-            ymin = std::min(ymin, val0);
-            ymin = std::min(ymin, val1);
-            ymin = std::min(ymin, val2);
-            ymin = std::min(ymin, val3);
-            ymin = std::min(ymin, val4);
-
-            ymax = std::max(ymax, val0);
-            ymax = std::max(ymax, val1);
-            ymax = std::max(ymax, val2);
-            ymax = std::max(ymax, val3);
-            ymax = std::max(ymax, val4);
-
-            series[0]->append(x,val0);
-            series[1]->append(x,val1);
-            series[2]->append(x,val2);
-            series[3]->append(x,val3);
-            series[4]->append(x,val4);
-        }
-        double span = ymax-ymin;
-        QList<QAbstractAxis*> axes = chart_line->axes();
-        axes[0]->setRange(0, 2*M_PI);
-        axes[1]->setRange(ymin-0.1*span,ymax+0.1*span);
+    QLayoutItem *qli;
+    while ((qli = right_side_layout->takeAt(0)) != nullptr) {
+        if (qli->widget()) qli->widget()->setParent(nullptr);
+        delete qli;
     }
-*/
+    right_side_layout->addWidget(qt_vtk_widget);
 }
 
 void MainWindow::on_actionMohr_s_triggered()
 {
-    const unsigned nPoints = 500;
-
     int idx = controller.model.floes_vtk.selectedPointId;
     if(idx<0) return;
 
-    chartView->setChart(chart_line_mohr);
-    QList<int> sizes = splitter_main->sizes();
-    int s = std::max(sizes[1], sizes[2]);
-    chartView->show();
-    qt_vtk_widget->hide();
-    splitter_main->setSizes(QList<int>() << sizes[0] << s << s);
+    QLayoutItem *qli;
+    while ((qli = right_side_layout->takeAt(0)) != nullptr) {
+        if (qli->widget()) qli->widget()->setParent(nullptr);
+        delete qli;
+    }
+    right_side_layout->addWidget(chartView, 1);
 
     series_mohr->clear();
     mohr_sectors->clear();
@@ -709,6 +638,7 @@ void MainWindow::on_actionMohr_s_triggered()
     double xmin = DBL_MAX, xmax = -DBL_MAX;
     icy::Node *nd = (*controller.model.floes.nodes)[idx];
     std::cout << std::endl << "{";
+    const unsigned nPoints = 500;
     for(unsigned i=0;i<nPoints;i++)
     {
         double angle = nd->fan_angle_span*(double)i/(double)(nPoints-1);
@@ -762,8 +692,6 @@ void MainWindow::on_actionMohr_s_triggered()
     std::cout << "{" << 0 << "," << val_x/1000 << "," << val_y/1000 << "}";
     std::cout << "}" << std::endl;
 
-
-
     /*
     // export fan data for testing
     std::cout << "fan:" << std::endl;
@@ -782,6 +710,46 @@ void MainWindow::on_actionMohr_s_triggered()
     std::cout << std::endl;
     */
 }
+
+
+void MainWindow::comboboxIndexChanged(int index)
+{
+    controller.model.floes_vtk.UnsafeUpdateValues(controller.model.floes.nodes.get(),
+                                                  controller.model.floes.elems.get(),
+                                                  (icy::FloeVisualization::VisOpt)index);
+    prefsGUI.VisualizationOption = index;
+    renderWindow->Render();
+    scalarBar->SetVisibility(prefsGUI.ShowScalarBar && prefsGUI.VisualizationOption!=0);
+}
+
+void MainWindow::on_action_show_scalar_bar_triggered(bool checked)
+{
+    prefsGUI.ShowScalarBar = checked;
+    scalarBar->SetVisibility(prefsGUI.ShowScalarBar && prefsGUI.VisualizationOption!=0);
+    renderWindow->Render();
+}
+
+void MainWindow::on_action_Trim_triggered()
+{
+    // for testing
+    controller.Trim();
+    renderWindow->Render();
+    updateGUI();
+}
+
+void MainWindow::PickCallbackFunction(vtkObject* caller,
+                          long unsigned int vtkNotUsed(eventId),
+                          void* clientData,
+                          void* vtkNotUsed(callData))
+{
+    vtkPointPicker* pp = static_cast<vtkPointPicker*>(caller);
+    MainWindow *mw = (MainWindow*)clientData;
+    mw->controller.model.floes_vtk.UnsafeUpdateSelection(mw->controller.model.floes.nodes.get(),
+                                                     pp->GetPointId());
+    mw->renderWindow->Render();
+}
+
+
 
 
 

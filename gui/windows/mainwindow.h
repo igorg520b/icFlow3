@@ -124,7 +124,6 @@ private slots:
     void on_action_show_axes_triggered(bool checked);
     void on_action_show_benchmark_triggered();
     void on_action_show_model_triggered();
-    void on_action_show_plots_triggered();
 
     void on_action_show_scalar_bar_triggered(bool checked);
     void on_action_Trim_triggered();
@@ -167,23 +166,29 @@ private:
     QComboBox *comboBox;
     QLabel *labelStepCount;
 
+    // splitter and the right side window
     QSplitter *splitter_left_panel;
     QSplitter *splitter_main;
-    QVTKOpenGLNativeWidget *qt_vtk_widget;
+    QHBoxLayout *right_side_layout;
+    QWidget *right_side_container;
 
     // properties
     ObjectPropertyBrowser *pbrowser;
 
-    // charts
+    // charts_pie
+    QChartView *chartView_motion, *chartView_fracture;
+    QChart *chart_pie_motion, *chart_pie_fracture;
+    QPieSeries *series_pie_motion, *series_pie_fracture;
+
+    // series
     QChartView *chartView;
-    QChart *chart_pie;
-    QPieSeries *series_pie;
-
-    QLineSeries *series[5], *series_mohr;
+    QChart *chart_line_mohr;
+    QLineSeries *series_mohr;
     QScatterSeries *mohr_sectors;
-    QChart *chart_line, *chart_line_mohr;
 
-    // VTK objects
+    // VTK
+    QVTKOpenGLNativeWidget *qt_vtk_widget;
+
     vtkNew<vtkGenericOpenGLRenderWindow> renderWindow;
     vtkNew<vtkRenderer> renderer;
     vtkNew<vtkNamedColors> colors;
