@@ -246,8 +246,10 @@ void icy::Geometry::MeshingStepTwo(double CharacteristicLengthMax)
     emit propertyChanged();
 }
 
-void icy::Geometry::CreateEdges()
+long icy::Geometry::CreateEdges()
 {
+    auto t1 = std::chrono::high_resolution_clock::now();
+
     for(icy::Node* &nd : *nodes) {
         nd->adjacent_nodes.clear();
         nd->fan.clear();
@@ -321,6 +323,9 @@ void icy::Geometry::CreateEdges()
 
 #pragma omp parallel for
     for(std::size_t i=0;i<nodes->size();i++) (*nodes)[i]->PrepareFan();
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
 
 

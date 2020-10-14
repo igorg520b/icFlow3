@@ -95,6 +95,7 @@ void icy::ModelController::Trim()
 {
     qDebug() << "Trim to " << current_step+1;
     stepStats.resize(current_step+1);
+    if(stepStats.size() == 1) stepStats.front().Reset();
     icy::FrameInfo &fi = stepStats[current_step];
     unsigned long nodes_extent = fi.nodeOffset+fi.nNodes;
     unsigned long elems_extent = fi.elemOffset+fi.nElems;
@@ -181,7 +182,6 @@ void icy::ModelController::Step()
                 //qDebug() << "ratio: " << ratio << "; diverges: " << diverges;
             }
 
-            //qDebug() << "continue: " << (!diverges && (!converged || ts.count_iterations<prms.IterationsMax))<< "; converged: " << converged;
         }while(!diverges && !converged && ts.count_iterations<prms.IterationsMax);
         ts.count_attempts++;
 
@@ -228,14 +228,14 @@ void icy::ModelController::Aborting()
 
 void icy::ModelController::Fracture()
 {
-    model.floes.ComputeFractureDirections(prms, ts.TimeStep, true);
+    ts.b_compute_fracture_directions += model.floes.ComputeFractureDirections(prms, ts.TimeStep, true);
     if(!prms.fracture_enable) return;
     int count=0;
     model.floes_vtk.update_minmax = false;
 
     while(model.floes.maxNode != nullptr && count < prms.fracture_max_substeps && !abort_requested)
     {
-        model.FractureStep(prms, ts.TimeStep, ts.SimulationTime);
+        model.FractureStep(prms, ts.TimeStep, ts.SimulationTime, ts.b_local_substep, ts.b_compute_fracture_directions, ts.b_split);
         count++;
         emit fractureUpdated();
     }

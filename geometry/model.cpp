@@ -138,14 +138,16 @@ void icy::Model::AssembleAndSolve(long &time_clear, long &time_forces, long &tim
 }
 
 
-void icy::Model::LocalSubstep(SimParams &prms, double timeStep, double totalTime)
+long icy::Model::LocalSubstep(SimParams &prms, double timeStep, double totalTime)
 {
-    double localTimeStep = timeStep/10;
+    auto t1 = std::chrono::high_resolution_clock::now();
+
+    double localTimeStep = timeStep/10; // TODO: implement this coefficient as a GUI parameter
     if(floes.breakable_range.size() == 0)
     {
         // this may occur in manual "testing" situation
         qDebug() << "LocalSubstep: support size is zero, aborting";
-        return;
+        return 0;
     }
 
     for(icy::Node *nd : *floes.nodes) nd->lsId=-1;
@@ -167,20 +169,24 @@ void icy::Model::LocalSubstep(SimParams &prms, double timeStep, double totalTime
         ls.Solve();
         PullFromLinearSystem(localTimeStep, prms.NewmarkBeta, prms.NewmarkGamma);
     }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
 
-void icy::Model::FractureStep(SimParams &prms, double timeStep, double totalTime)
+void icy::Model::FractureStep(SimParams &prms, double timeStep, double totalTime,
+                              long &b_substep, long &b_compute_fracture_directions, long &b_split)
 {
     // ComputeFractureDirections must be invoked prior to this
     if(floes.maxNode == nullptr) return;
 
     mutex.lock();
-    floes.SplitNode(prms);
+    b_split += floes.SplitNode(prms);
     mutex.unlock();
     topologyInvalid = true;
 
+    b_substep += LocalSubstep(prms, timeStep, totalTime);
     LocalSubstep(prms, timeStep, totalTime);
-    floes.ComputeFractureDirections(prms);
+    b_compute_fracture_directions += floes.ComputeFractureDirections(prms);
 
     mutex.lock();
     // for visualization per fracture step

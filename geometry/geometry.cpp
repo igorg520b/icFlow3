@@ -25,8 +25,10 @@ void icy::Geometry::DistributeStresses()
 }
 
 
-void icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, bool startingFracture)
+long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, bool startingFracture)
 {
+    auto t1 = std::chrono::high_resolution_clock::now();
+
     double temporal_attenuation = prms.temporal_attenuation;
     EvaluateStresses(prms);
     DistributeStresses();
@@ -40,7 +42,6 @@ void icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
     {
         icy::Node *nd = (*nodes)[i];
         nd->InitializeFan();
-//        nd->ComputeFanVariables(prms);
         nd->ComputeFanVariablesAlt(prms);
 
         if(startingFracture)
@@ -67,7 +68,8 @@ void icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
     if(breakable_range.size()==0)
     {
         maxNode=nullptr;
-        return;
+        auto t2 = std::chrono::high_resolution_clock::now();
+        return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
     }
 
     // give priority to an existing crack tip
@@ -98,6 +100,9 @@ void icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
     // for visualization - mark support range (stored in breakable_range)
     for(icy::Node *nd : *nodes) nd->support_node = false;
     for(icy::Node *nd : breakable_range) nd->support_node = true; // for visualization
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
 
 void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Node*> &initial_set)
@@ -124,11 +129,13 @@ void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Node*> &in
 
 
 
-void icy::Geometry::SplitNode(SimParams &prms)
+long icy::Geometry::SplitNode(SimParams &prms)
 {
+    auto t1 = std::chrono::high_resolution_clock::now();
+
     if(maxNode == nullptr) {
         // qDebug() << "SplitNode: nothing to split";
-        return;
+        return 0;
     }
 
     icy::Node* nd = maxNode;
@@ -219,6 +226,8 @@ void icy::Geometry::SplitNode(SimParams &prms)
     nd->crack_tip = false;
 
     CreateEdges();
+    auto t2 = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
 
 

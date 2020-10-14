@@ -43,20 +43,25 @@ MainWindow::MainWindow(QWidget *parent)
     series_pie_motion = new QPieSeries;
     series_pie_fracture = new QPieSeries;
     series_pie_motion->setHoleSize(0.35);
-    series_pie_fracture->setHoleSize(0.35);
+    series_pie_fracture->setHoleSize(0.25);
+//    series_pie_motion->setPieSize(0.5);
+    series_pie_fracture->setPieSize(0.5);
 
     chart_pie_motion = new QChart;
     chart_pie_motion->addSeries(series_pie_motion);
     chart_pie_motion->legend()->setAlignment(Qt::AlignBottom);
     chart_pie_motion->setTheme(QChart::ChartThemeBlueCerulean);
-    chart_pie_motion->legend()->setFont(QFont("Arial", 14));
+//    chart_pie_motion->legend()->setFont(QFont("Arial", 12));
+    chart_pie_motion->setBackgroundRoundness(0);
+
     chartView_motion->setChart(chart_pie_motion);
 
     chart_pie_fracture = new QChart;
     chart_pie_fracture->addSeries(series_pie_fracture);
     chart_pie_fracture->legend()->setAlignment(Qt::AlignBottom);
     chart_pie_fracture->setTheme(QChart::ChartThemeBlueCerulean);
-    chart_pie_fracture->legend()->setFont(QFont("Arial", 14));
+    chart_pie_fracture->legend()->setFont(QFont("Arial", 12));
+    chart_pie_fracture->setBackgroundRoundness(0);
     chartView_fracture->setChart(chart_pie_fracture);
 
     // tree
@@ -135,6 +140,8 @@ MainWindow::MainWindow(QWidget *parent)
     right_side_container = new QWidget;
     right_side_layout = new QHBoxLayout;
     right_side_container->setLayout(right_side_layout);
+    right_side_layout->setSpacing(0);
+    right_side_layout->setMargin(0);
     right_side_layout->addWidget(qt_vtk_widget);
 
     // splitter
@@ -573,7 +580,7 @@ void MainWindow::on_action_show_benchmark_triggered()
         for(const auto &p : results_motion) {
             long val = p.second;
             if(val > 0) {
-                QString str= QString::fromStdString(p.first) + " " + QString::number(val)+ " \xC2\xB5s";
+                QString str= QString::fromStdString(p.first) + " " + QString::number(val)+ " ms";
                 series_pie_motion->append(str, val);
             }
         }
@@ -581,7 +588,7 @@ void MainWindow::on_action_show_benchmark_triggered()
         for(const auto &p : results_fracture) {
             long val = p.second;
             if(val > 0) {
-                QString str= QString::fromStdString(p.first) + " " + QString::number(val)+ " \xC2\xB5s";
+                QString str= QString::fromStdString(p.first) + " " + QString::number(val)+ " ms"; //\xC2\xB5s
                 series_pie_fracture->append(str, val);
             }
         }
@@ -605,7 +612,7 @@ void MainWindow::on_action_show_benchmark_triggered()
     }
 
     right_side_layout->addWidget(chartView_motion, 1);
-    right_side_layout->addWidget(chartView_fracture, 1);
+//    right_side_layout->addWidget(chartView_fracture, 1);
 }
 
 void MainWindow::on_action_show_model_triggered()

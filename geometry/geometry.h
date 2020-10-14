@@ -12,6 +12,7 @@
 #include <set>
 #include <utility>
 #include <algorithm>
+#include <chrono>
 
 #include <QObject>
 #include <QString>
@@ -52,7 +53,7 @@ public:
 
     void PrecomputePersistentVariables(SimParams &prms);
     void AssignLsIds();
-    void CreateEdges();     // from the list of elements, infer inner edges and boundary
+    long CreateEdges();     // from the list of elements, infer inner edges and boundary
 
     unsigned getElemCount() {return elems->size();}
     unsigned getNodeCount() {return nodes->size();}
@@ -61,8 +62,8 @@ public:
 
     void EvaluateStresses(SimParams &prms);     // needed for ComputeFractureDirections
     void DistributeStresses();                  // needed for visualization
-    void ComputeFractureDirections(SimParams &prms, double timeStep = 0, bool startingFracture = false); // sets maxNode to breakable node
-    void SplitNode(SimParams &prms);   // split the node with the highest normal traction
+    long ComputeFractureDirections(SimParams &prms, double timeStep = 0, bool startingFracture = false); // sets maxNode to breakable node
+    long SplitNode(SimParams &prms);   // split the node with the highest normal traction
 
     // save/load
     void WriteToSerializationBuffers();

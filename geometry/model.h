@@ -39,7 +39,7 @@ public:
     long PullFromLinearSystem(double timeStep, double beta, double gamma);
     void AcceptTentativeValues(SimParams &prms);
 
-    void FractureStep(SimParams &prms, double timeStep, double totalTime);
+    void FractureStep(SimParams &prms, double timeStep, double totalTime, long &b_substep, long &b_directions, long &b_split);
 
     void UnsafeUpdateGeometry(double simulationTime, SimParams &prms); // to be called from the main thread
 
@@ -49,7 +49,7 @@ private:
     icy::LinearSystem ls;
     long ComputeElasticForces(SimParams &prms, double timeStep, double totalTime);
     long Assemble(); // return execution time
-    void LocalSubstep(SimParams &prms, double timeStep, double totalTime);
+    long LocalSubstep(SimParams &prms, double timeStep, double totalTime);
 
     // synchronize VTK visualization and internal representation
     QMutex mutex; // to prevent modifying mesh data while updating VTK representation
