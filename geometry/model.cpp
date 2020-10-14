@@ -185,7 +185,7 @@ void icy::Model::FractureStep(SimParams &prms, double timeStep, double totalTime
     topologyInvalid = true;
 
     b_substep += LocalSubstep(prms, timeStep, totalTime);
-    LocalSubstep(prms, timeStep, totalTime);
+//    LocalSubstep(prms, timeStep, totalTime);
     b_compute_fracture_directions += floes.ComputeFractureDirections(prms);
 
     mutex.lock();

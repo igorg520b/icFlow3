@@ -95,7 +95,6 @@ void icy::ModelController::Trim()
 {
     qDebug() << "Trim to " << current_step+1;
     stepStats.resize(current_step+1);
-    if(stepStats.size() == 1) stepStats.front().Reset();
     icy::FrameInfo &fi = stepStats[current_step];
     unsigned long nodes_extent = fi.nodeOffset+fi.nNodes;
     unsigned long elems_extent = fi.elemOffset+fi.nElems;
