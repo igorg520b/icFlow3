@@ -51,7 +51,7 @@ public:
 
     // visualization options
     enum VisOpt { none, boundary, vert_force,
-                  fracture_support, max_normal_traction,
+                  fracture_support, max_normal_traction, time_loaded,
                   deflection, AbsMx, Mx, My, Mxy, Mx_e, My_e, Mxy_e, Tx, Ty, Txy, Qx, Qy,
                   stx, sty, stxy, st1, st2, sbx, sby, sbxy, sb1, sb2};
     Q_ENUM(VisOpt)
@@ -114,17 +114,15 @@ public:
     vtkIdType selectedPointId = -1;
     // visual representation of the floe with thickness
     void UnsafeUpdateTopology(std::vector<icy::Node*> *nodes, std::vector<icy::Element*> *elems,
-                              std::vector<icy::Edge*> *edges);
-    void UnsafeUpdateDisplacements(std::vector<icy::Node*> *nodes, std::vector<icy::Element*> *elems);
+                              std::vector<icy::Edge*> *edges, double temporalThreshold);
+    void UnsafeUpdateDisplacements(std::vector<icy::Node*> *nodes, std::vector<icy::Element*> *elems, double temporalThreshold);
     void UnsafeUpdateValues(std::vector<icy::Node*> *nodes,
-                            std::vector<icy::Element*> *elems,
+                            std::vector<icy::Element*> *elems, double temporalThreshold,
                             int option = -1);
     void UnsafeUpdateArrows(std::vector<icy::Node*> *nodes);
     void UnsafeUpdateSelection(std::vector<icy::Node*> *nodes,
                                vtkIdType selectedPoint = -1);
     void UnsafeUpdateWaterLine(double simulationTime, SimParams &prms);
-
-
 
     // visualization
     VisOpt VisualizingVariable = VisOpt::none;

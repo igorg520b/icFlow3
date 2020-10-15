@@ -206,17 +206,17 @@ void icy::Model::UnsafeUpdateGeometry(double simulationTime, SimParams &prms)
     {
         // re-create mesh topology
         topologyInvalid = valuesInvalid = displacementsInvalid = false; // update displacements and values
-        floes_vtk.UnsafeUpdateTopology(floes.nodes.get(), floes.elems.get(), floes.edges.get());
+        floes_vtk.UnsafeUpdateTopology(floes.nodes.get(), floes.elems.get(), floes.edges.get(), prms.temporal_attenuation);
     }
     else if(displacementsInvalid)
     {
         valuesInvalid = displacementsInvalid = false;
-        floes_vtk.UnsafeUpdateDisplacements(floes.nodes.get(), floes.elems.get());
+        floes_vtk.UnsafeUpdateDisplacements(floes.nodes.get(), floes.elems.get(), prms.temporal_attenuation);
     }
     else if(valuesInvalid)
     {
         valuesInvalid = false;
-        floes_vtk.UnsafeUpdateValues(floes.nodes.get(), floes.elems.get());
+        floes_vtk.UnsafeUpdateValues(floes.nodes.get(), floes.elems.get(), prms.temporal_attenuation);
     }
     mutex.unlock();
     floes_vtk.UnsafeUpdateWaterLine(simulationTime, prms);

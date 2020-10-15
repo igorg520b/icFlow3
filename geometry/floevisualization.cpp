@@ -80,14 +80,14 @@ icy::FloeVisualization::FloeVisualization()
 
 void icy::FloeVisualization::UnsafeUpdateTopology(std::vector<icy::Node*> *nodes,
                                                   std::vector<icy::Element*> *elems,
-                                                  std::vector<icy::Edge*> *edges)
+                                                  std::vector<icy::Edge*> *edges, double temporalThreshold)
 {
     if(selectedPointId >= 0) UnsafeUpdateSelection(nodes, -1);
 
     cellArray->Reset();
     cellArray_boundary->Reset();
     cellArray_vertices->Reset();
-    UnsafeUpdateDisplacements(nodes, elems);
+    UnsafeUpdateDisplacements(nodes, elems, temporalThreshold);
 
     // create ugrid
     vtkIdType pts2[3];
@@ -112,7 +112,7 @@ void icy::FloeVisualization::UnsafeUpdateTopology(std::vector<icy::Node*> *nodes
 }
 
 void icy::FloeVisualization::UnsafeUpdateDisplacements(std::vector<icy::Node*> *nodes,
-                                                       std::vector<icy::Element*> *elems)
+                                                       std::vector<icy::Element*> *elems, double temporalThreshold)
 {
 //    qDebug() << "UnsafeUpdateDisplacements()";
 
@@ -123,13 +123,13 @@ void icy::FloeVisualization::UnsafeUpdateDisplacements(std::vector<icy::Node*> *
     else
         for(icy::Node* nd : *nodes) points->SetPoint(count++, nd->xn.data());
     points->Modified();
-    UnsafeUpdateValues(nodes, elems);
+    UnsafeUpdateValues(nodes, elems, temporalThreshold);
 
 
 }
 
 void icy::FloeVisualization::UnsafeUpdateValues(std::vector<icy::Node*> *nodes,
-                                                std::vector<icy::Element*> *elems,
+                                                std::vector<icy::Element*> *elems, double temporalThreshold,
                                                 int option)
 {
     if(option >= 0)
@@ -139,10 +139,8 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<icy::Node*> *nodes,
         if(VisualizingVariable == VisOpt::vert_force ||
                 VisualizingVariable == VisOpt::boundary ||
                 VisualizingVariable == VisOpt::deflection ||
-                VisualizingVariable == VisOpt::max_normal_traction)
-        {
-            InitializeLUT(1);
-        }
+                VisualizingVariable == VisOpt::max_normal_traction ||
+                VisualizingVariable == VisOpt::time_loaded) InitializeLUT(1);
         else if(VisualizingVariable == VisOpt::fracture_support) InitializeLUT(4);
         else InitializeLUT(3);
     }
@@ -172,6 +170,10 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<icy::Node*> *nodes,
 
     case VisOpt::max_normal_traction:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->max_normal_traction);
+        break;
+
+    case VisOpt::time_loaded:
+        for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->timeLoadedAboveThreshold);
         break;
 
     case VisOpt::fracture_support:
@@ -304,15 +306,20 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<icy::Node*> *nodes,
     dataSetMapper->ScalarVisibilityOn();
     dataSetMapper->SetColorModeToMapScalars();
 
-    if(update_minmax && VisualizingVariable != VisOpt::fracture_support) {
-        double minmax[2];
-        visualized_values->GetValueRange(minmax);
-        hueLut->SetTableRange(minmax[0], minmax[1]);
-    } else if(VisualizingVariable == VisOpt::fracture_support)
+    if(VisualizingVariable == VisOpt::fracture_support)
     {
         hueLut->SetTableRange(-0.5,5.5);
     }
-
+    else if(VisualizingVariable == VisOpt::time_loaded)
+    {
+        hueLut->SetTableRange(0,temporalThreshold);
+    }
+    else if(update_minmax)
+    {
+        double minmax[2];
+        visualized_values->GetValueRange(minmax);
+        hueLut->SetTableRange(minmax[0], minmax[1]);
+    }
 
     UnsafeUpdateArrows(nodes);
 }

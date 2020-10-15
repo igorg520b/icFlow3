@@ -14,7 +14,6 @@ icy::Node::Node()
     fan.reserve(10);
 }
 
-
 void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double totalTime)
 {
     if(prescribed || lsId < 0) return;
@@ -497,7 +496,6 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
     if(isBoundary && (fracture_angle < threshold_angle ||
                       fracture_angle > fan_angle_span-threshold_angle || fan_angle_span < M_PI/2))
     {max_normal_traction=0; return;}
-
 }
 
 icy::Node::Sector::Sector(icy::Element *elem, icy::Node *ndd) : face(elem)

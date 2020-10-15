@@ -363,8 +363,6 @@ void icy::Geometry::RecomputeElasticityMatrix(SimParams &prms)
     D_mats *= ((5.0/6.0)*prms.YoungsModulus/((1+prms.PoissonsRatio)*2.0));
 }
 
-
-
 void icy::Geometry::WriteToSerializationBuffers()
 {
     std::size_t nNodes = nodes->size();
@@ -381,7 +379,7 @@ void icy::Geometry::WriteToSerializationBuffers()
         node_buffer[idx+0] = nd->prescribed ? 1.0 : 0.0;
         node_buffer[idx+1] = nd->x_initial.x();
         node_buffer[idx+2] = nd->x_initial.y();
-        //node_buffer[idx+3] = nd->strength;
+        node_buffer[idx+3] = nd->timeLoadedAboveThreshold;
 
         for(int j=0;j<5;j++)
         {
@@ -413,7 +411,7 @@ void icy::Geometry::RestoreFromSerializationBuffers()
 
         nd->prescribed = node_buffer[idx+0]==0 ? false : true;
         nd->x_initial << node_buffer[idx+1], node_buffer[idx+2], 0, 0, 0;
-        //nd->strength = node_buffer[idx+3];
+        nd->timeLoadedAboveThreshold = node_buffer[idx+3];
 
         for(int j=0;j<5;j++)
         {

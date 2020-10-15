@@ -371,7 +371,8 @@ void MainWindow::on_action_import_floes_triggered()
     controller.ImportFloePatch(fileName);
     controller.model.floes_vtk.UnsafeUpdateTopology(controller.model.floes.nodes.get(),
                                                     controller.model.floes.elems.get(),
-                                                    controller.model.floes.edges.get());
+                                                    controller.model.floes.edges.get(),
+                                                    controller.prms.temporal_attenuation);
     updateGUI();
     renderWindow->Render();
 }
@@ -497,7 +498,8 @@ void MainWindow::sliderValueChanged(int val)
     controller.GoToStep(val);
     controller.model.floes_vtk.UnsafeUpdateTopology(controller.model.floes.nodes.get(),
                                                     controller.model.floes.elems.get(),
-                                                    controller.model.floes.edges.get());
+                                                    controller.model.floes.edges.get(),
+                                                    controller.prms.temporal_attenuation);
     renderWindow->Render();
     progress_updated();
 }
@@ -723,6 +725,7 @@ void MainWindow::comboboxIndexChanged(int index)
 {
     controller.model.floes_vtk.UnsafeUpdateValues(controller.model.floes.nodes.get(),
                                                   controller.model.floes.elems.get(),
+                                                  controller.prms.temporal_attenuation,
                                                   (icy::FloeVisualization::VisOpt)index);
     prefsGUI.VisualizationOption = index;
     renderWindow->Render();
@@ -765,7 +768,8 @@ void MainWindow::on_action_Tentative_triggered(bool checked)
     prefsGUI.ShowTentative = checked;
     controller.model.floes_vtk.use_tentative_coordinates = checked;
     controller.model.floes_vtk.UnsafeUpdateDisplacements(controller.model.floes.nodes.get(),
-                                                         controller.model.floes.elems.get());
+                                                         controller.model.floes.elems.get(),
+                                                         controller.prms.temporal_attenuation);
     renderWindow->Render();
 }
 
