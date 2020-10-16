@@ -24,7 +24,6 @@ void icy::Geometry::DistributeStresses()
     for(std::size_t i=0;i<nElems;i++) (*elems)[i]->DistributeStresses();
 }
 
-
 long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, bool startingFracture)
 {
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -378,4 +377,44 @@ void icy::Geometry::SplitAlongExistingEdge(Edge *edge, Node *centerNode, Node* &
     }
 
     //existingFace->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
+}
+
+
+
+long icy::Geometry::IdentifyDisconnectedRegions()
+{
+    regions.clear();
+    for(icy::Element *e : *elems) e->traversed = false;  // set to not-traversed
+
+    unsigned current_region = 0;
+    wave.clear();
+    wave.reserve(elems->size());
+    for(icy::Element *e : *elems)
+    {
+        if(e->traversed) continue;
+
+        wave.push_back(e);
+        unsigned count_elems = 0;
+        double region_area = 0;
+        while(wave.size() > 0)
+        {
+            icy::Element *elem = wave.back();
+            wave.pop_back();
+            count_elems++;
+            region_area += elem->area_initial;
+            elem->traversed = true;
+            elem->region = current_region;
+            for(int i=0;i<3;i++)
+            {
+                icy::Element *adj_e = elem->adj_elems[i];
+                if(!adj_e->traversed) wave.push_back(adj_e);
+            }
+        }
+        regions.push_back(std::make_pair(region_area, count_elems));
+        current_region++;
+    }
+
+    // for testing
+    std::cout << "printing regions:\n";
+    for(std::pair<double, unsigned> &r : regions) std::cout << r.first << "; " << r.second << std::endl;
 }

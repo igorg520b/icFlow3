@@ -54,6 +54,8 @@ public:
     void PrecomputePersistentVariables(SimParams &prms);
     void AssignLsIds();
     long CreateEdges();     // from the list of elements, infer inner edges and boundary
+    long IdentifyDisconnectedRegions(); // used to deal with small fragments
+    std::vector<std::pair<double, unsigned>> regions; // first is area, second is number of elements
 
     unsigned getElemCount() {return elems->size();}
     unsigned getNodeCount() {return nodes->size();}
@@ -82,11 +84,9 @@ public:
 
     // fracture
     std::vector<Node*> breakable_range, neighbors_of_crack_tip, local_support;
-
     icy::Node *maxNode = nullptr;
 
     icy::Edge* getEdgeByNodalIdx(int idx1, int idx2);
-    //    std::map<std::pair<int,int>, EdgeElementPairing> edges_map;
     std::unordered_map<uint64_t, EdgeElementPairing> edges_map;
 
 private:
@@ -120,6 +120,7 @@ private:
     std::unique_ptr<std::unordered_set<Node*>> tmp_range0 = std::make_unique<std::unordered_set<Node*>>();
     std::unique_ptr<std::unordered_set<Node*>> tmp_range1 = std::make_unique<std::unordered_set<Node*>>();
 
+    std::vector<Element*> wave; // used by IdentifyDisconnectedRegions()
 
 signals:
     void propertyChanged();

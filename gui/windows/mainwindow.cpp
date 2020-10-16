@@ -37,15 +37,9 @@ MainWindow::MainWindow(QWidget *parent)
     chartView_motion = new QChartView;
     chartView_motion->setRenderHint(QPainter::Antialiasing);
 
-    chartView_fracture = new QChartView;
-    chartView_fracture->setRenderHint(QPainter::Antialiasing);
-
     series_pie_motion = new QPieSeries;
-    series_pie_fracture = new QPieSeries;
     series_pie_motion->setHoleSize(0.35);
-    series_pie_fracture->setHoleSize(0.25);
 //    series_pie_motion->setPieSize(0.5);
-    series_pie_fracture->setPieSize(0.5);
 
     chart_pie_motion = new QChart;
     chart_pie_motion->addSeries(series_pie_motion);
@@ -55,14 +49,6 @@ MainWindow::MainWindow(QWidget *parent)
     chart_pie_motion->setBackgroundRoundness(0);
 
     chartView_motion->setChart(chart_pie_motion);
-
-    chart_pie_fracture = new QChart;
-    chart_pie_fracture->addSeries(series_pie_fracture);
-    chart_pie_fracture->legend()->setAlignment(Qt::AlignBottom);
-    chart_pie_fracture->setTheme(QChart::ChartThemeBlueCerulean);
-    chart_pie_fracture->legend()->setFont(QFont("Arial", 12));
-    chart_pie_fracture->setBackgroundRoundness(0);
-    chartView_fracture->setChart(chart_pie_fracture);
 
     // tree
     tree = new QTreeWidget;
@@ -562,21 +548,18 @@ void MainWindow::on_action_show_axes_triggered(bool checked)
 
 void MainWindow::on_action_show_benchmark_triggered()
 {
-    series_pie_fracture->clear();
     series_pie_motion->clear();
     series_pie_motion->setPieStartAngle(45);
     series_pie_motion->setPieEndAngle(45+360);
 
     series_pie_motion->setName("Motion (per solve)");
-    series_pie_fracture->setName("Fracture (per step)");
 
     if(controller.stepStats.size() > 0)
     {
         long long total;
         long long n_solves;
         std::vector<std::pair<std::string, long>> results_motion;
-        std::vector<std::pair<std::string, long>> results_fracture;
-        icy::FrameInfo::BenchmarkingSummarize(controller.stepStats, results_motion, results_fracture, total, n_solves);
+        icy::FrameInfo::BenchmarkingSummarize(controller.stepStats, results_motion, total, n_solves);
         total/=1000000;
 
         for(const auto &p : results_motion) {
@@ -587,14 +570,6 @@ void MainWindow::on_action_show_benchmark_triggered()
             }
         }
 
-        for(const auto &p : results_fracture) {
-            long val = p.second;
-            if(val > 0) {
-                QString str= QString::fromStdString(p.first) + " " + QString::number(val)+ " ms"; //\xC2\xB5s
-                series_pie_fracture->append(str, val);
-            }
-        }
-
         QString strTotal = QString::number(total);
         QString strSolves = QString::number(n_solves);
         QString strSteps = QString::number(controller.stepStats.size());
@@ -602,10 +577,8 @@ void MainWindow::on_action_show_benchmark_triggered()
         chart_pie_motion->setTitle(str);
     } else {
         chart_pie_motion->setTitle("No data");
-        chart_pie_fracture->setTitle("No data");
     }
     series_pie_motion->setLabelsVisible();
-    series_pie_fracture->setLabelsVisible();
 
     QLayoutItem *qli;
     while ((qli = right_side_layout->takeAt(0)) != nullptr) {
@@ -614,7 +587,6 @@ void MainWindow::on_action_show_benchmark_triggered()
     }
 
     right_side_layout->addWidget(chartView_motion, 1);
-//    right_side_layout->addWidget(chartView_fracture, 1);
 }
 
 void MainWindow::on_action_show_model_triggered()

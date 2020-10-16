@@ -19,6 +19,7 @@ icy::Geometry::Geometry()
     elems2->reserve(expected_size);
     edges->reserve(expected_size);
 
+    regions.reserve(100);
     length = width = area = 0;
 }
 

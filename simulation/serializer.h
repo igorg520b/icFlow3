@@ -3,7 +3,6 @@
 
 #include <string>
 #include <vector>
-//#include <h5cpp/all>
 #include "hdf5.h"
 
 
@@ -16,9 +15,6 @@ class icy::Serializer
 {
 public:
     bool fileIsOpen=false;
-
-//    h5::fd_t file_descriptor;   // save all data to this file
-//    h5::ds_t ds_nodes, ds_elems, ds_steps, ds_params;
 
     hid_t file_handle, ds_nodes_handle, ds_elems_handle, ds_steps_handle, ds_params_handle;
 

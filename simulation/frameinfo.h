@@ -91,7 +91,6 @@ public:
 
     static void BenchmarkingSummarize(std::vector<icy::FrameInfo> &stepStats,
                                       std::vector<std::pair<std::string, long>> &timing_motion,
-                                      std::vector<std::pair<std::string, long>> &timing_fracture,
                                       long long &total,
                                       long long &n_solves)
     {
@@ -141,24 +140,7 @@ public:
 
         // t_total is computed for all frames
         // everything else is presented per frame
-        /*
-        long long n = n_solves;
-        t_other /= n;
-        t_prepare /= n;
-        t_clear_ls /= n;
-        t_force_elem /= n;
-        t_force_buoyancy /= n;
-        t_force_collision /= n;
-        t_create_structure /= n;
-        t_assemble /= n;
-        t_solve /= n;
-        t_pull_from_ls/=n;
 
-        std::size_t n_steps = stepStats.size();
-        t_create_edges/=n_steps;
-        t_local_substep/=n_steps;
-        t_compute_fracture_directions/=n_steps;
-*/
         t_other /= 1000;
         t_prepare /= 1000;
         t_clear_ls /= 1000;
@@ -188,9 +170,6 @@ public:
         timing_motion.push_back(std::make_pair<std::string, long>("pull",t_pull_from_ls));
         timing_motion.push_back(std::make_pair<std::string, long>("other",t_other));
 
-//        timing_fracture.push_back(std::make_pair<std::string, long>("split",t_split));
-//        timing_fracture.push_back(std::make_pair<std::string, long>("substep",(long)t_local_substep));
-//        timing_fracture.push_back(std::make_pair<std::string, long>("frac.dir.",t_compute_fracture_directions));
         timing_motion.push_back(std::make_pair<std::string, long>("split",t_split));
         timing_motion.push_back(std::make_pair<std::string, long>("substep",(long)t_local_substep));
         timing_motion.push_back(std::make_pair<std::string, long>("frac.dir.",t_compute_fracture_directions));

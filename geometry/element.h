@@ -20,7 +20,11 @@ namespace icy { class Element; class Node; class SimParams; class Edge; }
 class icy::Element
 {
 public:
-    icy::Node* nds[3];      // initialized when the geometry is loaded or remeshed
+    icy::Node* nds[3];          // initialized when the geometry is loaded or remeshed
+    icy::Edge* edges[3];        // element's edges 0-1; 1-2; 2-0;
+    icy::Element* adj_elems[3]; // nullptr of no adjacent element
+    unsigned region;
+    bool traversed;             // for traversal when identifying region connectivity
 
     // at initial state
     double area_initial;
@@ -86,14 +90,6 @@ private:
             Eigen::Matrix<double,DOFS*3,1> &Fo,
             Eigen::Matrix<double,DOFS*3,DOFS*3> *dFo);
 
-
-
-    // used in ARCSim's version; included for testing
-//    static Eigen::Matrix3d make_positive(const Eigen::Matrix3d B);
-//    static void eigen_decomposition(const Eigen::Matrix3d &B, Eigen::Matrix3d &Q, Eigen::Vector3d &l);
-//    static void swap_rows(Eigen::Vector3d &w, int col1, int col2);
-//    static void swap_columns(Eigen::Matrix3d &A, int col1, int col2);
-//    static int dsyevc3(const Eigen::Matrix3d &A, Eigen::Vector3d &w);
 };
 
 #endif // ELEMENT123_H
