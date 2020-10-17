@@ -261,7 +261,7 @@ void icy::Node::PrepareFan()
     if(isBoundary)
     {
         // find the fan element with the border on the CW direction
-        auto cw_boundary = std::find_if(fan.begin(), fan.end(), [](const Sector &f){return f.e[0]->isBoundary;});
+        auto cw_boundary = std::find_if(fan.begin(), fan.end(), [](const Sector &f){return f.e[0].isBoundary;});
         if(cw_boundary == fan.end()) throw std::runtime_error("cw boundary not found");
         std::rotate(fan.begin(), cw_boundary, fan.end());
     }
@@ -280,7 +280,8 @@ void icy::Node::PrepareFan()
                 qDebug() << "j="<<j<<"; nd_ids: " << fan[j].nd[0]->locId << " -- " << fan[j].nd[1]->locId;
             throw std::runtime_error("fan nodes are not contiguous");
         }
-        if(fan[i].e[1] != fan[i+1].e[0]) throw std::runtime_error("edges not shared");
+        if(fan[i].e[1].nds[0] != fan[i+1].e[0].nds[0] || fan[i].e[1].nds[1] != fan[i+1].e[0].nds[1])
+            throw std::runtime_error("edges not shared");
     }
 }
 
@@ -304,8 +305,8 @@ void icy::Node::InitializeFan()
 
     for(Sector &f : fan)
     {
-        f.u_normalized = f.e[0]->getVec(this).normalized();
-        f.v_normalized = f.e[1]->getVec(this).normalized();
+        f.u_normalized = f.e[0].getVec(this).normalized();
+        f.v_normalized = f.e[1].getVec(this).normalized();
 
         f.angle0 = fan_angle_span;
         f.angle_span = get_angle(f.u_normalized,f.v_normalized);

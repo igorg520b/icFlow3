@@ -157,7 +157,6 @@ public:
         t_compute_fracture_directions/=1000;
 
         timing_motion.clear();
-        timing_fracture.clear();
 
         timing_motion.push_back(std::make_pair<std::string, long>("prep",t_prepare));
         timing_motion.push_back(std::make_pair<std::string, long>("clrls",t_clear_ls));

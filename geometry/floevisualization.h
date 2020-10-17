@@ -113,8 +113,7 @@ public:
     vtkNew<vtkDoubleArray> visualized_values;
     vtkIdType selectedPointId = -1;
     // visual representation of the floe with thickness
-    void UnsafeUpdateTopology(std::vector<icy::Node*> *nodes, std::vector<icy::Element*> *elems,
-                              std::vector<icy::Edge*> *edges, double temporalThreshold);
+    void UnsafeUpdateTopology(std::vector<icy::Node*> *nodes, std::vector<icy::Element*> *elems, double temporalThreshold);
     void UnsafeUpdateDisplacements(std::vector<icy::Node*> *nodes, std::vector<icy::Element*> *elems, double temporalThreshold);
     void UnsafeUpdateValues(std::vector<icy::Node*> *nodes,
                             std::vector<icy::Element*> *elems, double temporalThreshold,

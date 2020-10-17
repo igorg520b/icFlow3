@@ -17,7 +17,7 @@ icy::Geometry::Geometry()
     nodes2->reserve(expected_size);
     elems->reserve(expected_size);
     elems2->reserve(expected_size);
-    edges->reserve(expected_size);
+    //edges->reserve(expected_size);
 
     regions.reserve(100);
     length = width = area = 0;
@@ -28,7 +28,7 @@ void icy::Geometry::Reset()
     qDebug() << "icy::Geometry::Reset()";
     ResizeNodes(0);
     ResizeElems(0);
-    ResizeEdges(0);
+    //ResizeEdges(0);
     SwapCurrentAndTmp();
     ResizeNodes(0);
     ResizeElems(0);
@@ -81,6 +81,7 @@ void icy::Geometry::ResizeElems(std::size_t newSize)
     }
 }
 
+/*
 void icy::Geometry::ResizeEdges(std::size_t newSize)
 {
     std::size_t nEdges = edges->size();
@@ -98,6 +99,7 @@ void icy::Geometry::ResizeEdges(std::size_t newSize)
         } while(edges->size() > newSize);
     }
 }
+*/
 
 icy::Node* icy::Geometry::AddNode(icy::Node *otherNd)
 {
@@ -243,15 +245,20 @@ void icy::Geometry::MeshingStepTwo(double CharacteristicLengthMax)
 
     for(unsigned i=0;i<nodes->size();i++) (*nodes)[i]->normal_n.normalize();
 
-    CreateEdges();
-    emit propertyChanged();
+    CreateEdges2();
 }
 
-long icy::Geometry::CreateEdges()
+
+long icy::Geometry::CreateEdges2()
 {
     auto t1 = std::chrono::high_resolution_clock::now();
 
-    for(icy::Node* &nd : *nodes) {
+    std::size_t nNodes = nodes->size();
+
+#pragma omp parallel for
+    for(std::size_t i=0;i<nNodes;i++)
+    {
+        icy::Node* nd = (*nodes)[i];
         nd->adjacent_nodes.clear();
         nd->fan.clear();
         nd->isBoundary = false;
@@ -260,58 +267,53 @@ long icy::Geometry::CreateEdges()
     }
 
     // edges_map will hold all edges and their connected elements
-    edges_map.clear();
+    edges_map2.clear();
     area = 0;
 
     // associate edges with one or two adjacent elements
-    for(icy::Element* elem : *elems)
+
+    std::size_t nElems = elems->size();
+#pragma omp parallel for
+    for(std::size_t k=0;k<nElems;k++)
     {
-        area += elem->area_initial;
+        icy::Element *elem = (*elems)[k];
         for(int i=0;i<3;i++)
         {
-            // process adjacent elements
-            icy::Node *nd = elem->nds[i];
-            nd->area += elem->area_initial/3;
-            icy::Node::Sector f(elem, nd);
-            nd->fan.push_back(f);
-
             // process edges
             int nd0 = elem->nds[i]->locId;
             int nd1 = elem->nds[(i+1)%3]->locId;
-            EdgeElementPairing val(elem, nullptr);
 
             if(nd0 > nd1) std::swap(nd0, nd1);
             uint64_t key = ((uint64_t)nd0 << 32) | nd1;
 
-            // if edge already exists, add the second element to the list
-            auto insertion_result = edges_map.insert({key,val});
-            if(insertion_result.second == false) {
-                if(edges_map.at(key).element1!=nullptr)
-                    throw std::runtime_error("edge is attached to 3+ elems");
-                edges_map.at(key).element1 = elem;
+            Edge edge;
+            edge.elems[0] = elem;
+            edge.elems[1] = nullptr;
+            edge.nds[0] = (*nodes)[nd0];
+            edge.nds[1] = (*nodes)[nd1];
+
+            auto insertion_result = edges_map2.insert({key,edge});
+            if(insertion_result.second == false)
+            {
+                icy::Edge &existing_edge = edges_map2.at(key);
+                if(existing_edge.elems[1]!=nullptr) throw std::runtime_error("edge is attached to 3+ elems");
+                existing_edge.elems[1] = elem;
             }
         }
     }
 
-    // assert to make sure that mesh was split correctly
-    for(icy::Node *nd : *nodes) if(nd->fan.size()==0) throw std::runtime_error("node not connected");
-
-    // create edges and distribute them to nodes
-    ResizeEdges(edges_map.size());
-    std::size_t count = 0;
-    for(auto &kvpair : edges_map)
+    // distribute edges to nodes
+    for(auto &kvpair : edges_map2)
     {
-        icy::Edge *edge = (*edges)[count++];
+        icy::Edge &edge = kvpair.second;
+        edge.RepairElementOrder();
+
         uint64_t key = kvpair.first;
         int nd0idx = key >> 32;
         int nd1idx = (uint32_t)key;// & 0xffffffff;
 
         icy::Node* nd0 = (*nodes)[nd0idx];
         icy::Node* nd1 = (*nodes)[nd1idx];
-
-        EdgeElementPairing &val = kvpair.second;
-        edge->Initialize(nd0, nd1, val.element0, val.element1);
-        kvpair.second.edge = edge;
 
         // nodes keep the list of adjacent edges
         nd0->adjacent_edges_map.insert({nd1idx, edge});
@@ -322,8 +324,25 @@ long icy::Geometry::CreateEdges()
         nd1->adjacent_nodes.push_back(nd0);
     }
 
+    for(icy::Element* elem : *elems)
+    {
+        area += elem->area_initial;
+        for(int i=0;i<3;i++)
+        {
+            // process adjacent elements
+            icy::Node *nd = elem->nds[i];
+            nd->area += elem->area_initial/3;
+            icy::Node::Sector f(elem, nd);
+            nd->fan.push_back(f);
+        }
+    }
+
 #pragma omp parallel for
-    for(std::size_t i=0;i<nodes->size();i++) (*nodes)[i]->PrepareFan();
+    for(std::size_t i=0;i<nodes->size();i++) {
+        icy::Node* nd = (*nodes)[i];
+        nd->PrepareFan();
+        if(nd->fan.size()==0) throw std::runtime_error("disconnected node");
+    }
 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
@@ -463,12 +482,13 @@ void icy::Geometry::RestoreFromSerializationBuffers()
     length = xmax-xmin;
     width = ymax-ymin;
 
-    CreateEdges();
+    CreateEdges2();
 }
 
-icy::Edge* icy::Geometry::getEdgeByNodalIdx(int idx1, int idx2)
+icy::Edge icy::Geometry::getEdgeByNodalIdx(int idx1, int idx2)
 {
     if(idx1 > idx2) std::swap(idx1, idx2);
     uint64_t edgeIdx = ((uint64_t)idx1 << 32) | idx2;
-    return edges_map.at(edgeIdx).edge;
+    //return edges_map.at(edgeIdx).edge;
+    return edges_map2.at(edgeIdx);
 }

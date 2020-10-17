@@ -1,7 +1,7 @@
 #include "edge.h"
 #include "node.h"
 #include "element.h"
-
+/*
 void icy::Edge::Initialize(icy::Node* nd0, icy::Node* nd1, icy::Element* elem0, icy::Element* elem1)
 {
     elems[0] = elems[1] = nullptr;
@@ -36,6 +36,38 @@ void icy::Edge::Initialize(icy::Node* nd0, icy::Node* nd1, icy::Element* elem0, 
     {
         nd0->isBoundary = nd1->isBoundary = true;
     }
+}
+*/
+void icy::Edge::RepairElementOrder()
+{
+    isBoundary = (elems[1]==nullptr);
+    if(isBoundary) {nds[0]->isBoundary = nds[1]->isBoundary = true;}
+
+    // calculate edge angle
+    Eigen::Matrix<double,DOFS,1> e = nds[1]->x_initial - nds[0]->x_initial;
+    angle0_initial = atan2(e.y(), e.x());
+    angle1_initial = (angle0_initial > 0) ? angle0_initial - M_PI : angle0_initial + M_PI;
+
+    Eigen::Vector3d u = e.block(0,0,3,1);
+    // get oppisite node for elem0
+    icy::Node *opposite_node0;
+    ElementBoundaryFollowsEdge(elems[0], opposite_node0);
+    Eigen::Vector3d v0 = (opposite_node0->x_initial - nds[0]->x_initial).block(0,0,3,1);
+    Eigen::Vector3d res1 = u.cross(v0);
+    bool elem0_isCCW = res1.z() > 0;
+
+    // assert
+    if(!isBoundary)
+    {
+        icy::Node *opposite_node1;
+        ElementBoundaryFollowsEdge(elems[1], opposite_node1);
+        Eigen::Vector3d v1 = (opposite_node1->x_initial - nds[0]->x_initial).block(0,0,3,1);
+        Eigen::Vector3d res2 = u.cross(v1);
+        bool elem1_isCCW = res2.z() > 0;
+        if(elem1_isCCW == elem0_isCCW) throw std::runtime_error("two elems on the same side of edge");
+    }
+    if(!elem0_isCCW) std::swap(elems[0],elems[1]);
+
 }
 
 // determine if nds[0],nds[1] are contained in elem.nds in forward order

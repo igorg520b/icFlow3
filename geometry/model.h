@@ -21,7 +21,15 @@ namespace icy { class Model; class Node; class Element;}
 class icy::Model : public QObject
 {
     Q_OBJECT
-
+/*
+    Q_OBJECT
+    Q_PROPERTY(int in_Elems READ getElemCount)
+    Q_PROPERTY(int in_Nodes READ getNodeCount)
+    Q_PROPERTY(int in_FreeNds READ getFreeNodeCount)
+    Q_PROPERTY(double in_length MEMBER length NOTIFY propertyChanged)
+    Q_PROPERTY(double in_width MEMBER width NOTIFY propertyChanged)
+    Q_PROPERTY(double in_area MEMBER area NOTIFY propertyChanged)
+  */
 public:    
     void Reset();   // erases all geometry
 
@@ -63,6 +71,7 @@ private:
 
 signals:
     void requestGeometryUpdate(); // this goes to the main thread, which calls UnsafeUpdateGeometry()
+    void propertyChanged();
 };
 
 #endif // MESHCOLLECTION_H

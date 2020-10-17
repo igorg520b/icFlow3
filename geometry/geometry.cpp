@@ -127,7 +127,6 @@ void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Node*> &in
 }
 
 
-
 long icy::Geometry::SplitNode(SimParams &prms)
 {
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -182,17 +181,17 @@ long icy::Geometry::SplitNode(SimParams &prms)
     }
 
     // split face #0
-    icy::Node *nd0 = ssr.e[0]->getOtherNode(nd);
-    icy::Node *nd1 = ssr.e[1]->getOtherNode(nd);
+    icy::Node *nd0 = ssr.e[0].getOtherNode(nd);
+    icy::Node *nd1 = ssr.e[1].getOtherNode(nd);
     int nd0idx = nd0->locId;
     int nd1idx = nd1->locId;
     bool forwardEdge = (nd0idx < nd1idx);
 
-    double factor0 = sin(ssr.phi[0])*ssr.e[0]->getVec(nd).norm();
-    double factor1 = sin(ssr.theta[0])*ssr.e[1]->getVec(nd).norm();
+    double factor0 = sin(ssr.phi[0])*ssr.e[0].getVec(nd).norm();
+    double factor1 = sin(ssr.theta[0])*ssr.e[1].getVec(nd).norm();
     double whereToSplit = forwardEdge ? factor1/(factor0+factor1) : factor0/(factor0+factor1);
 
-    icy::Edge *splitEdge0 = getEdgeByNodalIdx(nd0idx, nd1idx);
+    icy::Edge splitEdge0 = getEdgeByNodalIdx(nd0idx, nd1idx);
 
     /*
     Eigen::Vector3d dir = ssr.tn;
@@ -208,31 +207,29 @@ long icy::Geometry::SplitNode(SimParams &prms)
     if(ssr.faces[1] != nullptr)
     {
         // center node is interior, split face #0
-        icy::Node *nd0 = ssr.e[2]->getOtherNode(nd);
-        icy::Node *nd1 = ssr.e[3]->getOtherNode(nd);
+        icy::Node *nd0 = ssr.e[2].getOtherNode(nd);
+        icy::Node *nd1 = ssr.e[3].getOtherNode(nd);
         int nd0idx = nd0->locId;
         int nd1idx = nd1->locId;
         bool forwardEdge = (nd0idx < nd1idx);
-        double factor0 = sin(ssr.phi[1])*ssr.e[2]->getVec(nd).norm();
-        double factor1 = sin(ssr.theta[1])*ssr.e[3]->getVec(nd).norm();
+        double factor0 = sin(ssr.phi[1])*ssr.e[2].getVec(nd).norm();
+        double factor1 = sin(ssr.theta[1])*ssr.e[3].getVec(nd).norm();
         double whereToSplit = forwardEdge ? factor1/(factor0+factor1) : factor0/(factor0+factor1);
 
-        icy::Edge *splitEdge0 = getEdgeByNodalIdx(nd0idx, nd1idx);
+        icy::Edge splitEdge0 = getEdgeByNodalIdx(nd0idx, nd1idx);
         SplitEdge(splitEdge0, whereToSplit, nd, mainSplit, !forwardEdge, prms, -ssr.tn);
     }
 
     nd->weakening_direction = Eigen::Vector2f::Zero();
     nd->crack_tip = false;
 
-    CreateEdges();
+    CreateEdges2();
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
 
 
-
-
-void icy::Geometry::SplitEdge(icy::Edge *edge, double where,
+void icy::Geometry::SplitEdge(icy::Edge edge, double where,
                               icy::Node *centerNode, icy::Node* &splitNode,
                               bool forwardDirection,
                               SimParams &prms, Eigen::Vector2f dir)
@@ -249,63 +246,63 @@ void icy::Geometry::SplitEdge(icy::Edge *edge, double where,
 
     if(splitNode == nullptr) splitNode = AddNode(centerNode);
 
-    if(edge->isBoundary)
+    if(edge.isBoundary)
     {
         // break edge with 2 additional nodes; add one element on the "nd" side
 
         icy::Node *split0 = AddNode();
         icy::Node *split1 = AddNode();
 
-        split0->InitializeFromAdjacent(edge->nds[0], edge->nds[1], where);
+        split0->InitializeFromAdjacent(edge.nds[0], edge.nds[1], where);
         split1->InitializeFromAnother(split0);
 
-        icy::Element *existingFace = edge->getTheOnlyElement();
-        bool orientation = existingFace->Orientation(edge->nds[0], edge->nds[1]);
+        icy::Element *existingFace = edge.getTheOnlyElement();
+        bool orientation = existingFace->Orientation(edge.nds[0], edge.nds[1]);
 
         icy::Element *additionalFace = AddElement();
 
         if(forwardDirection)
         {
-            existingFace->Initialize(edge->nds[0], split0, centerNode, orientation);
-            additionalFace->Initialize(split1, edge->nds[1], splitNode, orientation);
+            existingFace->Initialize(edge.nds[0], split0, centerNode, orientation);
+            additionalFace->Initialize(split1, edge.nds[1], splitNode, orientation);
         } else
         {
-            existingFace->Initialize(edge->nds[0], split0, splitNode, orientation);
-            additionalFace->Initialize(split1, edge->nds[1], centerNode, orientation);
+            existingFace->Initialize(edge.nds[0], split0, splitNode, orientation);
+            additionalFace->Initialize(split1, edge.nds[1], centerNode, orientation);
         }
         existingFace->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
         additionalFace->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
     }
     else
     {
-        icy::Element *existingFace0 = edge->getElementWithNode(centerNode);
-        bool orientation0 = existingFace0->Orientation(edge->nds[0], edge->nds[1]);
+        icy::Element *existingFace0 = edge.getElementWithNode(centerNode);
+        bool orientation0 = existingFace0->Orientation(edge.nds[0], edge.nds[1]);
 
         // insert one point to the edge; add element to each side of the edge (2 total)
         // CRACK TIP NODE
         icy::Node *split0 = AddNode();
-        split0->InitializeFromAdjacent(edge->nds[0], edge->nds[1], where);
+        split0->InitializeFromAdjacent(edge.nds[0], edge.nds[1], where);
         split0->weakening_direction = dir;
         split0->crack_tip = true;
 
-        icy::Node *farNode = edge->getFarNode(centerNode);
-        icy::Element *existingFace1 = edge->getElementWithNode(farNode);
-        bool orientation1 = existingFace1->Orientation(edge->nds[0], edge->nds[1]);
+        icy::Node *farNode = edge.getFarNode(centerNode);
+        icy::Element *existingFace1 = edge.getElementWithNode(farNode);
+        bool orientation1 = existingFace1->Orientation(edge.nds[0], edge.nds[1]);
 
         icy::Element *additionalFace0 = AddElement();
         icy::Element *additionalFace1 = AddElement();
 
-        existingFace1->Initialize(edge->nds[0], split0, farNode, orientation1);
-        additionalFace1->Initialize(split0, edge->nds[1], farNode, orientation1);
+        existingFace1->Initialize(edge.nds[0], split0, farNode, orientation1);
+        additionalFace1->Initialize(split0, edge.nds[1], farNode, orientation1);
         if(forwardDirection)
         {
-            existingFace0->Initialize(edge->nds[0], split0, centerNode, orientation0);
-            additionalFace0->Initialize(split0, edge->nds[1], splitNode, orientation0);
+            existingFace0->Initialize(edge.nds[0], split0, centerNode, orientation0);
+            additionalFace0->Initialize(split0, edge.nds[1], splitNode, orientation0);
         }
         else
         {
-            existingFace0->Initialize(edge->nds[0], split0, splitNode, orientation0);
-            additionalFace0->Initialize(split0, edge->nds[1], centerNode, orientation0);
+            existingFace0->Initialize(edge.nds[0], split0, splitNode, orientation0);
+            additionalFace0->Initialize(split0, edge.nds[1], centerNode, orientation0);
         }
         existingFace0->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
         additionalFace0->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
@@ -314,18 +311,18 @@ void icy::Geometry::SplitEdge(icy::Edge *edge, double where,
     }
 }
 
-void icy::Geometry::SplitAlongExistingEdge(Edge *edge, Node *centerNode, Node* &splitNode,
+void icy::Geometry::SplitAlongExistingEdge(Edge edge, Node *centerNode, Node* &splitNode,
                                            int oppositeNodeIdx, bool forwardDirection, Eigen::Vector2f dir)
 {
     // qDebug() << "SplitAlongExistingEdge; oppositeNodeIdx: " << oppositeNodeIdx;
 
-    icy::Element *existingFace = edge->getElementWithNode(centerNode);
-    bool orientation = existingFace->Orientation(edge->nds[0], edge->nds[1]);
+    icy::Element *existingFace = edge.getElementWithNode(centerNode);
+    bool orientation = existingFace->Orientation(edge.nds[0], edge.nds[1]);
 
-    icy::Node *oppositeNode = edge->nds[oppositeNodeIdx];
+    icy::Node *oppositeNode = edge.nds[oppositeNodeIdx];
 
-    icy::Edge *edgeBeingSplit = getEdgeByNodalIdx(oppositeNode->locId, centerNode->locId);
-    if(edgeBeingSplit->isBoundary) return; // trying to split a boundary edge
+    icy::Edge edgeBeingSplit = getEdgeByNodalIdx(oppositeNode->locId, centerNode->locId);
+    if(edgeBeingSplit.isBoundary) return; // trying to split a boundary edge
 
     if(splitNode == nullptr) splitNode = AddNode(centerNode);
 
@@ -347,7 +344,7 @@ void icy::Geometry::SplitAlongExistingEdge(Edge *edge, Node *centerNode, Node* &
 
     // reconnect the element
     if((oppositeNodeIdx == 0 && forwardDirection) || (oppositeNodeIdx == 1 && !forwardDirection)) {
-        existingFace->Initialize(edge->nds[0], edge->nds[1], splitNode, orientation);
+        existingFace->Initialize(edge.nds[0], edge.nds[1], splitNode, orientation);
     }
     else
     {
@@ -383,6 +380,7 @@ void icy::Geometry::SplitAlongExistingEdge(Edge *edge, Node *centerNode, Node* &
 
 long icy::Geometry::IdentifyDisconnectedRegions()
 {
+    auto t1 = std::chrono::high_resolution_clock::now();
     regions.clear();
     for(icy::Element *e : *elems) e->traversed = false;  // set to not-traversed
 
@@ -417,4 +415,7 @@ long icy::Geometry::IdentifyDisconnectedRegions()
     // for testing
     std::cout << "printing regions:\n";
     for(std::pair<double, unsigned> &r : regions) std::cout << r.first << "; " << r.second << std::endl;
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }

@@ -11,12 +11,13 @@ void icy::Serializer::CreateFile(std::string fileName, unsigned params_size)
 
     file_handle = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
+    const int deflate_val = 0;
     // nodes
     hsize_t current_dims_nodes[2] = {0,NodeDataFields}; // can this be replaced by NULL ?
     hsize_t max_dims_nodes[2] = {H5S_UNLIMITED,NodeDataFields};
     hid_t space_nodes = H5Screate_simple(2, current_dims_nodes, max_dims_nodes);
     hid_t dcpl_nodes = H5Pcreate (H5P_DATASET_CREATE);
-    H5Pset_deflate (dcpl_nodes, 3);
+    H5Pset_deflate (dcpl_nodes, deflate_val);
     hsize_t chunk_nodes[2] = {2000,NodeDataFields};
     H5Pset_chunk(dcpl_nodes, 2, chunk_nodes);
     ds_nodes_handle = H5Dcreate(file_handle, "nodes", H5T_NATIVE_DOUBLE, space_nodes,
@@ -30,7 +31,7 @@ void icy::Serializer::CreateFile(std::string fileName, unsigned params_size)
     hsize_t max_dims_elems[2] = {H5S_UNLIMITED,3};
     hid_t space_elems = H5Screate_simple(2, current_dims_elems, max_dims_elems);
     hid_t dcpl_elems = H5Pcreate(H5P_DATASET_CREATE);
-    H5Pset_deflate(dcpl_elems, 3);
+    H5Pset_deflate(dcpl_elems, deflate_val);
     hsize_t chunk_elems[2] = {2000,3};
     H5Pset_chunk(dcpl_elems, 2, chunk_elems);
     ds_elems_handle = H5Dcreate(file_handle, "elems", H5T_NATIVE_INT, space_elems,
@@ -44,7 +45,7 @@ void icy::Serializer::CreateFile(std::string fileName, unsigned params_size)
     hsize_t max_dims_steps[2] = {H5S_UNLIMITED,sizeof(icy::FrameInfo)};
     hid_t space_steps = H5Screate_simple(2, current_dims_steps, max_dims_steps);
     hid_t dcpl_steps = H5Pcreate(H5P_DATASET_CREATE);
-    H5Pset_deflate (dcpl_steps, 3);
+    H5Pset_deflate (dcpl_steps, deflate_val);
     hsize_t chunk_steps[2] = {200,sizeof(icy::FrameInfo)};
     H5Pset_chunk(dcpl_steps, 2, chunk_steps);
     ds_steps_handle = H5Dcreate(file_handle, "steps", H5T_NATIVE_CHAR, space_steps,
@@ -62,34 +63,6 @@ void icy::Serializer::CreateFile(std::string fileName, unsigned params_size)
     H5Pclose(dcpl_params);
     H5Sclose(space_params);
 
-//    file_descriptor = h5::create(fileName, H5F_ACC_TRUNC);
-
-
-//    const int zip = 3;
-/*    ds_nodes = h5::create<double>(file_descriptor, "nodes",
-                                  h5::current_dims{0,NodeDataFields},
-                                  h5::max_dims{H5S_UNLIMITED,NodeDataFields},
-                                  h5::chunk{2000,NodeDataFields}|h5::gzip{zip});
-
-    ds_elems = h5::create<int>(file_descriptor, "elems",
-                                  h5::current_dims{0,3},
-                                  h5::max_dims{H5S_UNLIMITED,3},
-                                  h5::chunk{2000,3}|h5::gzip{zip});
-
-    ds_steps = h5::create<char>(file_descriptor, "steps",
-                                  h5::current_dims{0,sizeof(icy::FrameInfo)},
-                                  h5::max_dims{H5S_UNLIMITED,sizeof(icy::FrameInfo)},
-                                  h5::chunk{100,sizeof(icy::FrameInfo)}|h5::gzip{zip});
-
-    ds_params = h5::create<char>(file_descriptor, "params",
-                                h5::current_dims{params_size},
-                                h5::max_dims{params_size});
-*/
-//    ds_nodes_handle = ds_nodes.handle;
-//    ds_elems_handle = ds_elems.handle;
-//    ds_steps_handle = ds_steps.handle;
-//    ds_params_handle = ds_params.handle;
-
     fileIsOpen = true;
     qDebug() << "finished icy::Serializer::CreateFile";
 }
@@ -97,14 +70,6 @@ void icy::Serializer::CreateFile(std::string fileName, unsigned params_size)
 void icy::Serializer::OpenFile(std::string fileName)
 {
     if(fileIsOpen) CloseFile();
-//    file_descriptor = h5::open(fileName, H5F_ACC_RDWR);
-//    ds_nodes = h5::open(file_descriptor, "nodes");
-//    ds_elems = h5::open(file_descriptor, "elems");
-//    ds_steps = h5::open(file_descriptor, "steps");
-//    ds_params = h5::open(file_descriptor, "params");
-
-//    file = H5Fopen (FILE, H5F_ACC_RDONLY, H5P_DEFAULT);
-//        dset = H5Dopen (file, DATASET, H5P_DEFAULT);
 
     file_handle = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
 
@@ -131,7 +96,6 @@ void icy::Serializer::CloseFile()
 void icy::Serializer::LoadParams(void *data, unsigned length)
 {
     if(!fileIsOpen) return;
-//    h5::read<char>(ds_params, (char*)data, h5::count{length}, h5::offset{0});
 
     hid_t file_space_id = H5Dget_space(ds_params_handle);
     hsize_t offset[1] = {0};
@@ -148,10 +112,8 @@ void icy::Serializer::LoadParams(void *data, unsigned length)
 void icy::Serializer::SaveParams(void *data, unsigned length)
 {
     if(!fileIsOpen) return;
-//    h5::write<char>(ds_params, (char*)data, h5::count{length}, h5::offset{0});
 
     hsize_t current_dims[1] = {length};
-//    H5Dset_extent(ds_params_handle, current_dims);
     hid_t mem_space_id = H5Screate_simple(1, current_dims, current_dims);
     H5Dwrite(ds_params_handle, H5T_NATIVE_CHAR, mem_space_id, H5S_ALL, H5P_DEFAULT,(void*)data);
     H5Sclose(mem_space_id);
@@ -161,8 +123,6 @@ void icy::Serializer::Write(std::vector<double> &node_buffer,
                             std::vector<int> &elems_buffer,
                             unsigned offset_nodes, unsigned offset_elems)
 {
-//    qDebug() << "icy::Serializer::Write";
-
     if(!fileIsOpen) return;
     std::size_t nNodes = node_buffer.size()/NodeDataFields;
     std::size_t nElems = elems_buffer.size()/3;
@@ -187,12 +147,6 @@ void icy::Serializer::Write(std::vector<double> &node_buffer,
     H5Sclose(mem_space_id);
     H5Sclose(file_space_id);
 
-
-
-//    h5::set_extent(ds_nodes, h5::current_dims{nodes_extent,NodeDataFields});
-//    h5::write<double>(ds_nodes, node_buffer.data(), h5::count{nNodes,NodeDataFields},
-//                      h5::offset{offset_nodes,0});
-
     unsigned long elems_extent = offset_elems+nElems;
 
     // set extent
@@ -212,10 +166,6 @@ void icy::Serializer::Write(std::vector<double> &node_buffer,
     H5Sclose(mem_space_id2);
     H5Sclose(file_space_id2);
 
-
-//    h5::set_extent(ds_elems, h5::current_dims{elems_extent,3});
-//    h5::write<int>(ds_elems, elems_buffer.data(), h5::count{nElems,3}, h5::offset{offset_elems,0});
-//    qDebug() << "finished icy::Serializer::Write";
 }
 
 void icy::Serializer::Read(std::vector<double> &node_buffer,
@@ -225,9 +175,6 @@ void icy::Serializer::Read(std::vector<double> &node_buffer,
 {
     node_buffer.resize(nNodes*NodeDataFields);
     elems_buffer.resize(nElems*3);
-
-//    h5::read<double>(ds_nodes, node_buffer.data(), h5::count{nNodes,NodeDataFields}, h5::offset{offset_nodes,0});
-//    h5::read<int>(ds_elems, elems_buffer.data(), h5::count{nElems,3}, h5::offset{offset_elems,0});
 
     hid_t file_space_id = H5Dget_space(ds_nodes_handle);
     hsize_t offset[2] = {offset_nodes,0};
@@ -255,10 +202,6 @@ void icy::Serializer::Trim(unsigned steps_extent, unsigned nodes_extent, unsigne
     if(!fileIsOpen) return;
 
     // trim file
-//    h5::set_extent(ds_steps, h5::current_dims{steps_extent,sizeof(icy::FrameInfo)});
-//    h5::set_extent(ds_nodes, h5::current_dims{nodes_extent,NodeDataFields});
-//    h5::set_extent(ds_elems, h5::current_dims{elems_extent,3});
-
     hsize_t steps_dims[2] = {steps_extent,sizeof(icy::FrameInfo)};
     H5Dset_extent(ds_steps_handle, steps_dims);
 
@@ -290,8 +233,6 @@ void icy::Serializer::WriteSteps(unsigned steps_extent, FrameInfo *f)
     H5Sclose(mem_space_id);
     H5Sclose(file_space_id);
 
-//    h5::set_extent(ds_steps, h5::current_dims{steps_extent, sizeof(FrameInfo)});
-//    h5::write<char>(ds_steps, (char*)f,h5::offset{steps_extent-1,0}, h5::count{1,sizeof(icy::FrameInfo)});
 }
 
 void icy::Serializer::ReadSteps(std::vector<icy::FrameInfo> &stepStats)
@@ -306,18 +247,6 @@ void icy::Serializer::ReadSteps(std::vector<icy::FrameInfo> &stepStats)
     stepStats.resize(size);
     void *ptr = (void*)stepStats.data();
     H5Dread(ds_steps_handle, H5T_NATIVE_CHAR, H5S_ALL, H5S_ALL, H5P_DEFAULT, ptr);
-
-/*
-    h5::sp_t dspace = h5::get_space(ds_steps);
-    h5::current_dims current_dims;
-    h5::get_simple_extent_dims(dspace, current_dims);
-    unsigned size = current_dims[0];
-    stepStats.resize(size);
-    unsigned sizeof_frameinfo = sizeof(icy::FrameInfo);
-    char *ptr = (char*)stepStats.data();
-    h5::count c = h5::count{size,sizeof_frameinfo};
-    h5::read<char>(ds_steps, ptr, c);
-*/
 }
 
 void icy::Serializer::WriteAll(std::vector<double> &node_buffer,

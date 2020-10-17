@@ -21,7 +21,7 @@ class icy::Element
 {
 public:
     icy::Node* nds[3];          // initialized when the geometry is loaded or remeshed
-    icy::Edge* edges[3];        // element's edges 0-1; 1-2; 2-0;
+    icy::Edge edges[3];        // element's edges 0-1; 1-2; 2-0;
     icy::Element* adj_elems[3]; // nullptr of no adjacent element
     unsigned region;
     bool traversed;             // for traversal when identifying region connectivity

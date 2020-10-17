@@ -357,7 +357,6 @@ void MainWindow::on_action_import_floes_triggered()
     controller.ImportFloePatch(fileName);
     controller.model.floes_vtk.UnsafeUpdateTopology(controller.model.floes.nodes.get(),
                                                     controller.model.floes.elems.get(),
-                                                    controller.model.floes.edges.get(),
                                                     controller.prms.temporal_attenuation);
     updateGUI();
     renderWindow->Render();
@@ -381,7 +380,7 @@ void MainWindow::treeItemSelected()
         // set property browser
         if(w == tiParams_GUI) pbrowser->setActiveObject(&prefsGUI);
         else if(w == tiParams_sim) pbrowser->setActiveObject(&controller.prms);
-        else if(w == tiFloes) pbrowser->setActiveObject(&controller.model.floes);
+        else if(w == tiFloes) pbrowser->setActiveObject(&controller.model);
         else {
             QVariant qv0 = w->data(0, Qt::UserRole);
             QVariant qv1 = w->data(1, Qt::UserRole);
@@ -484,7 +483,6 @@ void MainWindow::sliderValueChanged(int val)
     controller.GoToStep(val);
     controller.model.floes_vtk.UnsafeUpdateTopology(controller.model.floes.nodes.get(),
                                                     controller.model.floes.elems.get(),
-                                                    controller.model.floes.edges.get(),
                                                     controller.prms.temporal_attenuation);
     renderWindow->Render();
     progress_updated();
@@ -597,6 +595,7 @@ void MainWindow::on_action_show_model_triggered()
         delete qli;
     }
     right_side_layout->addWidget(qt_vtk_widget);
+    renderWindow->Render();
 }
 
 void MainWindow::on_actionMohr_s_triggered()

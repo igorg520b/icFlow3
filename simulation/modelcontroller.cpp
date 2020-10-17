@@ -196,10 +196,10 @@ void icy::ModelController::Step()
     ts.nElems = model.floes.getElemCount();
     ts.nNodes = model.floes.getNodeCount();
     stepStats.push_back(ts);
-    _Write();
     current_step = ts.StepNumber;
     auto t2 = std::chrono::high_resolution_clock::now();
     stepStats.back().b_total += std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();    
+    _Write();
     emit stepCompleted();
 }
 

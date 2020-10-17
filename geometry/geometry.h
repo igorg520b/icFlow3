@@ -1,3 +1,6 @@
+namespace icy { class Geometry; class Node; class Element; class Edge;}
+#if !defined(Q_MOC_RUN) // MOC has a glitch when parsing TBB headers
+
 #ifndef FL333_H
 #define FL333_H
 
@@ -22,18 +25,10 @@
 #include "element.h"
 #include "edge.h"
 
-namespace icy { class Geometry; class Node; class Element; class Edge;}
+#include <concurrent_unordered_map.h>
 
-class icy::Geometry : public QObject
+class icy::Geometry
 {
-    Q_OBJECT
-    Q_PROPERTY(int in_Elems READ getElemCount)
-    Q_PROPERTY(int in_Nodes READ getNodeCount)
-    Q_PROPERTY(int in_FreeNds READ getFreeNodeCount)
-    Q_PROPERTY(double in_length MEMBER length NOTIFY propertyChanged)
-    Q_PROPERTY(double in_width MEMBER width NOTIFY propertyChanged)
-    Q_PROPERTY(double in_area MEMBER area NOTIFY propertyChanged)
-
 public:
     Geometry();
 
@@ -42,7 +37,6 @@ public:
     std::unique_ptr<std::vector<icy::Node*>> nodes2 = std::make_unique<std::vector<icy::Node*>>();
     std::unique_ptr<std::vector<icy::Element*>> elems = std::make_unique<std::vector<icy::Element*>>();
     std::unique_ptr<std::vector<icy::Element*>> elems2 = std::make_unique<std::vector<icy::Element*>>();
-    std::unique_ptr<std::vector<icy::Edge*>> edges = std::make_unique<std::vector<icy::Edge*>>();
 
     double length, width, area;
 
@@ -53,7 +47,7 @@ public:
 
     void PrecomputePersistentVariables(SimParams &prms);
     void AssignLsIds();
-    long CreateEdges();     // from the list of elements, infer inner edges and boundary
+    long CreateEdges2();     // from the list of elements, infer inner edges and boundary
     long IdentifyDisconnectedRegions(); // used to deal with small fragments
     std::vector<std::pair<double, unsigned>> regions; // first is area, second is number of elements
 
@@ -73,21 +67,12 @@ public:
     std::vector<double> node_buffer;
     std::vector<int> elems_buffer;
 
-    // mapping (int,int) -> Edge
-    struct EdgeElementPairing
-    {
-        icy::Element *element0 = nullptr, *element1 = nullptr;
-        icy::Edge *edge = nullptr;
-        EdgeElementPairing(icy::Element *e0, icy::Element *e1) : element0(e0), element1(e1) {}
-        EdgeElementPairing() {}
-    };
-
     // fracture
     std::vector<Node*> breakable_range, neighbors_of_crack_tip, local_support;
     icy::Node *maxNode = nullptr;
 
-    icy::Edge* getEdgeByNodalIdx(int idx1, int idx2);
-    std::unordered_map<uint64_t, EdgeElementPairing> edges_map;
+    icy::Edge getEdgeByNodalIdx(int idx1, int idx2);
+    tbb::concurrent_unordered_map<uint64_t, icy::Edge> edges_map2;
 
 private:
     void RecomputeElasticityMatrix(SimParams &prms);
@@ -98,23 +83,21 @@ private:
     void SwapCurrentAndTmp();
     void ResizeNodes(std::size_t newSize);
     void ResizeElems(std::size_t newSize);
-    void ResizeEdges(std::size_t newSize);
 
     icy::Node* AddNode(icy::Node *otherNd=nullptr);
     icy::Element* AddElement();
     // returns newly inserted face for the fan
-    void SplitEdge(icy::Edge *edge, double where,
-                   icy::Node *centerNode, icy::Node* &splitNode, bool forwardDirection, SimParams &prms,
+    void SplitEdge(Edge edge, double where,
+                   Node *centerNode, Node* &splitNode, bool forwardDirection, SimParams &prms,
                    Eigen::Vector2f dir);
 
-    void SplitAlongExistingEdge(Edge *edge, Node *centerNode, Node* &splitNode,
+    void SplitAlongExistingEdge(Edge edge, Node *centerNode, Node* &splitNode,
                                 int oppositeNodeIdx, bool forwardDirection, Eigen::Vector2f dir);
 
     void MeshingStepTwo(double CharacteristicLengthMax);
 
     boost::object_pool<icy::Node> pool_nodes{10000, 0};
     boost::object_pool<icy::Element> pool_elems{10000, 0};
-    boost::object_pool<icy::Edge> pool_edges{10000, 0};
 
     void CreateSupportRange(int neighborLevel, std::vector<Node*> &initial_set);
     std::unique_ptr<std::unordered_set<Node*>> tmp_range0 = std::make_unique<std::unordered_set<Node*>>();
@@ -122,7 +105,6 @@ private:
 
     std::vector<Element*> wave; // used by IdentifyDisconnectedRegions()
 
-signals:
-    void propertyChanged();
 };
 #endif
+#endif // Q_MOC_RUN

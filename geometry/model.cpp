@@ -206,7 +206,7 @@ void icy::Model::UnsafeUpdateGeometry(double simulationTime, SimParams &prms)
     {
         // re-create mesh topology
         topologyInvalid = valuesInvalid = displacementsInvalid = false; // update displacements and values
-        floes_vtk.UnsafeUpdateTopology(floes.nodes.get(), floes.elems.get(), floes.edges.get(), prms.temporal_attenuation);
+        floes_vtk.UnsafeUpdateTopology(floes.nodes.get(), floes.elems.get(), prms.temporal_attenuation);
     }
     else if(displacementsInvalid)
     {

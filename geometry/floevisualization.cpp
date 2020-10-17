@@ -80,7 +80,7 @@ icy::FloeVisualization::FloeVisualization()
 
 void icy::FloeVisualization::UnsafeUpdateTopology(std::vector<icy::Node*> *nodes,
                                                   std::vector<icy::Element*> *elems,
-                                                  std::vector<icy::Edge*> *edges, double temporalThreshold)
+                                                  double temporalThreshold)
 {
     if(selectedPointId >= 0) UnsafeUpdateSelection(nodes, -1);
 
@@ -97,7 +97,7 @@ void icy::FloeVisualization::UnsafeUpdateTopology(std::vector<icy::Node*> *nodes
         cellArray->InsertNextCell(3, pts2);
     }
     ugrid->SetCells(VTK_TRIANGLE, cellArray);
-
+/*
     // ugrid_boundary
     for(icy::Edge *edge : *edges)
     {
@@ -107,7 +107,7 @@ void icy::FloeVisualization::UnsafeUpdateTopology(std::vector<icy::Node*> *nodes
         cellArray_boundary->InsertNextCell(2, pts2);
     }
     ugrid_boundary->SetCells(VTK_LINE, cellArray_boundary);
-
+*/
     UnsafeUpdateArrows(nodes);
 }
 

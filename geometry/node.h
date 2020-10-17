@@ -29,8 +29,22 @@ public:
     double area;        // mass that the node "represents", for applying various forces
     double vertical_force; // for testing
 
+    // TODO: combine adjacent_nodes and adjacent_edges ?
+    struct Sector
+    {
+        Sector(icy::Element *elem, icy::Node *nd);
+        icy::Element *face;
+        float centerAngle; // angle from the node to the center of the adjacent element
+        icy::Node* nd[2];
+        icy::Edge e[2]; // begins with CW boundary; ends with CCW boundary
+        float angle0, angle1, angle_span;
+        Eigen::Vector2f u_normalized, v_normalized, u_p, v_p;
+        Eigen::Vector2f t0_top, t1_top, t0_bottom, t1_bottom;
+    };
+
     std::vector<icy::Node*> adjacent_nodes;
-    std::unordered_map<int, icy::Edge*> adjacent_edges_map;
+    std::unordered_map<int, icy::Edge> adjacent_edges_map;
+    std::vector<icy::Node::Sector> fan;
 
     // initial configuration
     Eigen::Matrix<double,DOFS,1> x_initial;
@@ -50,19 +64,8 @@ public:
     Eigen::Vector3d str_b, str_m, str_b_top, str_b_bottom;
     Eigen::Vector2d str_s, str_b_top_principal, str_b_bottom_principal;
 
-    struct Sector
-    {
-        Sector(icy::Element *elem, icy::Node *nd);
-        icy::Element *face;
-        float centerAngle; // angle from the node to the center of the adjacent element
-        icy::Node* nd[2];
-        icy::Edge* e[2]; // begins with CW boundary; ends with CCW boundary
-        float angle0, angle1, angle_span;
-        Eigen::Vector2f u_normalized, v_normalized, u_p, v_p;
-        Eigen::Vector2f t0_top, t1_top, t0_bottom, t1_bottom;
-    };
 
-    std::vector<Sector> fan;
+
     Eigen::Vector3d normal_n;   // averaged normal of the surrounding elements
 
     // set the size and initialize with adjacent elements
@@ -79,7 +82,7 @@ public:
         Eigen::Vector2f tn, tn_p;
         float phi[2], theta[2];
         float trac_normal_top, trac_tangential_top, trac_normal_bottom, trac_tangential_bottom, trac_normal_max;
-        icy::Edge* e[4];
+        icy::Edge e[4];
     };
 
     void evaluate_tractions(float angle_fwd, SepStressResult &ssr, const float weakening_coeff) const;
