@@ -225,6 +225,7 @@ void icy::Geometry::MeshingStepTwo(double CharacteristicLengthMax)
     for(unsigned i=0;i<nodes->size();i++) (*nodes)[i]->normal_n.normalize();
 
     CreateEdges2();
+    IdentifyDisconnectedRegions();
 }
 
 
@@ -331,15 +332,6 @@ long icy::Geometry::CreateEdges2()
         nd1->adjacent_nodes.push_back(nd0);
     }
 
-//    std::copy_if(allEdges.begin(), allEdges.end(), std::back_inserter(boundaryEdges), [](const Edge &e) {return e.isBoundary;});
-
-/*
-    for(auto &kvpair : edges_map2)
-    {
-        icy::Edge &existing_edge = kvpair.second;
-
-    }
-*/
 #pragma omp parallel for
     for(std::size_t i=0;i<nodes->size();i++) (*nodes)[i]->PrepareFan2();
 
@@ -490,6 +482,7 @@ void icy::Geometry::RestoreFromSerializationBuffers()
     width = ymax-ymin;
 
     CreateEdges2();
+    IdentifyDisconnectedRegions();
 }
 
 

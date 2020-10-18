@@ -137,6 +137,7 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
                 VisualizingVariable == VisOpt::max_normal_traction ||
                 VisualizingVariable == VisOpt::time_loaded) InitializeLUT(1);
         else if(VisualizingVariable == VisOpt::fracture_support) InitializeLUT(4);
+        else if(VisualizingVariable == VisOpt::region) InitializeLUT(5);
         else InitializeLUT(3);
     }
 
@@ -169,6 +170,11 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
 
     case VisOpt::time_loaded:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->timeLoadedAboveThreshold);
+        break;
+
+    case VisOpt::region:
+        visualized_values->SetNumberOfValues(elems->size());
+        for(std::size_t i=0;i<elems->size();i++) visualized_values->SetValue(i, (*elems)[i]->region%40);
         break;
 
     case VisOpt::fracture_support:
@@ -281,7 +287,8 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
 
     if(VisualizingVariable == VisOpt::Mxy_e ||
             VisualizingVariable == VisOpt::Mx_e ||
-            VisualizingVariable == VisOpt::My_e)
+            VisualizingVariable == VisOpt::My_e ||
+            VisualizingVariable == VisOpt::region)
     {
         // elements
         ugrid->GetPointData()->RemoveArray("visualized_values");
@@ -301,14 +308,9 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
     dataSetMapper->ScalarVisibilityOn();
     dataSetMapper->SetColorModeToMapScalars();
 
-    if(VisualizingVariable == VisOpt::fracture_support)
-    {
-        hueLut->SetTableRange(-0.5,5.5);
-    }
-    else if(VisualizingVariable == VisOpt::time_loaded)
-    {
-        hueLut->SetTableRange(0,temporalThreshold);
-    }
+    if(VisualizingVariable == VisOpt::fracture_support) hueLut->SetTableRange(-0.5,5.5);
+    else if(VisualizingVariable == VisOpt::time_loaded) hueLut->SetTableRange(0,50);
+    else if(VisualizingVariable == VisOpt::time_loaded) hueLut->SetTableRange(0,temporalThreshold);
     else if(update_minmax)
     {
         double minmax[2];
@@ -351,6 +353,13 @@ void icy::FloeVisualization::InitializeLUT(int table)
             hueLut->SetTableValue(i, (double)lutArrayBands[i][0],
                     (double)lutArrayBands[i][1],
                     (double)lutArrayBands[i][2], 1.0);
+    }
+    else if(table==5) {
+        hueLut->SetNumberOfTableValues(40);
+    for ( int i=0; i<40; i++)
+            hueLut->SetTableValue(i, (double)lutArrayPastel[i][0],
+                    (double)lutArrayPastel[i][1],
+                    (double)lutArrayPastel[i][2], 1.0);
     }
 }
 

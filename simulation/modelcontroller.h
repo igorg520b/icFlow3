@@ -32,9 +32,8 @@ public:
     void Trim();                        // remove subsequent steps
     void Prepare();                     // compute constant matrices - call once before first Step()
     void Step();                        // perform one computation step
-    void RequestAbort();                // cancel current step; invoked by GUI thread
-
     void Fracture();
+    void RequestAbort();                // cancel current step; invoked by GUI thread
 
     // progress summary
     int getTotalSteps() {

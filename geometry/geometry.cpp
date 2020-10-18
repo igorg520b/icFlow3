@@ -380,6 +380,7 @@ void icy::Geometry::SplitAlongExistingEdge(Edge edge, Node *centerNode, Node* &s
 
 long icy::Geometry::IdentifyDisconnectedRegions()
 {
+    qDebug() << "icy::Geometry::IdentifyDisconnectedRegions()";
     auto t1 = std::chrono::high_resolution_clock::now();
     regions.clear();
     for(icy::Element *e : *elems) e->traversed = false;  // set to not-traversed
@@ -405,7 +406,7 @@ long icy::Geometry::IdentifyDisconnectedRegions()
             for(int i=0;i<3;i++)
             {
                 icy::Element *adj_e = elem->adj_elems[i];
-                if(!adj_e->traversed) wave.push_back(adj_e);
+                if(adj_e!= nullptr && !adj_e->traversed) wave.push_back(adj_e);
             }
         }
         regions.push_back(std::make_pair(region_area, count_elems));
