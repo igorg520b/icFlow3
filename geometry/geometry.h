@@ -15,6 +15,7 @@
 #include <utility>
 #include <algorithm>
 #include <chrono>
+#include <tuple>
 
 #include <QObject>
 #include <QString>
@@ -50,7 +51,8 @@ public:
     void AssignLsIds();
     long CreateEdges2();     // from the list of elements, infer inner edges and boundary
     long IdentifyDisconnectedRegions(); // used to deal with small fragments
-    std::vector<std::pair<double, unsigned>> regions; // first is area, second is number of elements
+    long RemoveDegenerateFragments();
+    std::vector<std::tuple<unsigned, double, unsigned>> regions; // region#, area, element count
 
     unsigned getElemCount() {return elems->size();}
     unsigned getNodeCount() {return nodes->size();}
@@ -107,6 +109,7 @@ private:
     std::unique_ptr<std::unordered_set<Node*>> tmp_range1 = std::make_unique<std::unordered_set<Node*>>();
 
     std::vector<Element*> wave; // used by IdentifyDisconnectedRegions()
+    void RemoveRegion(unsigned idx);
 
 };
 #endif

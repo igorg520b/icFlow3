@@ -309,7 +309,7 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
     dataSetMapper->SetColorModeToMapScalars();
 
     if(VisualizingVariable == VisOpt::fracture_support) hueLut->SetTableRange(-0.5,5.5);
-    else if(VisualizingVariable == VisOpt::time_loaded) hueLut->SetTableRange(0,50);
+    else if(VisualizingVariable == VisOpt::region) hueLut->SetTableRange(-0.5,40.5);
     else if(VisualizingVariable == VisOpt::time_loaded) hueLut->SetTableRange(0,temporalThreshold);
     else if(update_minmax)
     {
