@@ -78,8 +78,8 @@ icy::FloeVisualization::FloeVisualization()
     mapper_mesh3d->UseLookupTableScalarRangeOn();
 }
 
-void icy::FloeVisualization::UnsafeUpdateTopology(std::vector<icy::Node*> *nodes,
-                                                  std::vector<icy::Element*> *elems,
+void icy::FloeVisualization::UnsafeUpdateTopology(std::vector<Node*> *nodes, std::vector<Element*> *elems,
+                                                  std::vector<Edge> &boundaryEdges,
                                                   double temporalThreshold)
 {
     if(selectedPointId >= 0) UnsafeUpdateSelection(nodes, -1);
@@ -97,25 +97,22 @@ void icy::FloeVisualization::UnsafeUpdateTopology(std::vector<icy::Node*> *nodes
         cellArray->InsertNextCell(3, pts2);
     }
     ugrid->SetCells(VTK_TRIANGLE, cellArray);
-/*
+
     // ugrid_boundary
-    for(icy::Edge *edge : *edges)
+    for(icy::Edge &edge : boundaryEdges)
     {
-        if(!edge->isBoundary) continue;
-        pts2[0] = edge->nds[0]->locId;
-        pts2[1] = edge->nds[1]->locId;
+        pts2[0] = edge.nds[0]->locId;
+        pts2[1] = edge.nds[1]->locId;
         cellArray_boundary->InsertNextCell(2, pts2);
     }
     ugrid_boundary->SetCells(VTK_LINE, cellArray_boundary);
-*/
+
     UnsafeUpdateArrows(nodes);
 }
 
-void icy::FloeVisualization::UnsafeUpdateDisplacements(std::vector<icy::Node*> *nodes,
-                                                       std::vector<icy::Element*> *elems, double temporalThreshold)
+void icy::FloeVisualization::UnsafeUpdateDisplacements(std::vector<Node*> *nodes,
+                                                       std::vector<Element*> *elems, double temporalThreshold)
 {
-//    qDebug() << "UnsafeUpdateDisplacements()";
-
     points->SetNumberOfPoints(nodes->size());
     vtkIdType count=0;
     if(use_tentative_coordinates)
@@ -124,12 +121,10 @@ void icy::FloeVisualization::UnsafeUpdateDisplacements(std::vector<icy::Node*> *
         for(icy::Node* nd : *nodes) points->SetPoint(count++, nd->xn.data());
     points->Modified();
     UnsafeUpdateValues(nodes, elems, temporalThreshold);
-
-
 }
 
-void icy::FloeVisualization::UnsafeUpdateValues(std::vector<icy::Node*> *nodes,
-                                                std::vector<icy::Element*> *elems, double temporalThreshold,
+void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
+                                                std::vector<Element*> *elems, double temporalThreshold,
                                                 int option)
 {
     if(option >= 0)

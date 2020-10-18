@@ -1,3 +1,4 @@
+#if !defined(Q_MOC_RUN) // MOC has a glitch when parsing TBB headers
 #ifndef NODE_H
 #define NODE_H
 
@@ -10,7 +11,10 @@
 #include "linearsystem.h"
 #include "edge.h"
 
-namespace icy { class Node; class SimParams; class Edge; class Element; }
+#include <concurrent_vector.h>
+#include <concurrent_unordered_map.h>
+
+namespace icy { class Node; class SimParams; class Edge; class Element; class Geometry; }
 
 class icy::Node
 {
@@ -32,7 +36,7 @@ public:
     // TODO: combine adjacent_nodes and adjacent_edges ?
     struct Sector
     {
-        Sector(icy::Element *elem, icy::Node *nd);
+        // Sector(icy::Element *elem, icy::Node *nd);
         icy::Element *face;
         float centerAngle; // angle from the node to the center of the adjacent element
         icy::Node* nd[2];
@@ -42,9 +46,10 @@ public:
         Eigen::Vector2f t0_top, t1_top, t0_bottom, t1_bottom;
     };
 
-    std::vector<icy::Node*> adjacent_nodes;
-    std::unordered_map<int, icy::Edge> adjacent_edges_map;
+    tbb::concurrent_vector<icy::Node*> adjacent_nodes;
+    tbb::concurrent_vector<icy::Element*> adjacent_elems;
     std::vector<icy::Node::Sector> fan;
+    void PrintoutFan(); // for testing
 
     // initial configuration
     Eigen::Matrix<double,DOFS,1> x_initial;
@@ -69,7 +74,8 @@ public:
     Eigen::Vector3d normal_n;   // averaged normal of the surrounding elements
 
     // set the size and initialize with adjacent elements
-    void PrepareFan();  // performed when topology changes
+//    void PrepareFan(icy::Geometry *geom);  // performed when topology changes
+    void PrepareFan2();  // performed when topology changes
     void InitializeFan(); // performed when tentative displacements and stress distribution change
     float fan_angle_span;  // assigned in InitializeFan();
 
@@ -113,3 +119,4 @@ private:
 };
 
 #endif // NODE_H
+#endif // Q_MOC_RUN

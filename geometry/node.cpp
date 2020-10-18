@@ -199,7 +199,7 @@ void icy::Node::Reset()
     prescribed = false;
     area = 0;
     adjacent_nodes.clear();
-    adjacent_edges_map.clear();
+    //adjacent_edges_map.clear();
     crack_tip = support_node = core_node = false;
     timeLoadedAboveThreshold = 0;
 }
@@ -245,17 +245,20 @@ void icy::Node::AcceptTentativeValues()
     vn = vt;
     an = at;
 }
-
-void icy::Node::PrepareFan()
+/*
+void icy::Node::PrepareFan(icy::Geometry *geom)
 {
     std::sort(fan.begin(), fan.end(),
               [](const Sector &f0, const Sector &f1)
     {return f0.centerAngle < f1.centerAngle; });
 
+    // TODO: find a more efficient way to infer these edges (from the element ?)
     for(Sector &f : fan)
     {
-        f.e[0] = adjacent_edges_map.at(f.nd[0]->locId);
-        f.e[1] = adjacent_edges_map.at(f.nd[1]->locId);
+//        f.e[0] = adjacent_edges_map.at(f.nd[0]->locId);
+//        f.e[1] = adjacent_edges_map.at(f.nd[1]->locId);
+        f.e[0] = geom->getEdgeByNodalIdx(this->locId, f.nd[0]->locId);
+        f.e[1] = geom->getEdgeByNodalIdx(this->locId, f.nd[1]->locId);
     }
 
     if(isBoundary)
@@ -284,7 +287,7 @@ void icy::Node::PrepareFan()
             throw std::runtime_error("edges not shared");
     }
 }
-
+*/
 void icy::Node::InitializeFan()
 {
     auto get_angle = [](Eigen::Vector2f u, Eigen::Vector2f v)
@@ -498,7 +501,7 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
                       fracture_angle > fan_angle_span-threshold_angle || fan_angle_span < M_PI/2))
     {max_normal_traction=0; return;}
 }
-
+/*
 icy::Node::Sector::Sector(icy::Element *elem, icy::Node *ndd) : face(elem)
 {
     // (the list of edges has not been built yet)
@@ -509,7 +512,82 @@ icy::Node::Sector::Sector(icy::Element *elem, icy::Node *ndd) : face(elem)
     nd[0] = face->getCWNode(ndd);
     nd[1] = face->getCCWNode(ndd);
 }
+*/
 
+void icy::Node::PrepareFan2()
+{
+    Eigen::Vector3d nd_vec = x_initial.block(0,0,3,1);
 
+    unsigned nElems = adjacent_elems.size();
+    if(nElems == 0) throw std::runtime_error("disconnected node");
+    fan.clear();
+    for(unsigned k=0;k<nElems;k++)
+    {
+        icy::Element *elem = adjacent_elems[k];
+        area += elem->area_initial/3;
 
+        Sector s;
+        s.face = elem;
+        Eigen::Vector3d tcv = elem->getCenter() - nd_vec;
+        s.centerAngle = atan2(tcv.y(), tcv.x());
 
+        short CWIdx = elem->getCWIdx(this);
+        short CCWIdx = elem->getCCWIdx(this);
+
+        s.nd[0] = elem->nds[CWIdx];
+        s.nd[1] = elem->nds[CCWIdx];
+
+        // note that the indices are swapped
+        s.e[0] = elem->edges[CCWIdx];
+        s.e[1] = elem->edges[CWIdx];
+        fan.push_back(s);
+
+        if(s.e[0].isBoundary || s.e[1].isBoundary) isBoundary = true;
+    }
+
+    std::sort(fan.begin(), fan.end(),
+              [](const Sector &f0, const Sector &f1)
+    {return f0.centerAngle < f1.centerAngle; });
+
+    if(isBoundary)
+    {
+        // find the fan element with the border on the CW direction
+        auto cw_boundary = std::find_if(fan.begin(), fan.end(), [](const Sector &f){return f.e[0].isBoundary;});
+        if(cw_boundary == fan.end())
+        {
+            PrintoutFan();
+            throw std::runtime_error("cw boundary not found");
+        }
+        std::rotate(fan.begin(), cw_boundary, fan.end());
+    }
+
+    // assert that the nodes of the fan connect
+    for(std::size_t i = 0;i<fan.size()-1;i++)
+    {
+        if(fan[i].nd[1] != fan[i+1].nd[0])
+        {
+            PrintoutFan();
+            throw std::runtime_error("fan nodes are not contiguous");
+        }
+        if(fan[i].e[1].nds[0] != fan[i+1].e[0].nds[0] || fan[i].e[1].nds[1] != fan[i+1].e[0].nds[1])
+            throw std::runtime_error("edges not shared");
+    }
+}
+
+void icy::Node::PrintoutFan()
+{
+    std::cout << "Printing fan for node " << locId << std::endl;
+    std::cout << "fan size " << fan.size() << "; isBoundary " << isBoundary << std::endl;
+    std::cout << "adj elems size " << adjacent_elems.size() << std::endl;
+
+    for(Sector &s : fan)
+    {
+        std::cout << s.nd[0]->locId << "-" << s.nd[1]->locId;
+        std::cout << " ; eCW " << s.e[0].nds[0]->locId << "-" << s.e[0].nds[1]->locId << (s.e[0].isBoundary ? " b; " : " nb;");
+        std::cout << " ; eCCW " << s.e[1].nds[0]->locId << "-" << s.e[1].nds[1]->locId << (s.e[1].isBoundary ? " b; " : " nb;");
+        std::cout << std::endl;
+    }
+    std::cout << "--------------------------------\n";
+    std::cout << std::endl;
+
+}

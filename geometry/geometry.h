@@ -1,4 +1,3 @@
-namespace icy { class Geometry; class Node; class Element; class Edge;}
 #if !defined(Q_MOC_RUN) // MOC has a glitch when parsing TBB headers
 
 #ifndef FL333_H
@@ -26,6 +25,8 @@ namespace icy { class Geometry; class Node; class Element; class Edge;}
 #include "edge.h"
 
 #include <concurrent_unordered_map.h>
+
+namespace icy { class Geometry; class Node; class Element; class Edge;}
 
 class icy::Geometry
 {
@@ -71,8 +72,10 @@ public:
     std::vector<Node*> breakable_range, neighbors_of_crack_tip, local_support;
     icy::Node *maxNode = nullptr;
 
-    icy::Edge getEdgeByNodalIdx(int idx1, int idx2);
-    tbb::concurrent_unordered_map<uint64_t, icy::Edge> edges_map2;
+    Edge getEdgeByNodalIdx(int idx1, int idx2);
+    tbb::concurrent_unordered_map<uint64_t, Edge> edges_map2;
+    std::vector<Edge> allEdges;
+    std::vector<Edge> boundaryEdges;
 
 private:
     void RecomputeElasticityMatrix(SimParams &prms);

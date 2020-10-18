@@ -21,6 +21,7 @@ void icy::Element::InitializePersistentVariables()
     p2 = nds[2]->x_initial.block(0,0,3,1) - nds[0]->x_initial.block(0,0,3,1);
 
     rotationMatrix(p1, p2, R0, area_initial, normal_initial);
+    initial_normal_up = normal_initial.z() > 0;
     for(int j=0;j<3;j++) nds[j]->area += area_initial/3; // distribute area to adjacent nodes
 
     R0t = R0.transpose();
@@ -140,12 +141,13 @@ void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &pr
     //    Eigen::Matrix<double,9,9> Cnp1 = M*dampingMass+dFnp1*dampingStiffness;
 //    F = M*a + Fn*alpha + Fnp1*(1-alpha) + Cn*vn*alpha + Cnp1*vt*(1-alpha);
 //    dF= M/(beta*timeStep*timeStep) + dFnp1*(1-alpha) + Cnp1*((1-alpha)*gamma/(timeStep*beta));
-
+/*
     // assert
     for(int i=0;i<DOFS*3;i++)
         for(int j=0;j<DOFS*3;j++)
             if(std::isnan(dF(i,j)))
                 throw std::runtime_error("elem.ComputeElasticForce: dF contains NaN");
+*/
 }
 
 void icy::Element::Assemble(icy::LinearSystem &ls) const
@@ -370,6 +372,35 @@ icy::Node* icy::Element::getCWNode(icy::Node* nd)
         if(nd==nds[0]) return nds[1];
         if(nd==nds[1]) return nds[2];
         if(nd==nds[2]) return nds[0];
+    }
+    throw std::runtime_error("nd not found");
+}
+
+short icy::Element::getCCWIdx(icy::Node* nd)
+{
+    if(!initial_normal_up) {
+        if(nd==nds[0]) return 1;
+        if(nd==nds[1]) return 2;
+        if(nd==nds[2]) return 0;
+    } else
+    {
+        if(nd==nds[0]) return 2;
+        if(nd==nds[1]) return 0;
+        if(nd==nds[2]) return 1;
+    }
+    throw std::runtime_error("nd not found");
+}
+
+short icy::Element::getCWIdx(icy::Node* nd)
+{
+    if(!initial_normal_up) {
+        if(nd==nds[0]) return 2;
+        if(nd==nds[1]) return 0;
+        if(nd==nds[2]) return 1;
+    } else {
+        if(nd==nds[0]) return 1;
+        if(nd==nds[1]) return 2;
+        if(nd==nds[2]) return 0;
     }
     throw std::runtime_error("nd not found");
 }

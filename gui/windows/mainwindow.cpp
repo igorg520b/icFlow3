@@ -357,6 +357,7 @@ void MainWindow::on_action_import_floes_triggered()
     controller.ImportFloePatch(fileName);
     controller.model.floes_vtk.UnsafeUpdateTopology(controller.model.floes.nodes.get(),
                                                     controller.model.floes.elems.get(),
+                                                    controller.model.floes.boundaryEdges,
                                                     controller.prms.temporal_attenuation);
     updateGUI();
     renderWindow->Render();
@@ -483,6 +484,7 @@ void MainWindow::sliderValueChanged(int val)
     controller.GoToStep(val);
     controller.model.floes_vtk.UnsafeUpdateTopology(controller.model.floes.nodes.get(),
                                                     controller.model.floes.elems.get(),
+                                                    controller.model.floes.boundaryEdges,
                                                     controller.prms.temporal_attenuation);
     renderWindow->Render();
     progress_updated();

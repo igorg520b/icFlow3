@@ -56,8 +56,7 @@ void icy::Geometry::ResizeNodes(std::size_t newSize)
     else if(newSize < nNodes)
     {
         do {
-//            pool_nodes.destroy(nodes->back());
-            pool_nodes.free(nodes->back());
+            pool_nodes.destroy(nodes->back());
             nodes->pop_back();
         } while(nodes->size() > newSize);
     }
@@ -80,26 +79,6 @@ void icy::Geometry::ResizeElems(std::size_t newSize)
         } while(elems->size() > newSize);
     }
 }
-
-/*
-void icy::Geometry::ResizeEdges(std::size_t newSize)
-{
-    std::size_t nEdges = edges->size();
-    if(newSize > nEdges)
-    {
-        do {
-            edges->push_back(pool_edges.malloc());
-        } while(edges->size() < newSize);
-    }
-    else if(newSize < nEdges)
-    {
-        do {
-            pool_edges.free(edges->back());
-            edges->pop_back();
-        } while(edges->size() > newSize);
-    }
-}
-*/
 
 icy::Node* icy::Geometry::AddNode(icy::Node *otherNd)
 {
@@ -260,9 +239,8 @@ long icy::Geometry::CreateEdges2()
     {
         icy::Node* nd = (*nodes)[i];
         nd->adjacent_nodes.clear();
-        nd->fan.clear();
+        nd->adjacent_elems.clear();
         nd->isBoundary = false;
-        nd->adjacent_edges_map.clear();
         nd->area = 0;
     }
 
@@ -279,73 +257,102 @@ long icy::Geometry::CreateEdges2()
         icy::Element *elem = (*elems)[k];
         for(int i=0;i<3;i++)
         {
+            elem->adj_elems[i] = nullptr;
+            elem->nds[i]->adjacent_elems.push_back(elem);
             // process edges
-            int nd0 = elem->nds[i]->locId;
-            int nd1 = elem->nds[(i+1)%3]->locId;
+            int nd0idx = elem->nds[i]->locId;
+            int nd1idx = elem->nds[(i+1)%3]->locId;
 
-            if(nd0 > nd1) std::swap(nd0, nd1);
-            uint64_t key = ((uint64_t)nd0 << 32) | nd1;
+            if(nd0idx > nd1idx) std::swap(nd0idx, nd1idx);
+            uint64_t key = ((uint64_t)nd0idx << 32) | nd1idx;
 
-            Edge edge;
-            edge.elems[0] = elem;
-            edge.elems[1] = nullptr;
-            edge.nds[0] = (*nodes)[nd0];
-            edge.nds[1] = (*nodes)[nd1];
+            icy::Node *nd0 = (*nodes)[nd0idx];
+            icy::Node *nd1 = (*nodes)[nd1idx];
 
-            auto insertion_result = edges_map2.insert({key,edge});
-            if(insertion_result.second == false)
-            {
-                icy::Edge &existing_edge = edges_map2.at(key);
-                if(existing_edge.elems[1]!=nullptr) throw std::runtime_error("edge is attached to 3+ elems");
-                existing_edge.elems[1] = elem;
-            }
-        }
-    }
+            Edge edge(nd0, nd1);
 
-    // distribute edges to nodes
-    for(auto &kvpair : edges_map2)
-    {
-        icy::Edge &edge = kvpair.second;
-        edge.RepairElementOrder();
-
-        uint64_t key = kvpair.first;
-        int nd0idx = key >> 32;
-        int nd1idx = (uint32_t)key;// & 0xffffffff;
-
-        icy::Node* nd0 = (*nodes)[nd0idx];
-        icy::Node* nd1 = (*nodes)[nd1idx];
-
-        // nodes keep the list of adjacent edges
-        nd0->adjacent_edges_map.insert({nd1idx, edge});
-        nd1->adjacent_edges_map.insert({nd0idx, edge});
-
-        // populate the list of adjacent nodes
-        nd0->adjacent_nodes.push_back(nd1);
-        nd1->adjacent_nodes.push_back(nd0);
-    }
-
-    for(icy::Element* elem : *elems)
-    {
-        area += elem->area_initial;
-        for(int i=0;i<3;i++)
-        {
-            // process adjacent elements
-            icy::Node *nd = elem->nds[i];
-            nd->area += elem->area_initial/3;
-            icy::Node::Sector f(elem, nd);
-            nd->fan.push_back(f);
+            edges_map2.insert({key,edge});
         }
     }
 
 #pragma omp parallel for
-    for(std::size_t i=0;i<nodes->size();i++) {
-        icy::Node* nd = (*nodes)[i];
-        nd->PrepareFan();
-        if(nd->fan.size()==0) throw std::runtime_error("disconnected node");
+    for(std::size_t k=0;k<nElems;k++)
+    {
+        icy::Element *elem = (*elems)[k];
+        for(int i=0;i<3;i++)
+        {
+            int nd0idx = elem->nds[i]->locId;
+            int nd1idx = elem->nds[(i+1)%3]->locId;
+
+            if(nd0idx > nd1idx) std::swap(nd0idx, nd1idx);
+            uint64_t key = ((uint64_t)nd0idx << 32) | nd1idx;
+
+            icy::Edge &existing_edge = edges_map2.at(key);
+            existing_edge.AddElement(elem, (i+2)%3);
+        }
     }
+
+    allEdges.clear();
+    allEdges.resize(edges_map2.size());
+    boundaryEdges.clear();
+
+    std::size_t count = 0;
+    for(auto &kvpair : edges_map2)
+    {
+        icy::Edge &e = kvpair.second;
+        e.isBoundary = (e.elems[0] == nullptr || e.elems[1] == nullptr);
+        if(e.isBoundary) boundaryEdges.push_back(e);
+        allEdges[count++] = e;
+    }
+
+#pragma omp parallel for
+    for(std::size_t i=0;i<allEdges.size();i++)
+    {
+        icy::Edge &existing_edge = allEdges[i];
+        icy::Element *elem_of_edge0 = existing_edge.elems[0];
+        icy::Element *elem_of_edge1 = existing_edge.elems[1];
+        short idx0 = existing_edge.edge_in_elem_idx[0];
+        short idx1 = existing_edge.edge_in_elem_idx[1];
+
+        if(elem_of_edge0 == nullptr && elem_of_edge1 == nullptr) throw std::runtime_error("disconnected edge?");
+
+        if(elem_of_edge0 != nullptr) elem_of_edge0->edges[idx0] = existing_edge;
+        if(elem_of_edge1 != nullptr) elem_of_edge1->edges[idx1] = existing_edge;
+
+        if(!existing_edge.isBoundary)
+        {
+            elem_of_edge0->adj_elems[idx0] = elem_of_edge1;
+            elem_of_edge1->adj_elems[idx1] = elem_of_edge0;
+        }
+
+        icy::Node *nd0 = existing_edge.nds[0];
+        icy::Node *nd1 = existing_edge.nds[1];
+        nd0->adjacent_nodes.push_back(nd1);
+        nd1->adjacent_nodes.push_back(nd0);
+    }
+
+//    std::copy_if(allEdges.begin(), allEdges.end(), std::back_inserter(boundaryEdges), [](const Edge &e) {return e.isBoundary;});
+
+/*
+    for(auto &kvpair : edges_map2)
+    {
+        icy::Edge &existing_edge = kvpair.second;
+
+    }
+*/
+#pragma omp parallel for
+    for(std::size_t i=0;i<nodes->size();i++) (*nodes)[i]->PrepareFan2();
 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
+}
+
+
+icy::Edge icy::Geometry::getEdgeByNodalIdx(int idx1, int idx2)
+{
+    if(idx1 > idx2) std::swap(idx1, idx2);
+    uint64_t edgeIdx = ((uint64_t)idx1 << 32) | idx2;
+    return edges_map2.at(edgeIdx);
 }
 
 
@@ -485,10 +492,4 @@ void icy::Geometry::RestoreFromSerializationBuffers()
     CreateEdges2();
 }
 
-icy::Edge icy::Geometry::getEdgeByNodalIdx(int idx1, int idx2)
-{
-    if(idx1 > idx2) std::swap(idx1, idx2);
-    uint64_t edgeIdx = ((uint64_t)idx1 << 32) | idx2;
-    //return edges_map.at(edgeIdx).edge;
-    return edges_map2.at(edgeIdx);
-}
+

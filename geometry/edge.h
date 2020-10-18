@@ -8,12 +8,14 @@ namespace icy {class Edge; class Node; class Element;}
 class icy::Edge
 {
 public:
-//    void Initialize(icy::Node* nd0, icy::Node* nd1, icy::Element* elem0, icy::Element* elem1);
-    void RepairElementOrder();  // swap element if needed
+    Edge() {}
+    Edge(icy::Node* nd0, icy::Node* nd1);
+    void AddElement(icy::Element* elem, short idx);
 
     icy::Node* nds[2];
     bool isBoundary;    // belongs to only one element
     icy::Element* elems[2];
+    short edge_in_elem_idx[2];  // index [0,3] where the edge is located in the corresponding element 0 and 1
     double angle0_initial; // [-pi, +pi] from nds[0] to nds[1]
     double angle1_initial; // [-pi, +pi] from nds[1] to nds[0]
 

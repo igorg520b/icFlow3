@@ -29,6 +29,7 @@ public:
     // at initial state
     double area_initial;
     Eigen::Vector3d normal_initial, normal_n;
+    bool initial_normal_up; // normal_initial.z() > 0
     Eigen::Vector3d pr1_initial, pr2_initial;
     Eigen::Matrix3d R0, R0t; // for testing
     Eigen::Matrix<double,DOFS*3,1> x_initial;
@@ -69,6 +70,8 @@ public:
     Eigen::Vector3d getCenter();
     icy::Node* getCWNode(icy::Node* nd);
     icy::Node* getCCWNode(icy::Node* nd);
+    short getCWIdx(icy::Node* nd);
+    short getCCWIdx(icy::Node* nd);
 
     bool ContainsNode(icy::Node *nd){return (nds[0]==nd || nds[1]==nd || nds[2]==nd);}
     void ReplaceNode(icy::Node *replaceWhat, icy::Node *replaceWith);

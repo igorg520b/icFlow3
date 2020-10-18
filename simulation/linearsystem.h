@@ -1,5 +1,3 @@
-namespace icy { class LinearSystem; }
-
 #if !defined(Q_MOC_RUN) // MOC has a glitch when parsing concurrent_set.h
 #ifndef LINEARSYSTEM_H
 #define LINEARSYSTEM_H
@@ -10,6 +8,8 @@ namespace icy { class LinearSystem; }
 #include <vector>
 #include <chrono>
 #define DOFS 5
+
+namespace icy { class LinearSystem; }
 
 class icy::LinearSystem
 {
