@@ -379,7 +379,6 @@ void icy::Geometry::SplitAlongExistingEdge(Edge edge, Node *centerNode, Node* &s
 
 long icy::Geometry::IdentifyDisconnectedRegions()
 {
-    qDebug() << "icy::Geometry::IdentifyDisconnectedRegions()";
     auto t1 = std::chrono::high_resolution_clock::now();
     regions.clear();
     for(icy::Element *e : *elems) e->traversed = false;  // set to not-traversed
@@ -449,7 +448,7 @@ long icy::Geometry::RemoveDegenerateFragments()
                                 std::tuple<unsigned, double, unsigned> r2)
         {return std::get<1>(r1) < std::get<1>(r2);});
 
-        if(std::get<1>(*iter) < avg_elem_area)
+        if(std::get<1>(*iter) < avg_elem_area*2)
         {
             unsigned idx = std::get<0>(*iter);
             RemoveRegion(idx);
@@ -465,8 +464,6 @@ long icy::Geometry::RemoveDegenerateFragments()
 
 void icy::Geometry::RemoveRegion(unsigned idx)
 {
-    qDebug() << "removing region " << idx;
-
     std::unordered_set<icy::Node*>nds;
     for(icy::Element *elem : *elems)
     {
@@ -476,23 +473,15 @@ void icy::Geometry::RemoveRegion(unsigned idx)
         }
     }
 
-    qDebug() << "nds size " << nds.size();
-    qDebug() << "before erasing elems " << elems->size();
     elems->erase(std::remove_if(elems->begin(), elems->end(),
                                 [idx](icy::Element *elem){return elem->region==idx;}), elems->end());
 
-    qDebug() << "after erasing elems " << elems->size();
-
     for(icy::Node *nd : nds) pool_nodes.destroy(nd);
 
-    qDebug() << "before erasing nodes " << nodes->size();
     nodes->erase(std::remove_if(nodes->begin(), nodes->end(),
                                 [nds](icy::Node *nd){return nds.find(nd)!=nds.end();}), nodes->end());
-    qDebug() << "after erasing nodes " << nodes->size();
 
     for(std::size_t i=0;i<nodes->size();i++) (*nodes)[i]->locId=i;
 
-    qDebug() << "RemoveRegion invoking CreateEdges2";
     CreateEdges2();
-    qDebug() << "RemoveRegion finished";
 }
