@@ -21,15 +21,13 @@ namespace icy { class Model; class Node; class Element;}
 class icy::Model : public QObject
 {
     Q_OBJECT
-/*
-    Q_OBJECT
+
     Q_PROPERTY(int in_Elems READ getElemCount)
     Q_PROPERTY(int in_Nodes READ getNodeCount)
-    Q_PROPERTY(int in_FreeNds READ getFreeNodeCount)
-    Q_PROPERTY(double in_length MEMBER length NOTIFY propertyChanged)
-    Q_PROPERTY(double in_width MEMBER width NOTIFY propertyChanged)
-    Q_PROPERTY(double in_area MEMBER area NOTIFY propertyChanged)
-  */
+    Q_PROPERTY(double in_length READ getLength)
+    Q_PROPERTY(double in_width READ getWidth)
+    Q_PROPERTY(double in_area READ getArea)
+
 public:    
     void Reset();   // erases all geometry
 
@@ -70,6 +68,12 @@ private:
     // signal has been sent to the main thread asking to invoke UnsafeUpdateGeometry()
     // this is to prevent emitting multiple requests before the existing request is processed
     bool updateRequested = false;
+
+    double getElemCount() { return floes.elems->size(); }
+    double getNodeCount() { return floes.nodes->size(); }
+    double getLength() {return floes.length; }
+    double getWidth() {return floes.width; }
+    double getArea() {return floes.area; }
 
 signals:
     void requestGeometryUpdate(); // this goes to the main thread, which calls UnsafeUpdateGeometry()
