@@ -32,7 +32,6 @@ MainWindow::MainWindow(QWidget *parent)
     chartView->setRenderHint(QPainter::Antialiasing);
     chartView->setChart(chart_line_mohr);
 
-
     // pie chart for benchmarking
     chartView_motion = new QChartView;
     chartView_motion->setRenderHint(QPainter::Antialiasing);
@@ -44,8 +43,9 @@ MainWindow::MainWindow(QWidget *parent)
     chart_pie_motion = new QChart;
     chart_pie_motion->addSeries(series_pie_motion);
     chart_pie_motion->legend()->setAlignment(Qt::AlignBottom);
-    chart_pie_motion->setTheme(QChart::ChartThemeBlueCerulean);
-//    chart_pie_motion->legend()->setFont(QFont("Arial", 12));
+    //chart_pie_motion->setTheme(QChart::ChartThemeBlueCerulean);
+    chart_pie_motion->legend()->setFont(QFont("Arial", 14));
+    chart_pie_motion->setFont(QFont("Arial", 16));
     chart_pie_motion->setBackgroundRoundness(0);
 
     chartView_motion->setChart(chart_pie_motion);
@@ -95,16 +95,17 @@ MainWindow::MainWindow(QWidget *parent)
     renderer->AddActor(scalarBar);
     scalarBar->SetLookupTable(controller.model.floes_vtk.hueLut);
 
-    scalarBar->SetMaximumWidthInPixels(120);
-    scalarBar->SetBarRatio(0.1);
-    scalarBar->SetMaximumHeightInPixels(300);
+    scalarBar->SetMaximumWidthInPixels(220);
+    scalarBar->SetBarRatio(0.07);
+    scalarBar->SetMaximumHeightInPixels(800);
     scalarBar->GetPositionCoordinate()->SetCoordinateSystemToNormalizedDisplay();
-    scalarBar->GetPositionCoordinate()->SetValue(0.9,0.03, 0.0);
-    scalarBar->SetLabelFormat("%.2e");
+    scalarBar->GetPositionCoordinate()->SetValue(0.86,0.03, 0.0);
+    scalarBar->SetLabelFormat("%.1e");
     scalarBar->GetLabelTextProperty()->BoldOff();
     scalarBar->GetLabelTextProperty()->ItalicOff();
     scalarBar->GetLabelTextProperty()->ShadowOff();
     scalarBar->GetLabelTextProperty()->SetColor(0.1,0.1,0.1);
+    scalarBar->GetLabelTextProperty()->SetFontFamilyToTimes();
 
     renderWindow->AddRenderer(renderer);
 
@@ -119,7 +120,7 @@ MainWindow::MainWindow(QWidget *parent)
     windowToImageFilter->SetInput(renderWindow);
     windowToImageFilter->SetScale(1); // image quality
     windowToImageFilter->SetInputBufferTypeToRGBA(); //also record the alpha (transparency) channel
-    windowToImageFilter->ReadFrontBufferOff(); // read from the back buffer
+    windowToImageFilter->ReadFrontBufferOn(); // read from the back buffer
     writer->SetInputConnection(windowToImageFilter->GetOutputPort());
 
     // right frame
@@ -794,10 +795,19 @@ void MainWindow::on_action_draw_water_Level_triggered(bool checked)
 
 void MainWindow::on_action_Screenshot_triggered()
 {
+    windowToImageFilter->SetInput(renderWindow);
+    windowToImageFilter->SetScale(1); // image quality
+    windowToImageFilter->SetInputBufferTypeToRGBA(); //also record the alpha (transparency) channel
+    windowToImageFilter->ReadFrontBufferOn(); // read from the back buffer
     windowToImageFilter->Update();
+    windowToImageFilter->Modified();
+
+    writer->Modified();
+//    writer->SetInputConnection(windowToImageFilter->GetOutputPort());
     QString outputPath = QString::number(controller.getCurrentStep()) + ".png";
     qDebug() << "taking screenshot: " << outputPath;
     writer->SetFileName(outputPath.toUtf8().constData());
     writer->Write();
+//    writer->RemoveAllInputConnections(0);
 }
 

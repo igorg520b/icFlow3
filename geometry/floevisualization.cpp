@@ -25,6 +25,7 @@ icy::FloeVisualization::FloeVisualization()
     actor_mesh->SetMapper(dataSetMapper);
     actor_mesh->GetProperty()->SetColor(218/255.0,228/255.0,242/255.0);
     actor_mesh->GetProperty()->SetEdgeColor(161.0/255.0, 176.0/255.0, 215.0/255.0);
+    actor_mesh->GetProperty()->SetLineWidth(1.5);
     actor_mesh->GetProperty()->LightingOff();
     actor_mesh->GetProperty()->ShadingOff();
     actor_mesh->GetProperty()->SetInterpolationToFlat();
@@ -33,7 +34,7 @@ icy::FloeVisualization::FloeVisualization()
     actor_boundary->SetMapper(dataSetMapper_boundary);
     actor_boundary->GetProperty()->SetColor(colors->GetColor3d("Black").GetData());
     actor_boundary->GetProperty()->EdgeVisibilityOn();
-    actor_boundary->GetProperty()->SetLineWidth(2);
+    actor_boundary->GetProperty()->SetLineWidth(4);
 
     visualized_values->SetName("visualized_values");
 

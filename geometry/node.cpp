@@ -63,9 +63,7 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
 
         if(prms.loadType == 1)
         {
-            // horizontal water velocity
-//            double shift = BellShapedPolynomial(x+totalTime-25.3);
-//            double shift_d = BellShapedPolynomialDx(x+totalTime-25.3);
+            // horizontal split in the middle
 
             double attenuation = totalTime < 1 ? totalTime : 1;
             double disp = x_initial.x() > 0 ? attenuation : -attenuation;
@@ -76,17 +74,63 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
             F(0) += dispx_t*spring*(1-alpha);
             F(0) += dispx_n*spring*alpha;
 
-//            F(0) += (ut.x()-prms.wave_height*Smoothstep(0, 1.0, x_initial.x()+totalTime-25.3))*spring*(1-alpha);
-//            F(0) += (un.x()-prms.wave_height*Smoothstep(0, 1.0, x_initial.x()+totalTime-25.3))*spring*alpha;
             dF(0,0) += spring*(1-alpha);
 
             F(1) += ut.y()*spring*(1-alpha);
             F(1) += un.y()*spring*alpha;
             dF(1,1) += spring*(1-alpha);
+        }
+        else if(prms.loadType == 2)
+        {
+            spring*=10;
+            // radial stretch in all directions
+            double attenuation10 = totalTime < 20 ? totalTime/20 : 1;
+            Eigen::Vector2d vec(x_initial.x(), x_initial.y());
+            double r = vec.norm();
+            vec*=(1+attenuation10/25);
 
-//            double k = prms.Damping*mass/timeStep;
-//            F(0) += (vt.x()-water_velocity);
-//            dF(0,0) += k*(prms.NewmarkGamma/(prms.NewmarkBeta*timeStep) - water_velocity_d);
+            Eigen::Vector2d disp_t = xt.block(0,0,1,2)-vec;
+            Eigen::Vector2d disp_n = xn.block(0,0,1,2)-vec;
+
+            F(0) += disp_t.x()*spring*(1-alpha);
+            F(0) += disp_n.x()*spring*alpha;
+            //F(1) += ut.y()*spring*(1-alpha);
+            //F(1) += un.y()*spring*alpha;
+            F(1) += disp_t.y()*spring*(1-alpha);
+            F(1) += disp_n.y()*spring*alpha;
+
+            dF(0,0) += spring*(1-alpha);
+            dF(1,1) += spring*(1-alpha);
+
+            F(0) += prms.Damping*mass*(vt.x())/timeStep;
+            dF(0,0) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
+            F(1) += prms.Damping*mass*(vt.y())/timeStep;
+            dF(1,1) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
+
+
+        }
+        else if(prms.loadType == 3)
+        {
+            // horizontal tearing wave in x direction
+            double attenuation10 = totalTime < 10 ? totalTime/10 : 1;
+            Eigen::Vector2d vec(x_initial.x(), x_initial.y());
+            double r = vec.norm();
+            vec*=(1+attenuation10);
+
+            Eigen::Vector2d disp_t = xt.block(0,0,1,2)-vec;
+            Eigen::Vector2d disp_n = xn.block(0,0,1,2)-vec;
+
+            F(0) += disp_t.x()*spring*(1-alpha);
+            F(0) += disp_n.x()*spring*alpha;
+            F(0) += disp_t.x()*spring*(1-alpha);
+            F(0) += disp_n.x()*spring*alpha;
+
+//            F(0) += (ut.x()-prms.wave_height*Smoothstep(0, 1.0, x_initial.x()+totalTime-25.3))*spring*(1-alpha);
+//            F(0) += (un.x()-prms.wave_height*Smoothstep(0, 1.0, x_initial.x()+totalTime-25.3))*spring*alpha;
+            dF(0,0) += spring*(1-alpha);
+
+            dF(1,1) += spring*(1-alpha);
+
         }
 
     }
