@@ -61,7 +61,7 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
         dF(2,2) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
 
 
-        if(prms.loadType == 9)
+        if(prms.loadType == 1)
         {
             // horizontal water velocity
 //            double shift = BellShapedPolynomial(x+totalTime-25.3);
