@@ -88,10 +88,10 @@ public:
 
     void Reset() {
         SaveResult = false;
-        MaxSteps = 3000;
+        MaxSteps = 2000;
 
         // integration
-        InitialTimeStep = 0.05;
+        InitialTimeStep = 0.025;
 
         ConvergenceEpsilon = 0.01;
         ConvergenceCutoff = 1E-8;
@@ -99,11 +99,11 @@ public:
         IterationsMin = 3;
 
         // material parameters and physical constants
-        gravity = -9.81;
+        gravity = 9.81;
         WaterDensity = 997;
         IceDensity = 910;
 
-        Damping = 1.0;
+        Damping = 0.1;
         Thickness = 0.1;
 
         loadType = 5;
@@ -122,7 +122,7 @@ public:
         substep_iterations = 2;
         weakening_coeff = 0.7;
         temporal_attenuation = 0.2;
-        wave_height = 0.6;
+        wave_height = 1;
 
         emit propertyChanged();
     }
