@@ -134,6 +134,7 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
         if(VisualizingVariable == VisOpt::vert_force ||
                 VisualizingVariable == VisOpt::boundary ||
                 VisualizingVariable == VisOpt::deflection ||
+                VisualizingVariable == VisOpt::disp_x ||
                 VisualizingVariable == VisOpt::max_normal_traction ||
                 VisualizingVariable == VisOpt::time_loaded) InitializeLUT(1);
         else if(VisualizingVariable == VisOpt::fracture_support) InitializeLUT(4);
@@ -162,6 +163,10 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
 
     case VisOpt::deflection:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->xn.z());
+        break;
+
+    case VisOpt::disp_x:
+        for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->un.x());
         break;
 
     case VisOpt::max_normal_traction:

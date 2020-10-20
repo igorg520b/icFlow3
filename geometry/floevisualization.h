@@ -52,7 +52,7 @@ public:
     // visualization options
     enum VisOpt { none, boundary, vert_force,
                   fracture_support, max_normal_traction, time_loaded, region,
-                  deflection, AbsMx, Mx, My, Mxy, Mx_e, My_e, Mxy_e, Tx, Ty, Txy, Qx, Qy,
+                  deflection, disp_x, AbsMx, Mx, My, Mxy, Mx_e, My_e, Mxy_e, Tx, Ty, Txy, Qx, Qy,
                   stx, sty, stxy, st1, st2, sbx, sby, sbxy, sb1, sb2};
     Q_ENUM(VisOpt)
 

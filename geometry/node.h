@@ -112,6 +112,9 @@ public:
     static double WaterLine(double x, double y, double t, SimParams &prms);
     static double WaterLineDt(double x, double y, double t, SimParams &prms); // derivative with respect to time
 
+    static double BellShapedPolynomial(double x);
+    static double BellShapedPolynomialDx(double x);
+
 private:
     int idxSepStressResult;
     static const int num_disc = 200;

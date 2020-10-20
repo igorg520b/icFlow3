@@ -448,7 +448,7 @@ long icy::Geometry::RemoveDegenerateFragments()
                                 std::tuple<unsigned, double, unsigned> r2)
         {return std::get<1>(r1) < std::get<1>(r2);});
 
-        if(std::get<1>(*iter) < avg_elem_area*2)
+        if(std::get<1>(*iter) < avg_elem_area*1.5)
         {
             unsigned idx = std::get<0>(*iter);
             RemoveRegion(idx);

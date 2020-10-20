@@ -92,11 +92,11 @@ void icy::Element::PrecomputeStiffnessMatrix(icy::SimParams &prms,
 }
 
 void icy::Element::FdF(
-        Eigen::Matrix<double,DOFS*3,1> &x,
+        Eigen::Matrix<double,DOFS*3,1> &u,
         Eigen::Matrix<double,DOFS*3,1> &Fo,
         Eigen::Matrix<double,DOFS*3,DOFS*3> *dFo)
 {
-    Eigen::Matrix<double,DOFS*3,1> u = x-x_initial;
+//    Eigen::Matrix<double,DOFS*3,1> u = x-x_initial;
     Fo = K*u;
     if(dFo != nullptr) *dFo = K;
 }
@@ -116,10 +116,15 @@ void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &pr
 //    ut << nds[0]->ut, nds[1]->ut, nds[2]->ut;
 //    x_initial << nds[0]->x_initial,nds[1]->x_initial,nds[2]->x_initial;
 
-    Eigen::Matrix<double,DOFS*3,1> xn;
-    Eigen::Matrix<double,DOFS*3,1> xt;
-    xn << nds[0]->xn, nds[1]->xn, nds[2]->xn;
-    xt << nds[0]->xt, nds[1]->xt, nds[2]->xt;
+//    Eigen::Matrix<double,DOFS*3,1> xn;
+//    Eigen::Matrix<double,DOFS*3,1> xt;
+//    xn << nds[0]->xn, nds[1]->xn, nds[2]->xn;
+//    xt << nds[0]->xt, nds[1]->xt, nds[2]->xt;
+
+    Eigen::Matrix<double,DOFS*3,1> un;
+    Eigen::Matrix<double,DOFS*3,1> ut;
+    un << nds[0]->un, nds[1]->un, nds[2]->un;
+    ut << nds[0]->ut, nds[1]->ut, nds[2]->ut;
 
     // calculate elastic forces and Hessian at step n+1
 
@@ -127,8 +132,8 @@ void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &pr
     Eigen::Matrix<double,DOFS*3,1> Fn, Fnp1;     // internal force at steps n and n+1
     Eigen::Matrix<double,DOFS*3,DOFS*3> dFnp1;   // Hessian of the force function
 
-    FdF(xn, Fn, nullptr);
-    FdF(xt, Fnp1, &dFnp1);
+    FdF(un, Fn, nullptr);
+    FdF(ut, Fnp1, &dFnp1);
 
     // combine the results into a linearized equation of motion with HHT-alpha integration scheme
     double alpha = prms.HHTalpha;

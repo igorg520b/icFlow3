@@ -23,8 +23,8 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
     if(mass <= 0) throw std::runtime_error("zero nodal mass");
 
     F = Eigen::Matrix<double,DOFS,1>::Zero();
-    F = at;
-    F(2) -= prms.gravity*mass;
+    F = at*mass;
+    //F(2) -= prms.gravity*mass;
     F(3) = 0;
     F(4) = 0;
 
@@ -37,13 +37,13 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
         // loading with surface waves
 
         vertical_force = 0;
-        double spring = area*prms.WaterDensity*std::abs(prms.gravity);
+        double spring = area*prms.WaterDensity*prms.gravity;
         double water_line = WaterLine(x_initial(0), x_initial(1), totalTime, prms);
 
         double disp_t = xt(2)-water_line;
         double disp_n = xn(2)-water_line;
-        std::clamp(disp_t, -prms.Thickness*2, prms.Thickness*2);
-        std::clamp(disp_n, -prms.Thickness*2, prms.Thickness*2);
+        std::clamp(disp_t, -prms.Thickness/2, prms.Thickness/2);
+        std::clamp(disp_n, -prms.Thickness/2, prms.Thickness/2);
 
         F(2) += disp_t*spring*(1-alpha);
         F(2) += disp_n*spring*alpha;
@@ -51,7 +51,8 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
         vertical_force = disp_t*spring*(1-alpha) + disp_n*spring*alpha;
 
         // damping force
-        double vert_velocity = WaterLineDt(x_initial(0), x_initial(1), totalTime, prms);
+//        double vert_velocity = WaterLineDt(x_initial(0), x_initial(1), totalTime, prms);
+        double vert_velocity = 0;
         //    double max_velocity_difference = 3;
         double velocity_difference = vt.z()-vert_velocity;
         //    if(velocity_difference > max_velocity_difference) velocity_difference = max_velocity_difference;
@@ -59,10 +60,35 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
 
         F(2) += prms.Damping*mass*(velocity_difference)/timeStep;
         dF(2,2) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
-    }
-    else
-    {
-        // other types of loading
+
+
+        if(prms.loadType == 9)
+        {
+            // horizontal water velocity
+//            double shift = BellShapedPolynomial(x+totalTime-25.3);
+//            double shift_d = BellShapedPolynomialDx(x+totalTime-25.3);
+
+            double attenuation = totalTime < 1 ? totalTime : 1;
+            double disp = x_initial.x() > 0 ? attenuation : -attenuation;
+            disp*=prms.wave_height;
+            double dispx_t = ut.x()-disp;
+            double dispx_n = un.x()-disp;
+
+            F(0) += dispx_t*spring*(1-alpha);
+            F(0) += dispx_n*spring*alpha;
+
+//            F(0) += (ut.x()-prms.wave_height*Smoothstep(0, 1.0, x_initial.x()+totalTime-25.3))*spring*(1-alpha);
+//            F(0) += (un.x()-prms.wave_height*Smoothstep(0, 1.0, x_initial.x()+totalTime-25.3))*spring*alpha;
+            dF(0,0) += spring*(1-alpha);
+
+            F(1) += ut.y()*spring*(1-alpha);
+            F(1) += un.y()*spring*alpha;
+            dF(1,1) += spring*(1-alpha);
+
+//            double k = prms.Damping*mass/timeStep;
+//            F(0) += (vt.x()-water_velocity);
+//            dF(0,0) += k*(prms.NewmarkGamma/(prms.NewmarkBeta*timeStep) - water_velocity_d);
+        }
 
     }
 
@@ -190,6 +216,25 @@ double icy::Node::WaterLineDt(double x, double y, double t, SimParams &prms)
     else return 0;
 }
 
+double icy::Node::BellShapedPolynomial(double x)
+{
+    if(x<0) x=-x;
+    if(x>2) return 0;
+    if(x<1) return 0.25*(4-6*x*x+3*x*x*x);
+    return 0.25*(2-x)*(2-x)*(2-x);
+}
+
+double icy::Node::BellShapedPolynomialDx(double x)
+{
+    const double k=(3.0/4.0);
+    if(x>=1 && x<2) return -k*(x-2)*(x-2);
+    else if(x>-2 && x<=-1) return k*(2+x)*(2+x);
+    else if(x>=0 && x<1) return k*x*(3*x-4);
+    else if(x>-1 && x <0) return -k*x*(4+3*x);
+    else return 0;
+}
+
+// ======================================================
 
 void icy::Node::Reset()
 {
@@ -591,3 +636,6 @@ void icy::Node::PrintoutFan()
     std::cout << std::endl;
 
 }
+
+
+

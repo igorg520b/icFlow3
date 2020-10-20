@@ -239,7 +239,7 @@ void icy::Model::IdentifyAndRemoveDisconnectedRegions()
 {
     mutex.lock();
     floes.IdentifyDisconnectedRegions();
-    floes.RemoveDegenerateFragments();
+//    floes.RemoveDegenerateFragments();
     mutex.unlock();
     topologyInvalid = displacementsInvalid = valuesInvalid = true;
     if(!updateRequested) { updateRequested = true; emit requestGeometryUpdate(); }
