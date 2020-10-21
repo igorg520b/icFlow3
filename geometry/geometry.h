@@ -72,6 +72,8 @@ public:
 
     // fracture
     std::vector<Node*> breakable_range, neighbors_of_crack_tip, local_support;
+    std::vector<Element*> local_elems; // elems corresponding to breakable_range;
+    std::unordered_set<Element*> local_elems_set; // for computing local_elems
     icy::Node *maxNode = nullptr;
 
     Edge getEdgeByNodalIdx(int idx1, int idx2);

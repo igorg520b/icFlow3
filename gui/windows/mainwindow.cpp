@@ -474,7 +474,7 @@ void MainWindow::on_action_camera_reset_triggered()
     vtkCamera* camera = renderer->GetActiveCamera();
     camera->SetClippingRange(1e1,1e3);
     camera->SetFocalPoint(0.0, 0.0, 0.0);
-    camera->SetPosition(0.0, 0.0, 70.0);
+    camera->SetPosition(0.0, 0.0, 50.0);
     camera->SetViewUp(0.0, 1.0, 0.0);
     camera->Modified();
     renderWindow->Render();
@@ -563,17 +563,26 @@ void MainWindow::on_action_show_benchmark_triggered()
         icy::FrameInfo::BenchmarkingSummarize(controller.stepStats, results_motion, total, n_solves);
         total/=1000000;
 
+        std::cout << "Benchmark printout:\n";
         for(const auto &p : results_motion) {
             long val = p.second;
             if(val > 0) {
                 QString str= QString::fromStdString(p.first) + " " + QString::number(val)+ " ms";
                 series_pie_motion->append(str, val);
+                std::cout << "{\"" << p.first << "\"," << val << "},\n";
             }
+        }
+        std::cout << std::endl;
+
+        QList<QPieSlice*> list1 = series_pie_motion->slices();
+        foreach(QPieSlice *slice, list1)
+        {
+            slice->setLabelFont(QFont("Times", 20));
         }
 
         QString strTotal = QString::number(total);
         QString strSolves = QString::number(n_solves);
-        QString strSteps = QString::number(controller.stepStats.size());
+        QString strSteps = QString::number(controller.stepStats.size()-1);
         QString str = "Total " + strTotal + " s; solves " + strSolves + "; steps " + strSteps;
         chart_pie_motion->setTitle(str);
     } else {

@@ -8,6 +8,8 @@
 #include <vector>
 #include <algorithm>
 #include <chrono>
+#include <unordered_set>
+
 #include <gmsh.h>
 
 #include "parameters_sim.h"

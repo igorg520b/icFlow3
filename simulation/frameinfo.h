@@ -135,7 +135,7 @@ public:
 
         t_other = total - (t_prepare+t_clear_ls+t_force_elem+
                            t_force_buoyancy+t_force_collision+
-                           t_create_structure+t_assemble+t_solve+t_pull_from_ls+
+                           t_create_structure+t_assemble+t_solve+//t_pull_from_ls+
                            t_split+t_local_substep+t_compute_fracture_directions);
 
         // t_total is computed for all frames
@@ -159,19 +159,20 @@ public:
         timing_motion.clear();
 
         timing_motion.push_back(std::make_pair<std::string, long>("prep",t_prepare));
-        timing_motion.push_back(std::make_pair<std::string, long>("clrls",t_clear_ls));
-        timing_motion.push_back(std::make_pair<std::string, long>("elem_f",t_force_elem));
-        timing_motion.push_back(std::make_pair<std::string, long>("buoy_f",t_force_buoyancy));
-        timing_motion.push_back(std::make_pair<std::string, long>("coll_f",t_force_collision));
-        timing_motion.push_back(std::make_pair<std::string, long>("strct",t_create_structure));
+        timing_motion.push_back(std::make_pair<std::string, long>("clear_ls",t_clear_ls));
+        timing_motion.push_back(std::make_pair<std::string, long>("elem_frc",t_force_elem));
+        timing_motion.push_back(std::make_pair<std::string, long>("buoy_frc",t_force_buoyancy));
+        timing_motion.push_back(std::make_pair<std::string, long>("coll_frc",t_force_collision));
+        timing_motion.push_back(std::make_pair<std::string, long>("ls_strct",t_create_structure));
         timing_motion.push_back(std::make_pair<std::string, long>("assemble",t_assemble));
         timing_motion.push_back(std::make_pair<std::string, long>("solve",t_solve));
-        timing_motion.push_back(std::make_pair<std::string, long>("pull",t_pull_from_ls));
-        timing_motion.push_back(std::make_pair<std::string, long>("other",t_other));
+//        timing_motion.push_back(std::make_pair<std::string, long>("pull",t_pull_from_ls));
 
         timing_motion.push_back(std::make_pair<std::string, long>("split",t_split));
         timing_motion.push_back(std::make_pair<std::string, long>("substep",(long)t_local_substep));
-        timing_motion.push_back(std::make_pair<std::string, long>("frac.dir.",t_compute_fracture_directions));
+        timing_motion.push_back(std::make_pair<std::string, long>("frac_dir",t_compute_fracture_directions));
+
+        timing_motion.push_back(std::make_pair<std::string, long>("other",t_other));
     }
 
 };

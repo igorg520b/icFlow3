@@ -100,6 +100,12 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
     for(icy::Node *nd : *nodes) nd->support_node = false;
     for(icy::Node *nd : breakable_range) nd->support_node = true; // for visualization
 
+    // create a list of elements corresponding to breakable_range
+    local_elems_set.clear();
+    local_elems.clear();
+    for(icy::Node *nd : breakable_range) for(icy::Element *elem : nd->adjacent_elems) local_elems_set.insert(elem);
+    if(local_elems_set.size()>0) std::copy(local_elems_set.begin(), local_elems_set.end(), std::back_inserter(local_elems));
+
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }

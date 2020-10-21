@@ -142,7 +142,7 @@ long icy::Model::LocalSubstep(SimParams &prms, double timeStep, double totalTime
 {
     auto t1 = std::chrono::high_resolution_clock::now();
 
-    double localTimeStep = timeStep/10; // TODO: implement this coefficient as a GUI parameter
+    double localTimeStep = timeStep*prms.substepping_timestep_factor;
     if(floes.breakable_range.size() == 0)
     {
         // this may occur in manual "testing" situation
@@ -160,12 +160,26 @@ long icy::Model::LocalSubstep(SimParams &prms, double timeStep, double totalTime
 
     //support_range1
     // similar to AssembleAndSolve, but only run on the local domain
+    std::size_t nNodesLocal = floes.breakable_range.size();
+    std::size_t nElemsLocal = floes.local_elems.size();
     for(int i=0;i<prms.substep_iterations;i++)
     {
         ls.ClearAndResize(count);
-        ComputeElasticForces(prms, localTimeStep, totalTime);
+
+#pragma omp parallel for
+    for(std::size_t i=0;i<nElemsLocal;i++)
+        floes.local_elems[i]->ComputeElasticForce(ls, prms, timeStep);
+
+#pragma omp parallel for
+    for(std::size_t i=0;i<nNodesLocal;i++)
+        floes.breakable_range[i]->ComputeElasticForce(prms, localTimeStep, totalTime);
+
+//        ComputeElasticForces(prms, localTimeStep, totalTime);
         ls.CreateStructure();
-        Assemble();
+
+        for(icy::Node *nd : floes.breakable_range) nd->Assemble(ls);
+        for(icy::Element *elem : floes.local_elems) elem->Assemble(ls);
+
         ls.Solve();
         PullFromLinearSystem(localTimeStep, prms.NewmarkBeta, prms.NewmarkGamma);
     }

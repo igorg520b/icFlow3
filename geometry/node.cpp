@@ -89,8 +89,8 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
             double r = vec.norm();
             vec*=(1+attenuation10/25);
 
-            Eigen::Vector2d disp_t = xt.block(0,0,1,2)-vec;
-            Eigen::Vector2d disp_n = xn.block(0,0,1,2)-vec;
+            Eigen::Vector2d disp_t = xt.block(0,0,2,1)-vec;
+            Eigen::Vector2d disp_n = xn.block(0,0,2,1)-vec;
 
             F(0) += disp_t.x()*spring*(1-alpha);
             F(0) += disp_n.x()*spring*alpha;
@@ -213,7 +213,7 @@ double icy::Node::WaterLine(double x, double y, double t, SimParams &prms)
 {
     if(prms.loadType == 5)
     {
-        return -prms.wave_height*Smoothstep(0, 1.0, x+t-25.3);
+        return -prms.wave_height*Smoothstep(0, 1.0, x+t-prms.wave_start_location);
     }
     else if(prms.loadType == 6)
     {
@@ -238,7 +238,7 @@ double icy::Node::WaterLineDt(double x, double y, double t, SimParams &prms)
 {
     if(prms.loadType == 5)
     {
-        return -prms.wave_height*SmoothstepDeriv(0, 1.0, x+t-25.3);
+        return -prms.wave_height*SmoothstepDeriv(0, 1.0, x+t-prms.wave_start_location);
     }
     else if(prms.loadType == 6)
     {
@@ -333,49 +333,7 @@ void icy::Node::AcceptTentativeValues()
     vn = vt;
     an = at;
 }
-/*
-void icy::Node::PrepareFan(icy::Geometry *geom)
-{
-    std::sort(fan.begin(), fan.end(),
-              [](const Sector &f0, const Sector &f1)
-    {return f0.centerAngle < f1.centerAngle; });
 
-    // TODO: find a more efficient way to infer these edges (from the element ?)
-    for(Sector &f : fan)
-    {
-//        f.e[0] = adjacent_edges_map.at(f.nd[0]->locId);
-//        f.e[1] = adjacent_edges_map.at(f.nd[1]->locId);
-        f.e[0] = geom->getEdgeByNodalIdx(this->locId, f.nd[0]->locId);
-        f.e[1] = geom->getEdgeByNodalIdx(this->locId, f.nd[1]->locId);
-    }
-
-    if(isBoundary)
-    {
-        // find the fan element with the border on the CW direction
-        auto cw_boundary = std::find_if(fan.begin(), fan.end(), [](const Sector &f){return f.e[0].isBoundary;});
-        if(cw_boundary == fan.end()) throw std::runtime_error("cw boundary not found");
-        std::rotate(fan.begin(), cw_boundary, fan.end());
-    }
-
-    // assert that the nodes of the fan connect
-    for(std::size_t i = 0;i<fan.size()-1;i++)
-    {
-        if(fan[i].nd[1] != fan[i+1].nd[0])
-        {
-            qDebug() << "nd: " << locId << "; fan nodes not contiguous";
-            qDebug() << "fan size " << fan.size() << "; isBoundary " << isBoundary;
-            qDebug() << "between idx " << i << " and " << i+1;
-            qDebug() << "nodes ids: " << fan[i].nd[1]->locId << " and " << fan[i+1].nd[0]->locId;
-            qDebug() << "----";
-            for(std::size_t j = 0;j<fan.size();j++)
-                qDebug() << "j="<<j<<"; nd_ids: " << fan[j].nd[0]->locId << " -- " << fan[j].nd[1]->locId;
-            throw std::runtime_error("fan nodes are not contiguous");
-        }
-        if(fan[i].e[1].nds[0] != fan[i+1].e[0].nds[0] || fan[i].e[1].nds[1] != fan[i+1].e[0].nds[1])
-            throw std::runtime_error("edges not shared");
-    }
-}
-*/
 void icy::Node::InitializeFan()
 {
     auto get_angle = [](Eigen::Vector2f u, Eigen::Vector2f v)
@@ -589,18 +547,7 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
                       fracture_angle > fan_angle_span-threshold_angle || fan_angle_span < M_PI/2))
     {max_normal_traction=0; return;}
 }
-/*
-icy::Node::Sector::Sector(icy::Element *elem, icy::Node *ndd) : face(elem)
-{
-    // (the list of edges has not been built yet)
-    Eigen::Vector3d nd_vec = ndd->x_initial.block(0,0,3,1);
-    Eigen::Vector3d tcv = face->getCenter() - nd_vec;
-    centerAngle = atan2(tcv.y(), tcv.x());
 
-    nd[0] = face->getCWNode(ndd);
-    nd[1] = face->getCCWNode(ndd);
-}
-*/
 
 void icy::Node::PrepareFan2()
 {

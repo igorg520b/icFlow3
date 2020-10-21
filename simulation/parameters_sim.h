@@ -58,6 +58,8 @@ class icy::SimParams : public QObject
     Q_PROPERTY(double f_weakening MEMBER weakening_coeff NOTIFY propertyChanged)
     Q_PROPERTY(double f_temporal_attenuation MEMBER temporal_attenuation NOTIFY propertyChanged)
     Q_PROPERTY(double f_wave_height MEMBER wave_height NOTIFY propertyChanged)
+    Q_PROPERTY(double f_wave_start_location MEMBER wave_start_location NOTIFY propertyChanged)
+    Q_PROPERTY(double f_substepping_timestep_factor MEMBER substepping_timestep_factor NOTIFY propertyChanged)
 
     // for testing
     Q_PROPERTY(int t_Load MEMBER loadType NOTIFY propertyChanged)
@@ -83,6 +85,10 @@ public:
     float weakening_coeff;
     double temporal_attenuation;
     double wave_height;
+    double wave_start_location;
+    double substepping_timestep_factor;
+
+    // other
 
     SimParams() { Reset(); }
 
@@ -123,6 +129,8 @@ public:
         weakening_coeff = 0.7;
         temporal_attenuation = 0.2;
         wave_height = 1;
+        substepping_timestep_factor = 0.1;
+        wave_start_location = 10.3;
 
         emit propertyChanged();
     }
@@ -176,6 +184,8 @@ public:
         oa << weakening_coeff;
         oa << temporal_attenuation;
         oa << wave_height;
+        oa << wave_start_location;
+        oa << substepping_timestep_factor;
     }
 
     void Deserialize()
@@ -209,6 +219,8 @@ public:
         oa >> weakening_coeff;
         oa >> temporal_attenuation;
         oa >> wave_height;
+        oa >> wave_start_location;
+        oa >> substepping_timestep_factor;
     }
 
 

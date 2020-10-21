@@ -454,7 +454,7 @@ void icy::FloeVisualization::UnsafeUpdateWaterLine(double totalTime, SimParams &
     {
         for(unsigned i=0;i<gridSizeX;i++)
             for(unsigned j=0;j<gridSizeY;j++) {
-                double x = 55.0 * ((double)i/(double)gridSizeX-0.5);
+                double x = 25.0 * ((double)i/(double)gridSizeX-0.5);
                 double y = 12.0 * ((double)j/(double)gridSizeY-0.5);
                 double rest_position = icy::Node::WaterLine(x, y, totalTime, prms);
                 points_water->SetPoint(i+j*gridSizeX, x,y,rest_position);
