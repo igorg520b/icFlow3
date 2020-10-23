@@ -77,6 +77,26 @@ icy::FloeVisualization::FloeVisualization()
     mapper_mesh3d->SetInputData(ugrid_mesh3d);
     actor_mesh_mesh3d->SetMapper(mapper_mesh3d);
     mapper_mesh3d->UseLookupTableScalarRangeOn();
+
+    // indenter
+    sphereSource->SetCenter(0.0, 0.0, 0.0);
+    sphereSource->SetRadius(1.0);
+    // Make the surface smooth.
+    sphereSource->SetPhiResolution(15);
+    sphereSource->SetThetaResolution(15);
+    sphereMapper->SetInputConnection(sphereSource->GetOutputPort());
+    actor_sphere->SetMapper(sphereMapper);
+    actor_sphere->GetProperty()->SetColor(colors->GetColor3d("Black").GetData());
+//    actor_sphere->GetProperty()->SetOpacity(0.5);
+    actor_sphere->GetProperty()->SetRepresentationToWireframe();
+    actor_sphere->GetProperty()->SetLineWidth(1.5);
+
+    actor_sphere->GetProperty()->LightingOff();
+    actor_sphere->GetProperty()->ShadingOff();
+//    actor_sphere->GetProperty()->SetInterpolationToFlat();
+    actor_mesh->GetProperty()->SetEdgeColor(colors->GetColor3d("Black").GetData());
+
+    actor_sphere->VisibilityOff();
 }
 
 void icy::FloeVisualization::UnsafeUpdateTopology(std::vector<Node*> *nodes, std::vector<Element*> *elems,
@@ -455,7 +475,7 @@ void icy::FloeVisualization::UnsafeUpdateWaterLine(double totalTime, SimParams &
         for(unsigned i=0;i<gridSizeX;i++)
             for(unsigned j=0;j<gridSizeY;j++) {
                 double x = 25.0 * ((double)i/(double)gridSizeX-0.5);
-                double y = 12.0 * ((double)j/(double)gridSizeY-0.5);
+                double y = 6.0 * ((double)j/(double)gridSizeY-0.5);
                 double rest_position = icy::Node::WaterLine(x, y, totalTime, prms);
                 points_water->SetPoint(i+j*gridSizeX, x,y,rest_position);
             }
@@ -472,4 +492,11 @@ void icy::FloeVisualization::UnsafeUpdateWaterLine(double totalTime, SimParams &
     }
 
     points_water->Modified();
+
+    actor_sphere->SetVisibility(mode==4);
+    if(mode == 4)
+    {
+        sphereSource->SetCenter(0.0, 0.0, 1-totalTime*2.0/100-0.09);
+        sphereSource->Modified();
+    }
 }

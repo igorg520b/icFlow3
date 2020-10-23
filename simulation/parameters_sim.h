@@ -126,7 +126,7 @@ public:
         fracture_enable = true;
         fracture_max_substeps=1000;
         substep_iterations = 2;
-        weakening_coeff = 0.7;
+        weakening_coeff = 0.75;
         temporal_attenuation = 0.2;
         wave_height = 1;
         substepping_timestep_factor = 0.1;

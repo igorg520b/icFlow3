@@ -42,8 +42,12 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
 
         double disp_t = xt(2)-water_line;
         double disp_n = xn(2)-water_line;
-        std::clamp(disp_t, -prms.Thickness/2, prms.Thickness/2);
-        std::clamp(disp_n, -prms.Thickness/2, prms.Thickness/2);
+        if(prms.loadType==5) {
+            std::clamp(disp_t, -prms.Thickness/2, prms.Thickness/2);
+            std::clamp(disp_n, -prms.Thickness/2, prms.Thickness/2);
+        } else if(prms.loadType==6 || prms.loadType==7) {
+            spring*=100;
+        }
 
         F(2) += disp_t*spring*(1-alpha);
         F(2) += disp_n*spring*alpha;
@@ -132,6 +136,31 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
             dF(1,1) += spring*(1-alpha);
 
         }
+        else if(prms.loadType == 4)
+        {
+            // center indentation
+            const double ind_radius = 1;
+            const double ind_rate = 2.0/100;
+            double rsq = x_initial.x() * x_initial.x() + x_initial.y() * x_initial.y();
+            double r = sqrt(rsq);
+            if(r < ind_radius)
+            {
+                double sphere_z = sqrt(ind_radius*ind_radius - rsq) - ind_radius + totalTime*ind_rate+0.09;
+                if(sphere_z > 0)
+                {
+                    double indented_position = -sphere_z;
+                    double spring2 = spring*1000;
+                    F(2) += (xt(2)-indented_position)*spring2*(1-alpha);
+                    F(2) += (xn(2)-indented_position)*spring2*alpha;
+                    dF(2,2) += spring2*(1-alpha);
+                    vertical_force = (xt(2)-indented_position)*spring2*(1-alpha) + (xn(2)-indented_position)*spring2*alpha;
+                }
+            }
+            // add normal buoyancy "spring"
+            F(2) += xt(2)*spring*(1-alpha);
+            F(2) += xn(2)*spring*alpha;
+            dF(2,2) += spring*(1-alpha);
+        }
 
     }
 
@@ -140,29 +169,7 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
 /*
     else if(prms.loadType == 2)
     {
-        // center indentation
-        const double ind_radius = 0.50;
-        const double ind_rate = 1.0/120;
-        double spring = area*prms.WaterDensity*std::abs(prms.gravity);
-        double rsq = x_initial.x() * x_initial.x() + x_initial.y() * x_initial.y();
-        double r = sqrt(rsq);
-        if(r < ind_radius)
-        {
-            double sphere_z = sqrt(ind_radius*ind_radius - rsq) - ind_radius + totalTime*ind_rate;
-            if(sphere_z > 0)
-            {
-                double indented_position = -sphere_z;
-                double spring2 = spring*100;
-                F(2) += (xt(2)-indented_position)*spring2*(1-alpha);
-                F(2) += (xn(2)-indented_position)*spring2*alpha;
-                dF(2,2) += spring2*(1-alpha);
-                vertical_force = (xt(2)-indented_position)*spring2*(1-alpha) + (xn(2)-indented_position)*spring2*alpha;
-            }
-        }
-        // add normal buoyancy "spring"
-        F(2) += xt(2)*spring*(1-alpha);
-        F(2) += xn(2)*spring*alpha;
-        dF(2,2) += spring*(1-alpha);
+
     }
     */
 
@@ -224,8 +231,8 @@ double icy::Node::WaterLine(double x, double y, double t, SimParams &prms)
     else if(prms.loadType == 7)
     {
         double wave1 = prms.wave_height*cos(x*2*M_PI/3.99)*sin(t * 2 * M_PI / 1.6);
-        double wave2 = prms.wave_height*0.1*cos(y*2*M_PI/5)*sin(2+t * 2 * M_PI / 1.2);
-        double wave3 = prms.wave_height*0.1*cos(y*2*M_PI/10)*sin(1+t * 2 * M_PI / 2);
+        double wave2 = prms.wave_height*0.5*cos(y*2*M_PI/5)*sin(2+t * 2 * M_PI / 1.2);
+        double wave3 = prms.wave_height*0.5*cos(y*2*M_PI/10)*sin(1+t * 2 * M_PI / 2);
         if(t < 2) wave1 *= t/2;
         if(t < 4) wave2 *= t/4;
         if(t < 6) wave3 *= t/6;
@@ -249,8 +256,8 @@ double icy::Node::WaterLineDt(double x, double y, double t, SimParams &prms)
     else if(prms.loadType == 7)
     {
         double wave1 = prms.wave_height*cos(x*2*M_PI/3.99)*cos(t * 2 * M_PI / 1.6)* 2 * M_PI / 1.6;
-        double wave2 = prms.wave_height*0.1*cos(y*2*M_PI/5)*cos(2+t * 2 * M_PI / 1.2)* 2 * M_PI / 1.2;
-        double wave3 = prms.wave_height*0.1*cos(y*2*M_PI/10)*cos(1+t * 2 * M_PI / 2)* 2 * M_PI / 2;
+        double wave2 = prms.wave_height*0.5*cos(y*2*M_PI/5)*cos(2+t * 2 * M_PI / 1.2)* 2 * M_PI / 1.2;
+        double wave3 = prms.wave_height*0.5*cos(y*2*M_PI/10)*cos(1+t * 2 * M_PI / 2)* 2 * M_PI / 2;
         if(t < 2) wave1 *= t/2;
         if(t < 4) wave2 *= t/4;
         if(t < 6) wave3 *= t/6;

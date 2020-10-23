@@ -25,6 +25,7 @@
 #include <vtkPolyLine.h>
 #include <vtkPointData.h>
 #include <vtkCellArray.h>
+#include <vtkSphereSource.h>
 
 #include <vtkLabeledDataMapper.h>
 #include <vtkActor2D.h>
@@ -108,6 +109,12 @@ public:
     vtkNew<vtkPoints> points_water;
     vtkNew<vtkDataSetMapper> mapper_water;
     vtkNew<vtkActor> actor_water;
+
+    // indenter
+    vtkNew<vtkSphereSource> sphereSource;
+    vtkNew<vtkPolyDataMapper> sphereMapper;
+    vtkNew<vtkActor> actor_sphere;
+
 
     // visualizing variables
     vtkNew<vtkDoubleArray> visualized_values;

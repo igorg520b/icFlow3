@@ -254,6 +254,9 @@
    <property name="text">
     <string>Scalar Bar</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+H</string>
+   </property>
   </action>
   <action name="action_Trim">
    <property name="text">
