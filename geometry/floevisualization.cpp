@@ -87,14 +87,11 @@ icy::FloeVisualization::FloeVisualization()
     sphereMapper->SetInputConnection(sphereSource->GetOutputPort());
     actor_sphere->SetMapper(sphereMapper);
     actor_sphere->GetProperty()->SetColor(colors->GetColor3d("Black").GetData());
-//    actor_sphere->GetProperty()->SetOpacity(0.5);
     actor_sphere->GetProperty()->SetRepresentationToWireframe();
     actor_sphere->GetProperty()->SetLineWidth(1.5);
-
     actor_sphere->GetProperty()->LightingOff();
     actor_sphere->GetProperty()->ShadingOff();
-//    actor_sphere->GetProperty()->SetInterpolationToFlat();
-    actor_mesh->GetProperty()->SetEdgeColor(colors->GetColor3d("Black").GetData());
+    actor_sphere->GetProperty()->SetEdgeColor(colors->GetColor3d("Black").GetData());
 
     actor_sphere->VisibilityOff();
 }
@@ -277,14 +274,6 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_top[2]);
         break;
 
-    case VisOpt::st1:
-        for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_top_principal[0]);
-        break;
-
-    case VisOpt::st2:
-        for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_top_principal[1]);
-        break;
-
     case VisOpt::sbx:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_bottom[0]);
         break;
@@ -295,14 +284,6 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
 
     case VisOpt::sbxy:
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_bottom[2]);
-        break;
-
-    case VisOpt::sb1:
-        for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_bottom_principal[0]);
-        break;
-
-    case VisOpt::sb2:
-        for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_bottom_principal[1]);
         break;
 
     default:

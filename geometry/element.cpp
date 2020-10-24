@@ -110,17 +110,6 @@ void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &pr
     ls.AddElementToStructure(nds[0]->lsId, nds[2]->lsId);
     ls.AddElementToStructure(nds[1]->lsId, nds[2]->lsId);
 
-//    Eigen::Matrix<double,DOFS*3,1> un, x_initial;
-//    Eigen::Matrix<double,DOFS*3,1> ut;
-//    un << nds[0]->un, nds[1]->un, nds[2]->un;
-//    ut << nds[0]->ut, nds[1]->ut, nds[2]->ut;
-//    x_initial << nds[0]->x_initial,nds[1]->x_initial,nds[2]->x_initial;
-
-//    Eigen::Matrix<double,DOFS*3,1> xn;
-//    Eigen::Matrix<double,DOFS*3,1> xt;
-//    xn << nds[0]->xn, nds[1]->xn, nds[2]->xn;
-//    xt << nds[0]->xt, nds[1]->xt, nds[2]->xt;
-
     Eigen::Matrix<double,DOFS*3,1> un;
     Eigen::Matrix<double,DOFS*3,1> ut;
     un << nds[0]->un, nds[1]->un, nds[2]->un;
@@ -140,19 +129,11 @@ void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &pr
     F = Fn*alpha + Fnp1*(1-alpha);
     dF= dFnp1*(1-alpha);
 
-    //    double dampingMass = prms.DampingMass;
-    //    double dampingStiffness = prms.DampingStiffness;
-    //    double beta = prms.NewmarkBeta;
-    //    Eigen::Matrix<double,9,9> Cnp1 = M*dampingMass+dFnp1*dampingStiffness;
-//    F = M*a + Fn*alpha + Fnp1*(1-alpha) + Cn*vn*alpha + Cnp1*vt*(1-alpha);
-//    dF= M/(beta*timeStep*timeStep) + dFnp1*(1-alpha) + Cnp1*((1-alpha)*gamma/(timeStep*beta));
-/*
     // assert
-    for(int i=0;i<DOFS*3;i++)
-        for(int j=0;j<DOFS*3;j++)
-            if(std::isnan(dF(i,j)))
-                throw std::runtime_error("elem.ComputeElasticForce: dF contains NaN");
-*/
+//    for(int i=0;i<DOFS*3;i++)
+//        for(int j=0;j<DOFS*3;j++)
+//            if(std::isnan(dF(i,j)))
+//                throw std::runtime_error("elem.ComputeElasticForce: dF contains NaN");
 }
 
 void icy::Element::Assemble(icy::LinearSystem &ls) const
@@ -191,22 +172,12 @@ void icy::Element::EvaluateStresses(icy::SimParams &prms,
     float txy = str_b_top.coeff(2);
     str_top << sx, txy, txy, sy;
 
-//    double coeff1 = sqrt((sx-sy)*(sx-sy)+txy*txy*4.0);
-//    double s1 = 0.5*(sx+sy+coeff1);
-//    double s2 = 0.5*(sx+sy-coeff1);
-//    str_b_top_principal << s1, s2;
-
     str_b_bottom = elasticityMatrix*bmat_b*u*area_initial*(thickness/2);
 
     sx = str_b_bottom.coeff(0) + str_m(0);
     sy = str_b_bottom.coeff(1) + str_m(1);
     txy = str_b_bottom.coeff(2) + str_m(2);
     str_bottom << sx, txy, txy, sy;
-
-//    coeff1 = sqrt((sx-sy)*(sx-sy)+txy*txy*4.0);
-//    s1 = 0.5*(sx+sy+coeff1);
-//    s2 = 0.5*(sx+sy-coeff1);
-//    str_b_bottom_principal << s1, s2;
 
     ComputeNormal();
 }
@@ -226,8 +197,8 @@ void icy::Element::DistributeStresses()
 
         nd->str_b_top += str_b_top*coeff1;
         nd->str_b_bottom += str_b_bottom*coeff1;
-        nd->str_b_top_principal += str_b_top_principal*coeff1;
-        nd->str_b_bottom_principal += str_b_bottom_principal*coeff1;
+//        nd->str_b_top_principal += str_b_top_principal*coeff1;
+//        nd->str_b_bottom_principal += str_b_bottom_principal*coeff1;
 
         nd->normal_n += normal_n;
     }

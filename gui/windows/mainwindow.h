@@ -205,11 +205,9 @@ private:
     QTreeWidget *tree;
     QMenu *menuSolidGroup;      // for solids group
     QMenu *menuSolidIndividual;
-    QTreeWidgetItem *tiParams;
-    QTreeWidgetItem *tiParams_GUI;
     QTreeWidgetItem *tiParams_sim;
     QTreeWidgetItem *tiFloes;
-    QTreeWidgetItem *tiSolids;
+//    QTreeWidgetItem *tiSolids;
 
     const QString wtitle = "icFlow3: Finite Element Simulation of Ice - ";
 

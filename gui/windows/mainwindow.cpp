@@ -63,23 +63,16 @@ MainWindow::MainWindow(QWidget *parent)
     splitter_left_panel->addWidget(tree);
     splitter_left_panel->addWidget(pbrowser);
 
-    tiParams = new QTreeWidgetItem(tree);
-    tiParams->setText(0, "prms");
-    tiParams->setExpanded(true);
-    tiParams_GUI = new QTreeWidgetItem();
-    tiParams_sim = new QTreeWidgetItem();
-    tiParams_GUI->setText(0, "gui");
+    tiParams_sim = new QTreeWidgetItem(tree);
     tiParams_sim->setText(0, "sim");
-    tiParams->addChild(tiParams_GUI);
-    tiParams->addChild(tiParams_sim);
 
     tiFloes = new QTreeWidgetItem(tree);
     tiFloes->setText(0, "floes");
 
     tiFloes->setExpanded(true);
-    tiSolids = new QTreeWidgetItem(tree);
-    tiSolids->setText(0, "solids");
-    tiSolids->setExpanded(true);
+//    tiSolids = new QTreeWidgetItem(tree);
+//    tiSolids->setText(0, "solids");
+//    tiSolids->setExpanded(true);
 
     // VTK
     qt_vtk_widget = new QVTKOpenGLNativeWidget();
@@ -205,6 +198,7 @@ MainWindow::MainWindow(QWidget *parent)
     }
 
     prefsGUI.LoadState(settings);
+    ui->action_Load_Recent_on_Startup->setChecked(prefsGUI.LoadLastScene);
 
     if(prefsGUI.LoadLastScene) {
         QFile sceneFile(prefsGUI.LastSceneFilename);
@@ -267,8 +261,8 @@ void MainWindow::customMenuRequested(QPoint pos)
     QTreeWidgetItem *nd = tree->itemAt(pos);
     QVariant qv1 = nd->data(1, Qt::UserRole);
 
-    if(nd == tiSolids) menuSolidGroup->exec(tree->mapToGlobal(pos));
-    else if(qv1.toInt()==2) menuSolidIndividual->exec(tree->mapToGlobal(pos));
+    //if(nd == tiSolids) menuSolidGroup->exec(tree->mapToGlobal(pos));
+    if(qv1.toInt()==2) menuSolidIndividual->exec(tree->mapToGlobal(pos));
 }
 
 void MainWindow::on_action_scene_open_triggered()
@@ -329,6 +323,7 @@ void MainWindow::on_action_scene_reset_triggered() { Reset(); }
 
 void MainWindow::on_action_import_3D_boundary_triggered()
 {
+    // this functionality is currently unused
     qDebug() << "STL import enclosed boundary for 3D object";
     QString fileName = QFileDialog::getOpenFileName(this, "Open 2D STL Mesh",
                                          prefsGUI.LastFolder3DGometry, "Mesh Files (*.stl)");
@@ -338,7 +333,7 @@ void MainWindow::on_action_import_3D_boundary_triggered()
 
     icy::Solid3D *solid = new icy::Solid3D(fileName);
     controller.model.solids.push_back(solid);
-    tiSolids->addChild(&solid->treeWidget);
+//    tiSolids->addChild(&solid->treeWidget);
     renderer->AddActor(solid->actor_mesh);
     renderWindow->Render();
 }
@@ -381,8 +376,7 @@ void MainWindow::treeItemSelected()
         pbrowser->setActiveObject(nullptr);
         QTreeWidgetItem* w = sl.first();
         // set property browser
-        if(w == tiParams_GUI) pbrowser->setActiveObject(&prefsGUI);
-        else if(w == tiParams_sim) pbrowser->setActiveObject(&controller.prms);
+        if(w == tiParams_sim) pbrowser->setActiveObject(&controller.prms);
         else if(w == tiFloes) pbrowser->setActiveObject(&controller.model);
         else {
             QVariant qv0 = w->data(0, Qt::UserRole);
@@ -413,6 +407,7 @@ void MainWindow::closeEvent( QCloseEvent* event )
     QByteArray arr((char*)&data[0], sizeof(double)*10);
     settings.setValue("camData", arr);
 
+    prefsGUI.LoadLastScene = ui->action_Load_Recent_on_Startup->isChecked();
     prefsGUI.SaveState(settings);
 
     // kill backgroundworker
