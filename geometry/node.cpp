@@ -32,173 +32,113 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
     dF(3,3) = 0;
     dF(4,4) = 0;
 
-    if(prms.loadType < 10)
+
+    // loading with surface waves
+
+    vertical_force = 0;
+    double spring = area*prms.WaterDensity*prms.gravity;
+    double water_line = WaterLine(x_initial(0), x_initial(1), totalTime, prms);
+
+    double disp_t = xt(2)-water_line;
+    double disp_n = xn(2)-water_line;
+    if(prms.loadType==5) {
+        std::clamp(disp_t, -prms.Thickness/2, prms.Thickness/2);
+        std::clamp(disp_n, -prms.Thickness/2, prms.Thickness/2);
+    } else if(prms.loadType==6 || prms.loadType==7) {
+        spring*=100;
+    }
+
+    F(2) += disp_t*spring*(1-alpha);
+    F(2) += disp_n*spring*alpha;
+    dF(2,2) += spring*(1-alpha);
+    vertical_force = disp_t*spring*(1-alpha) + disp_n*spring*alpha;
+
+    // damping force
+    double vert_velocity = WaterLineDt(x_initial(0), x_initial(1), totalTime, prms);
+    //    double max_velocity_difference = 3;
+    double velocity_difference = vt.z()-vert_velocity;
+    //    if(velocity_difference > max_velocity_difference) velocity_difference = max_velocity_difference;
+    //    else if(velocity_difference < -max_velocity_difference) velocity_difference = -max_velocity_difference;
+
+    F(2) += prms.Damping*mass*(velocity_difference)/timeStep;
+    dF(2,2) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
+
+
+    if(prms.loadType == icy::Model::LoadOpt::stretch_x)
     {
-        // loading with surface waves
+        // horizontal split in the middle
 
-        vertical_force = 0;
-        double spring = area*prms.WaterDensity*prms.gravity;
-        double water_line = WaterLine(x_initial(0), x_initial(1), totalTime, prms);
+        double attenuation = totalTime < 1 ? totalTime : 1;
+        double disp = x_initial.x() > 0 ? attenuation : -attenuation;
+        disp*=prms.wave_height;
+        double dispx_t = ut.x()-disp;
+        double dispx_n = un.x()-disp;
 
-        double disp_t = xt(2)-water_line;
-        double disp_n = xn(2)-water_line;
-        if(prms.loadType==5) {
-            std::clamp(disp_t, -prms.Thickness/2, prms.Thickness/2);
-            std::clamp(disp_n, -prms.Thickness/2, prms.Thickness/2);
-        } else if(prms.loadType==6 || prms.loadType==7) {
-            spring*=100;
-        }
+        F(0) += dispx_t*spring*(1-alpha);
+        F(0) += dispx_n*spring*alpha;
 
-        F(2) += disp_t*spring*(1-alpha);
-        F(2) += disp_n*spring*alpha;
-        dF(2,2) += spring*(1-alpha);
-        vertical_force = disp_t*spring*(1-alpha) + disp_n*spring*alpha;
+        dF(0,0) += spring*(1-alpha);
 
-        // damping force
-        double vert_velocity = WaterLineDt(x_initial(0), x_initial(1), totalTime, prms);
-        //    double max_velocity_difference = 3;
-        double velocity_difference = vt.z()-vert_velocity;
-        //    if(velocity_difference > max_velocity_difference) velocity_difference = max_velocity_difference;
-        //    else if(velocity_difference < -max_velocity_difference) velocity_difference = -max_velocity_difference;
+        F(1) += ut.y()*spring*(1-alpha);
+        F(1) += un.y()*spring*alpha;
+        dF(1,1) += spring*(1-alpha);
+    }
+    else if(prms.loadType == icy::Model::LoadOpt::stretch_xy)
+    {
+        spring*=10;
+        // radial stretch in all directions
+        double attenuation10 = totalTime < 20 ? totalTime/20 : 1;
+        Eigen::Vector2d vec(x_initial.x(), x_initial.y());
+        vec*=(1+attenuation10/25);
 
-        F(2) += prms.Damping*mass*(velocity_difference)/timeStep;
-        dF(2,2) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
+        Eigen::Vector2d disp_t = xt.block(0,0,2,1)-vec;
+        Eigen::Vector2d disp_n = xn.block(0,0,2,1)-vec;
+
+        F(0) += disp_t.x()*spring*(1-alpha);
+        F(0) += disp_n.x()*spring*alpha;
+        F(1) += disp_t.y()*spring*(1-alpha);
+        F(1) += disp_n.y()*spring*alpha;
+
+        dF(0,0) += spring*(1-alpha);
+        dF(1,1) += spring*(1-alpha);
+
+        F(0) += prms.Damping*mass*(vt.x())/timeStep;
+        dF(0,0) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
+        F(1) += prms.Damping*mass*(vt.y())/timeStep;
+        dF(1,1) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
 
 
-        if(prms.loadType == 1)
+    }
+    else if(prms.loadType == icy::Model::LoadOpt::indentation)
+    {
+        // center indentation
+        const double ind_radius = 1;
+        const double ind_rate = 2.0/100;
+        double rsq = x_initial.x() * x_initial.x() + x_initial.y() * x_initial.y();
+        double r = sqrt(rsq);
+        if(r < ind_radius)
         {
-            // horizontal split in the middle
-
-            double attenuation = totalTime < 1 ? totalTime : 1;
-            double disp = x_initial.x() > 0 ? attenuation : -attenuation;
-            disp*=prms.wave_height;
-            double dispx_t = ut.x()-disp;
-            double dispx_n = un.x()-disp;
-
-            F(0) += dispx_t*spring*(1-alpha);
-            F(0) += dispx_n*spring*alpha;
-
-            dF(0,0) += spring*(1-alpha);
-
-            F(1) += ut.y()*spring*(1-alpha);
-            F(1) += un.y()*spring*alpha;
-            dF(1,1) += spring*(1-alpha);
-        }
-        else if(prms.loadType == 2)
-        {
-            spring*=10;
-            // radial stretch in all directions
-            double attenuation10 = totalTime < 20 ? totalTime/20 : 1;
-            Eigen::Vector2d vec(x_initial.x(), x_initial.y());
-            double r = vec.norm();
-            vec*=(1+attenuation10/25);
-
-            Eigen::Vector2d disp_t = xt.block(0,0,2,1)-vec;
-            Eigen::Vector2d disp_n = xn.block(0,0,2,1)-vec;
-
-            F(0) += disp_t.x()*spring*(1-alpha);
-            F(0) += disp_n.x()*spring*alpha;
-            //F(1) += ut.y()*spring*(1-alpha);
-            //F(1) += un.y()*spring*alpha;
-            F(1) += disp_t.y()*spring*(1-alpha);
-            F(1) += disp_n.y()*spring*alpha;
-
-            dF(0,0) += spring*(1-alpha);
-            dF(1,1) += spring*(1-alpha);
-
-            F(0) += prms.Damping*mass*(vt.x())/timeStep;
-            dF(0,0) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
-            F(1) += prms.Damping*mass*(vt.y())/timeStep;
-            dF(1,1) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
-
-
-        }
-        else if(prms.loadType == 3)
-        {
-            // horizontal tearing wave in x direction
-            double attenuation10 = totalTime < 10 ? totalTime/10 : 1;
-            Eigen::Vector2d vec(x_initial.x(), x_initial.y());
-            double r = vec.norm();
-            vec*=(1+attenuation10);
-
-            Eigen::Vector2d disp_t = xt.block(0,0,1,2)-vec;
-            Eigen::Vector2d disp_n = xn.block(0,0,1,2)-vec;
-
-            F(0) += disp_t.x()*spring*(1-alpha);
-            F(0) += disp_n.x()*spring*alpha;
-            F(0) += disp_t.x()*spring*(1-alpha);
-            F(0) += disp_n.x()*spring*alpha;
-
-//            F(0) += (ut.x()-prms.wave_height*Smoothstep(0, 1.0, x_initial.x()+totalTime-25.3))*spring*(1-alpha);
-//            F(0) += (un.x()-prms.wave_height*Smoothstep(0, 1.0, x_initial.x()+totalTime-25.3))*spring*alpha;
-            dF(0,0) += spring*(1-alpha);
-
-            dF(1,1) += spring*(1-alpha);
-
-        }
-        else if(prms.loadType == 4)
-        {
-            // center indentation
-            const double ind_radius = 1;
-            const double ind_rate = 2.0/100;
-            double rsq = x_initial.x() * x_initial.x() + x_initial.y() * x_initial.y();
-            double r = sqrt(rsq);
-            if(r < ind_radius)
+            double sphere_z = sqrt(ind_radius*ind_radius - rsq) - ind_radius + totalTime*ind_rate+0.09;
+            if(sphere_z > 0)
             {
-                double sphere_z = sqrt(ind_radius*ind_radius - rsq) - ind_radius + totalTime*ind_rate+0.09;
-                if(sphere_z > 0)
-                {
-                    double indented_position = -sphere_z;
-                    double spring2 = spring*1000;
-                    F(2) += (xt(2)-indented_position)*spring2*(1-alpha);
-                    F(2) += (xn(2)-indented_position)*spring2*alpha;
-                    dF(2,2) += spring2*(1-alpha);
-                    vertical_force = (xt(2)-indented_position)*spring2*(1-alpha) + (xn(2)-indented_position)*spring2*alpha;
-                }
+                double indented_position = -sphere_z;
+                double spring2 = spring*1000;
+                F(2) += (xt(2)-indented_position)*spring2*(1-alpha);
+                F(2) += (xn(2)-indented_position)*spring2*alpha;
+                dF(2,2) += spring2*(1-alpha);
+                vertical_force = (xt(2)-indented_position)*spring2*(1-alpha) + (xn(2)-indented_position)*spring2*alpha;
             }
-            // add normal buoyancy "spring"
-            F(2) += xt(2)*spring*(1-alpha);
-            F(2) += xn(2)*spring*alpha;
-            dF(2,2) += spring*(1-alpha);
         }
-
+        // add normal buoyancy "spring"
+        F(2) += xt(2)*spring*(1-alpha);
+        F(2) += xn(2)*spring*alpha;
+        dF(2,2) += spring*(1-alpha);
     }
 
+#ifdef QT_DEBUG
+    for(int i=0;i<DOFS;i++) if(std::isnan(dF(i))) throw std::runtime_error("node; dF contains NaN");
+#endif
 
-
-/*
-    else if(prms.loadType == 2)
-    {
-
-    }
-    */
-
-    // assert
-//    for(int i=0;i<DOFS;i++) if(std::isnan(dF(i))) throw std::runtime_error("node; dF contains NaN");
-
-}
-
-double icy::Node::OceanWave(double x, double y, double t)
-{
-    const int len = 4;
-    double amp[] = {0.2, 0.0, 0.0, 0.5};
-    double dir[][2] = {{1, 0},
-                        {0.0995037, 0.995037},
-                        {0.980581, 0.196116},
-                        {0., 1}};
-    double sp[] = {1, 3, 2, 3};
-    double wavelen[] = {25.5, 10, 7, 38};
-    double phase[] = {1, 0.1, 0.5, 0.1};
-
-    amp[3] = 0;
-    if(t<10) amp[0] *= t/10;
-    else if(t>60) amp[0] *= exp(-(t-60)/10);
-
-
-    double result = 0;
-    for(int k=0;k<len;k++)
-        result += amp[k]*sin(phase[k]+2*M_PI*((dir[k][0]*x+dir[k][1]*y-sp[k]*t)/wavelen[k]));
-    return result;
 }
 
 double icy::Node::Smoothstep(double edge0, double edge1, double x)
@@ -218,20 +158,20 @@ double icy::Node::SmoothstepDeriv(double edge0, double edge1, double x)
 
 double icy::Node::WaterLine(double x, double y, double t, SimParams &prms)
 {
-    if(prms.loadType == 5)
+    if(prms.loadType == icy::Model::LoadOpt::waterfall)
     {
         return -prms.wave_height*Smoothstep(0, 1.0, x+t-prms.wave_start_location);
     }
-    else if(prms.loadType == 6)
+    else if(prms.loadType == icy::Model::LoadOpt::waves_x)
     {
         double result = prms.wave_height*cos(x*2*M_PI/3.99)*sin(t * 2 * M_PI / 1.6);
         if(t < 2) result *= t/2;
         return result;
     }
-    else if(prms.loadType == 7)
+    else if(prms.loadType == icy::Model::LoadOpt::waves_xy)
     {
         double wave1 = prms.wave_height*cos(x*2*M_PI/3.99)*sin(t * 2 * M_PI / 1.6);
-        double wave2 = prms.wave_height*0.5*cos(y*2*M_PI/5)*sin(2+t * 2 * M_PI / 1.2);
+        double wave2 = prms.wave_height*0.8*cos(y*2*M_PI/5)*sin(2+t * 2 * M_PI / 1.2);
         double wave3 = prms.wave_height*0.5*cos(y*2*M_PI/10)*sin(1+t * 2 * M_PI / 2);
         if(t < 2) wave1 *= t/2;
         if(t < 4) wave2 *= t/4;
@@ -243,17 +183,17 @@ double icy::Node::WaterLine(double x, double y, double t, SimParams &prms)
 
 double icy::Node::WaterLineDt(double x, double y, double t, SimParams &prms)
 {
-    if(prms.loadType == 5)
+    if(prms.loadType == icy::Model::LoadOpt::waterfall)
     {
         return -prms.wave_height*SmoothstepDeriv(0, 1.0, x+t-prms.wave_start_location);
     }
-    else if(prms.loadType == 6)
+    else if(prms.loadType == icy::Model::LoadOpt::waves_x)
     {
         double result = prms.wave_height*cos(x*2*M_PI/3.99)*cos(t * 2 * M_PI / 1.6)* 2 * M_PI / 1.6;
         if(t < 2) result *= t/2;
         return result;
     }
-    else if(prms.loadType == 7)
+    else if(prms.loadType == icy::Model::LoadOpt::waves_xy)
     {
         double wave1 = prms.wave_height*cos(x*2*M_PI/3.99)*cos(t * 2 * M_PI / 1.6)* 2 * M_PI / 1.6;
         double wave2 = prms.wave_height*0.5*cos(y*2*M_PI/5)*cos(2+t * 2 * M_PI / 1.2)* 2 * M_PI / 1.2;
@@ -334,7 +274,6 @@ void icy::Node::Assemble(icy::LinearSystem &ls) const
 
 void icy::Node::AcceptTentativeValues()
 {
-//    if(prescribed) return;
     un = ut;
     xn = xt;
     vn = vt;
@@ -351,11 +290,6 @@ void icy::Node::InitializeFan()
         else if(dot < -1.0) dot = -1.0;
         return acos(dot);
     };
-
-    // TODO: make sure that normal_n is already computed at this stage
-//    normal_n = Eigen::Vector3d::Zero();
-//    for(Sector &f : fan) normal_n += f.face->normal_n;
-//    normal_n.normalize();
 
     fan_angle_span = 0;
 
@@ -434,10 +368,8 @@ void icy::Node::evaluate_tractions(float angle_fwd, SepStressResult &ssr, const 
             ssr.theta[1] = fp.angle1 - angle_bwd;
 
             float ratio = phi/fp.angle_span;
-            //Eigen::Vector2f tn_bwd = fp.u_normalized*(1-ratio) + fp.v_normalized*ratio;
             Eigen::Vector2f tn_p = (fp.u_p*(1-ratio) + fp.v_p*ratio).normalized(); // perpendicular to tn
 
-//            Eigen::Vector3f tn_p = normal_n.cross(tn_bwd).normalized();
             Eigen::Vector2f tmult_top = fp.face->str_top * tn_p;
             Eigen::Vector2f tmult_bottom = fp.face->str_bottom * tn_p;
 
@@ -478,7 +410,7 @@ void icy::Node::evaluate_tractions(float angle_fwd, SepStressResult &ssr, const 
 
     if(crack_tip)
     {
-        // TODO: replace pow(...) with a something simpler to compute
+        // TODO: replace pow(...) with something simpler to compute
         float coeff = ((1-weakening_coeff)+(weakening_coeff)*pow((weakening_direction.dot(ssr.tn)+1)/2, 5));
         ssr.trac_normal_bottom*=coeff;
         ssr.trac_normal_top*=coeff;
@@ -633,6 +565,3 @@ void icy::Node::PrintoutFan()
     std::cout << std::endl;
 
 }
-
-
-

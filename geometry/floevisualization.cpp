@@ -1,5 +1,6 @@
 #include "floevisualization.h"
 #include "node.h"
+#include "model.h"
 
 icy::FloeVisualization::FloeVisualization()
 {
@@ -449,35 +450,23 @@ void icy::FloeVisualization::UnsafeUpdateArrows(std::vector<icy::Node*> *nodes)
 
 void icy::FloeVisualization::UnsafeUpdateWaterLine(double totalTime, SimParams &prms)
 {
-    int mode = prms.loadType;
+    int mode = prms.loadType;    
 
-    if(mode == 5 || mode == 6 || mode == 7)
-    {
-        for(unsigned i=0;i<gridSizeX;i++)
-            for(unsigned j=0;j<gridSizeY;j++) {
-                double x = 25.0 * ((double)i/(double)gridSizeX-0.5);
-                double y = 6.0 * ((double)j/(double)gridSizeY-0.5);
-                double rest_position = icy::Node::WaterLine(x, y, totalTime, prms);
-                points_water->SetPoint(i+j*gridSizeX, x,y,rest_position);
-            }
-    }
-    if(mode == 1 || mode == 2 || mode == 3 || mode == 4)
-    {
-        for(unsigned i=0;i<gridSizeX;i++)
-            for(unsigned j=0;j<gridSizeY;j++) {
-                double x = 10.0 * ((double)i/(double)gridSizeX-0.5);
-                double y = 5.0 * ((double)j/(double)gridSizeY-0.5);
-                double rest_position = icy::Node::WaterLine(x, y, totalTime, prms);
-                points_water->SetPoint(i+j*gridSizeX, x,y,rest_position);
-            }
-    }
+    for(unsigned i=0;i<gridSizeX;i++)
+        for(unsigned j=0;j<gridSizeY;j++) {
+            double x = 25.0 * ((double)i/(double)gridSizeX-0.5);
+            double y = 6.0 * ((double)j/(double)gridSizeY-0.5);
+            double rest_position = icy::Node::WaterLine(x, y, totalTime, prms);
+            points_water->SetPoint(i+j*gridSizeX, x,y,rest_position);
+        }
 
     points_water->Modified();
 
     actor_sphere->SetVisibility(mode==4);
-    if(mode == 4)
+    if(mode == icy::Model::LoadOpt::indentation)
     {
         sphereSource->SetCenter(0.0, 0.0, 1-totalTime*2.0/100-0.09);
         sphereSource->Modified();
-    }
+        actor_sphere->VisibilityOn();
+    } else actor_sphere->VisibilityOff();
 }

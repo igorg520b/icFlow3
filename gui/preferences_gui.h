@@ -22,7 +22,7 @@ public:
     int VisualizationOption = 0;
     bool ShowAxes = false;
     bool ShowScalarBar = true;
-    bool ShowTentative = true;
+    bool ShowTentative = false;
     bool DrawEdges = true;
     bool DrawBoundary = true;
     bool DrawArrows = true;

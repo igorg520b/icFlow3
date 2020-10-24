@@ -33,7 +33,6 @@ public:
     double area;        // mass that the node "represents", for applying various forces
     double vertical_force; // for testing
 
-    // TODO: combine adjacent_nodes and adjacent_edges ?
     struct Sector
     {
         // Sector(icy::Element *elem, icy::Node *nd);
@@ -69,12 +68,9 @@ public:
     Eigen::Vector3d str_b, str_m, str_b_top, str_b_bottom;
     Eigen::Vector2d str_s, str_b_top_principal, str_b_bottom_principal;
 
-
-
     Eigen::Vector3d normal_n;   // averaged normal of the surrounding elements
 
     // set the size and initialize with adjacent elements
-//    void PrepareFan(icy::Geometry *geom);  // performed when topology changes
     void PrepareFan2();  // performed when topology changes
     void InitializeFan(); // performed when tentative displacements and stress distribution change
     float fan_angle_span;  // assigned in InitializeFan();
@@ -100,13 +96,10 @@ public:
     Eigen::Vector2f weakening_direction;    // only used if crack_tip==true
     float max_normal_traction;
 
-//    void ComputeFanVariables(SimParams &prms);     // compute tractions
-
     // additional fracture parameters
     bool crack_tip, core_node, support_node;
     double timeLoadedAboveThreshold;
 
-    static double OceanWave(double x, double y, double t);
     static double Smoothstep(double edge0, double edge1, double x);
     static double SmoothstepDeriv(double edge0, double edge1, double x);
     static double WaterLine(double x, double y, double t, SimParams &prms);

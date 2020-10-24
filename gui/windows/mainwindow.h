@@ -99,7 +99,8 @@ public:
 private slots:
 
     void sliderValueChanged(int val);
-    void comboboxIndexChanged(int index);
+    void comboboxIndexChanged_visualizations(int index);
+    void comboboxIndexChanged_load_types(int index);
 
     void customMenuRequested(QPoint pos);
     void treeItemSelected();
@@ -163,7 +164,8 @@ private:
     QLabel *statusLabelSimTime;             // current simulated time
     QProgressBar *progressBar;      // statusbar
     QSlider *slider;                // in toolbar
-    QComboBox *comboBox;
+    QComboBox *comboBox_visualizations;
+    QComboBox *comboBox_load_types;
     QLabel *labelStepCount;
 
     // splitter and the right side window

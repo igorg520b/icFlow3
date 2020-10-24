@@ -61,8 +61,8 @@ class icy::SimParams : public QObject
     Q_PROPERTY(double f_wave_start_location MEMBER wave_start_location NOTIFY propertyChanged)
     Q_PROPERTY(double f_substepping_timestep_factor MEMBER substepping_timestep_factor NOTIFY propertyChanged)
 
-    // for testing
-    Q_PROPERTY(int t_Load MEMBER loadType NOTIFY propertyChanged)
+    // load type
+    Q_PROPERTY(int t_Load READ getLoadType)
 
 public:
     double InitialTimeStep, HHTalpha, NewmarkBeta, NewmarkGamma;
@@ -145,8 +145,7 @@ public:
     }
     double getNewmarkBeta() {return NewmarkBeta;}
     double getNewmarkGamma() {return NewmarkGamma;}
-
-
+    int getLoadType() {return loadType;}
 
     // serialization
     static unsigned const buffer_size = 400;

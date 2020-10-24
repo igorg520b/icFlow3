@@ -96,7 +96,6 @@ void icy::Element::FdF(
         Eigen::Matrix<double,DOFS*3,1> &Fo,
         Eigen::Matrix<double,DOFS*3,DOFS*3> *dFo)
 {
-//    Eigen::Matrix<double,DOFS*3,1> u = x-x_initial;
     Fo = K*u;
     if(dFo != nullptr) *dFo = K;
 }
@@ -129,11 +128,13 @@ void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &pr
     F = Fn*alpha + Fnp1*(1-alpha);
     dF= dFnp1*(1-alpha);
 
+#ifdef QT_DEBUG
     // assert
-//    for(int i=0;i<DOFS*3;i++)
-//        for(int j=0;j<DOFS*3;j++)
-//            if(std::isnan(dF(i,j)))
-//                throw std::runtime_error("elem.ComputeElasticForce: dF contains NaN");
+    for(int i=0;i<DOFS*3;i++)
+        for(int j=0;j<DOFS*3;j++)
+            if(std::isnan(dF(i,j)))
+                throw std::runtime_error("elem.ComputeElasticForce: dF contains NaN");
+#endif
 }
 
 void icy::Element::Assemble(icy::LinearSystem &ls) const
@@ -197,8 +198,6 @@ void icy::Element::DistributeStresses()
 
         nd->str_b_top += str_b_top*coeff1;
         nd->str_b_bottom += str_b_bottom*coeff1;
-//        nd->str_b_top_principal += str_b_top_principal*coeff1;
-//        nd->str_b_bottom_principal += str_b_bottom_principal*coeff1;
 
         nd->normal_n += normal_n;
     }

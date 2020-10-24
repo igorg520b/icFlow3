@@ -131,16 +131,24 @@ MainWindow::MainWindow(QWidget *parent)
     splitter_main->addWidget(right_side_container);
     setCentralWidget(splitter_main);
 
-    // toolbar
-    comboBox = new QComboBox();
-    ui->toolBar->addWidget(comboBox);
+    // toolbar - comboboxes
+    comboBox_visualizations = new QComboBox();
+    comboBox_load_types = new QComboBox();
+    ui->toolBar->addWidget(comboBox_visualizations);
+    ui->toolBar->addWidget(comboBox_load_types);
 
     // populate combobox
     QMetaEnum qme = QMetaEnum::fromType<icy::FloeVisualization::VisOpt>();
-    for(int i=0;i<qme.keyCount();i++) comboBox->addItem(qme.key(i));
+    for(int i=0;i<qme.keyCount();i++) comboBox_visualizations->addItem(qme.key(i));
 
-    connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            [=](int index){ comboboxIndexChanged(index); });
+    qme = QMetaEnum::fromType<icy::Model::LoadOpt>();
+    for(int i=0;i<qme.keyCount();i++) comboBox_load_types->addItem(qme.key(i));
+
+    connect(comboBox_visualizations, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            [=](int index){ comboboxIndexChanged_visualizations(index); });
+
+    connect(comboBox_load_types, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            [=](int index){ comboboxIndexChanged_load_types(index); });
 
     // slider
     slider = new QSlider(Qt::Horizontal);
@@ -228,6 +236,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->action_Tentative->setChecked(prefsGUI.ShowTentative);
     on_action_Tentative_triggered(prefsGUI.ShowTentative);
+    ui->action_Tentative->setVisible(false);
 
     ui->action_show_scalar_bar->setChecked(prefsGUI.ShowScalarBar);
     on_action_show_scalar_bar_triggered(prefsGUI.ShowScalarBar);
@@ -249,7 +258,7 @@ void MainWindow::showEvent( QShowEvent*)
 {
     // for testing
     pbrowser->setActiveObject(&controller.prms);
-    comboBox->setCurrentIndex(prefsGUI.VisualizationOption);
+    comboBox_visualizations->setCurrentIndex(prefsGUI.VisualizationOption);
     updateGUI();
     renderWindow->Render();
 }
@@ -284,6 +293,7 @@ void MainWindow::OpenSceneFile(QString fileName)
     if(worker->running) return;
 
     controller.Load(fileName);
+    comboBox_load_types->setCurrentIndex(controller.prms.loadType);
 
     // update window title
     QFileInfo fi(fileName);
@@ -451,6 +461,7 @@ void MainWindow::Reset()
     }
 
     controller.Reset();
+    comboBox_load_types->setCurrentIndex(controller.prms.loadType);
     prefsGUI.LastSceneFilename = "";
     renderWindow->Render();
     updateGUI();
@@ -700,7 +711,7 @@ void MainWindow::on_actionMohr_s_triggered()
 }
 
 
-void MainWindow::comboboxIndexChanged(int index)
+void MainWindow::comboboxIndexChanged_visualizations(int index)
 {
     controller.model.floes_vtk.UnsafeUpdateValues(controller.model.floes.nodes.get(),
                                                   controller.model.floes.elems.get(),
@@ -710,6 +721,17 @@ void MainWindow::comboboxIndexChanged(int index)
     renderWindow->Render();
     scalarBar->SetVisibility(prefsGUI.ShowScalarBar && prefsGUI.VisualizationOption!=0);
 }
+
+void MainWindow::comboboxIndexChanged_load_types(int index)
+{
+    controller.prms.loadType = index;
+    controller.model.floes_vtk.UnsafeUpdateValues(controller.model.floes.nodes.get(),
+                                                  controller.model.floes.elems.get(),
+                                                  controller.prms.temporal_attenuation,
+                                                  (icy::FloeVisualization::VisOpt)index);
+    renderWindow->Render();
+}
+
 
 void MainWindow::on_action_show_scalar_bar_triggered(bool checked)
 {
@@ -744,6 +766,7 @@ void MainWindow::PickCallbackFunction(vtkObject* caller,
 
 void MainWindow::on_action_Tentative_triggered(bool checked)
 {
+    // this action is hidden from GUI
     prefsGUI.ShowTentative = checked;
     controller.model.floes_vtk.use_tentative_coordinates = checked;
     controller.model.floes_vtk.UnsafeUpdateDisplacements(controller.model.floes.nodes.get(),

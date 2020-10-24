@@ -240,5 +240,5 @@ void icy::ModelController::Fracture()
     }
     model.floes_vtk.update_minmax = true;
 
-    if(count>0) model.IdentifyAndRemoveDisconnectedRegions();
+    if(count>0) model.IdentifyDisconnectedRegions();
 }

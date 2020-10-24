@@ -249,12 +249,12 @@ void icy::Model::RestoreFromSerializationBuffers(SimParams &prms)
     if(!updateRequested) { updateRequested = true; emit requestGeometryUpdate(); }
 }
 
-void icy::Model::IdentifyAndRemoveDisconnectedRegions()
+void icy::Model::IdentifyDisconnectedRegions()
 {
-    mutex.lock();
+//    mutex.lock();
     floes.IdentifyDisconnectedRegions();
 //    floes.RemoveDegenerateFragments();
-    mutex.unlock();
+//    mutex.unlock();
     topologyInvalid = displacementsInvalid = valuesInvalid = true;
     if(!updateRequested) { updateRequested = true; emit requestGeometryUpdate(); }
 }
