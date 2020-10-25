@@ -1,11 +1,11 @@
 #if !defined(Q_MOC_RUN) // MOC has a glitch when parsing concurrent_set.h
 #ifndef LINEARSYSTEM_H
 #define LINEARSYSTEM_H
-#define TBB_PREVIEW_CONCURRENT_ORDERED_CONTAINERS 1
-#include <concurrent_set.h>
 #include <concurrent_unordered_set.h>
+#include <concurrent_vector.h>
 #include <Eigen/Core>
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include <chrono>
 #define DOFS 5
@@ -42,10 +42,13 @@ public:
 
 private:
     // concurrent set allows combining the computation of forces with creation of structure
-    std::vector<tbb::concurrent_set<int>> rows_Neighbors;
+//    std::vector<tbb::concurrent_unordered_set<int>> rows_Neighbors;
+    std::vector<tbb::concurrent_vector<int>> rows_Neighbors;
+    std::vector<std::vector<int>> rows_Neighbors_sorted;
     int dx_length = 0;      // number of currently allocated elements for dx and rhs
     int vals_length = 0;    // currently allocated vals
-    std::vector<std::map<int,int>> rows_pcsr;   // per row mappings between columns and offset in "values"
+    std::vector<std::vector<std::pair<int,int>>> rows_pcsr;   // per row mappings between columns and offset in "values"
+    int GetPCSRIndex(int r, int c);
     int csr_rows_size = 0;
     int csr_cols_size = 0;
     int dvalsSize() { return nnz*DOFS*DOFS; }

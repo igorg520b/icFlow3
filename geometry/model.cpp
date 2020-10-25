@@ -95,8 +95,21 @@ long icy::Model::ComputeElasticForces(SimParams &prms, double timeStep, double t
 long icy::Model::Assemble()
 {
     auto t1 = std::chrono::high_resolution_clock::now();
+
+    /*
     for(icy::Node *nd : *floes.nodes) nd->Assemble(ls);
     for(icy::Element *elem : *floes.elems) elem->Assemble(ls);
+    */
+    std::size_t nNodes = floes.nodes->size();
+    std::size_t nElems = floes.elems->size();
+#pragma omp parallel for
+    for(std::size_t i=0;i<nElems;i++)
+        (*floes.elems)[i]->Assemble(ls);
+
+#pragma omp parallel for
+    for(std::size_t i=0;i<nNodes;i++)
+        (*floes.nodes)[i]->Assemble(ls);
+
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
@@ -167,18 +180,22 @@ long icy::Model::LocalSubstep(SimParams &prms, double timeStep, double totalTime
         ls.ClearAndResize(count);
 
 #pragma omp parallel for
-    for(std::size_t i=0;i<nElemsLocal;i++)
-        floes.local_elems[i]->ComputeElasticForce(ls, prms, timeStep);
+        for(std::size_t i=0;i<nElemsLocal;i++)
+            floes.local_elems[i]->ComputeElasticForce(ls, prms, timeStep);
 
 #pragma omp parallel for
-    for(std::size_t i=0;i<nNodesLocal;i++)
-        floes.breakable_range[i]->ComputeElasticForce(prms, localTimeStep, totalTime);
+        for(std::size_t i=0;i<nNodesLocal;i++)
+            floes.breakable_range[i]->ComputeElasticForce(prms, localTimeStep, totalTime);
 
-//        ComputeElasticForces(prms, localTimeStep, totalTime);
         ls.CreateStructure();
 
-        for(icy::Node *nd : floes.breakable_range) nd->Assemble(ls);
-        for(icy::Element *elem : floes.local_elems) elem->Assemble(ls);
+#pragma omp parallel for
+        for(std::size_t i=0;i<floes.local_elems.size();i++)
+            floes.local_elems[i]->Assemble(ls);
+
+#pragma omp parallel for
+        for(std::size_t i=0;i<floes.breakable_range.size();i++)
+            floes.breakable_range[i]->Assemble(ls);
 
         ls.Solve();
         PullFromLinearSystem(localTimeStep, prms.NewmarkBeta, prms.NewmarkGamma);
@@ -251,10 +268,7 @@ void icy::Model::RestoreFromSerializationBuffers(SimParams &prms)
 
 void icy::Model::IdentifyDisconnectedRegions()
 {
-//    mutex.lock();
     floes.IdentifyDisconnectedRegions();
-//    floes.RemoveDegenerateFragments();
-//    mutex.unlock();
     topologyInvalid = displacementsInvalid = valuesInvalid = true;
     if(!updateRequested) { updateRequested = true; emit requestGeometryUpdate(); }
 }

@@ -558,8 +558,8 @@ void MainWindow::on_action_show_axes_triggered(bool checked)
 void MainWindow::on_action_show_benchmark_triggered()
 {
     series_pie_benchmark->clear();
-    series_pie_benchmark->setPieStartAngle(45);
-    series_pie_benchmark->setPieEndAngle(45+360);
+    series_pie_benchmark->setPieStartAngle(80);
+    series_pie_benchmark->setPieEndAngle(80+360);
 
     series_pie_benchmark->setName("Motion (per solve)");
 

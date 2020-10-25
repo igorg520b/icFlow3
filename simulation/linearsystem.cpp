@@ -29,11 +29,14 @@ long icy::LinearSystem::ClearAndResize(std::size_t N_)
 #pragma omp parallel for
     for(int i=0;i<N;i++) {
         rows_Neighbors[i].clear();
-        rows_Neighbors[i].insert(i);    // diagonal elements must be non-zero
+//        rows_Neighbors[i].insert(i);    // diagonal elements must be non-zero
+        rows_Neighbors[i].push_back(i);    // diagonal elements must be non-zero
     }
     // clear the mapping of (i,j)->offset
     if((int)rows_pcsr.size() < N) rows_pcsr.resize(N);
     for(auto &row_map : rows_pcsr) row_map.clear();
+
+    if((int)rows_Neighbors_sorted.size() < N) rows_Neighbors_sorted.resize(N);
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 }
@@ -44,11 +47,13 @@ void icy::LinearSystem::AddElementToStructure(int row, int column)
     // since we are creatigng upper-triangular matrix, row<=column always
     if(row<=column) {
         if (row >= N) throw std::runtime_error("trying to insert element beyond matrix size");
-        rows_Neighbors[row].insert(column);
+//        rows_Neighbors[row].insert(column);
+        rows_Neighbors[row].push_back(column);
     } else
     {
         if (column >= N) throw std::runtime_error("trying to insert element beyond matrix size");
-        rows_Neighbors[column].insert(row);
+//        rows_Neighbors[column].insert(row);
+        rows_Neighbors[column].push_back(row);
     }
 }
 
@@ -56,9 +61,24 @@ long icy::LinearSystem::CreateStructure()
 {
     auto t1 = std::chrono::high_resolution_clock::now();
     // CREATE STRUCTURE ARRAYS
+
+    // sort the neighbor list of each row
+#pragma omp parallel for
+    for(int i=0;i<N;i++)
+    {
+        std::vector<int> &vec = rows_Neighbors_sorted[i];
+//        tbb::concurrent_unordered_set<int> &rn = rows_Neighbors[i];
+        tbb::concurrent_vector<int> &rn = rows_Neighbors[i];
+        vec.resize(rn.size());
+        int p=0;
+        for(int k : rn) vec[p++]=k;
+        std::sort(vec.begin(),vec.end());
+        vec.erase( unique( vec.begin(), vec.end() ), vec.end() );
+    }
+
     // count non-zero entries
     nnz = 0;
-    for(int i=0;i<N;i++) nnz+=rows_Neighbors[i].size();
+    for(int i=0;i<N;i++) nnz+=rows_Neighbors_sorted[i].size();
 
     // allocate structure arrays
     if(csr_rows_size < N+1) {
@@ -77,18 +97,21 @@ long icy::LinearSystem::CreateStructure()
 
     csr_rows[N] = nnz;
 
+
+
     // enumerate entries
     int count=0;
     for(int i=0;i<N;i++)
     {
         csr_rows[i] = count;
         if(rows_Neighbors[i].size() == 0) throw std::runtime_error("matrix row contains no entries");
-        tbb::concurrent_set<int> &rn = rows_Neighbors[i];
+        std::vector<int> &sorted_vec = rows_Neighbors_sorted[i];
 
         int column_for_assertion = -1;
-        for(int const &local_column : rn)
+        for(int const &local_column : sorted_vec)
         {
-            rows_pcsr[i][local_column] = count;
+            rows_pcsr[i].push_back(std::make_pair(local_column,count));
+
             csr_cols[count] = local_column;
             count++;
 
@@ -114,7 +137,7 @@ long icy::LinearSystem::CreateStructure()
     if(dx_length < dxSize()) {
         delete rhs;
         delete dx;
-        dx_length = dxSize();
+        dx_length = dxSize()*2;
         rhs = new double[dx_length];
         dx = new double[dx_length];
     }
@@ -131,7 +154,10 @@ void icy::LinearSystem::SubtractRHS(const int idx, const Eigen::Matrix<double,DO
     if (idx < 0) return;
     if(idx >= N) throw std::runtime_error("ADDRHS: index out of range");
     int i3 = idx*DOFS;
-    for(int i=0;i<DOFS;i++) rhs[i3+i] -= vec.coeff(i);
+    for(int i=0;i<DOFS;i++) {
+#pragma omp atomic
+        rhs[i3+i] -= vec.coeff(i);
+    }
 }
 
 void icy::LinearSystem::AddLHS(const int row, const int column, const Eigen::Matrix<double,DOFS,DOFS> &mat)
@@ -141,13 +167,28 @@ void icy::LinearSystem::AddLHS(const int row, const int column, const Eigen::Mat
     if(column >= N) throw std::runtime_error("LHS: column out of range");
     if(row > column) return;
 
-    int offset = rows_pcsr[row].at(column);
+    int offset;
+    std::vector<std::pair<int,int>> &entry = rows_pcsr[row];
+    for(std::pair<int,int> &p : entry)
+        if(p.first == column) {offset=p.second; break;}
 
     if(offset >= nnz) throw std::runtime_error("offset >= nnz");
     offset *= (DOFS*DOFS);
     for(int i=0;i<DOFS;i++)
-        for(int j=0;j<DOFS;j++)
+        for(int j=0;j<DOFS;j++) {
+#pragma omp atomic
             vals[offset + (j+i*DOFS)] += mat.coeff(i,j);
+        }
+}
+
+int icy::LinearSystem::GetPCSRIndex(int row, int column)
+{
+    std::vector<std::pair<int,int>> &entry = rows_pcsr[row];
+    for(std::pair<int,int> &p : entry)
+    {
+        if(p.first == column) return p.second;
+    }
+    throw std::range_error("index error");
 }
 
 void icy::LinearSystem::Assert()
@@ -185,8 +226,9 @@ void icy::LinearSystem::Assert()
 long icy::LinearSystem::Solve(int verbosity)
 {
     auto t1 = std::chrono::high_resolution_clock::now();
+#ifdef QT_DEBUG
     Assert();
-
+#endif
     int n = N;
     MKL_INT mtype = -2;       // Real symmetric matrix: -2;  real unsymmetric: 11
     MKL_INT nrhs = 1;     // Number of right hand sides.
