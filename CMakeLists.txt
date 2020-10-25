@@ -73,6 +73,7 @@ add_executable(fl3
     simulation/linearsystem.h
     simulation/serializer.cpp
     simulation/serializer.h
+    simulation/SimpleObjectPool.h
 
     geometry/solid3d.cpp
     geometry/solid3d.h

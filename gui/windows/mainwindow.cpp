@@ -146,7 +146,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(comboBox_visualizations, QOverload<int>::of(&QComboBox::currentIndexChanged),
             [=](int index){ comboboxIndexChanged_visualizations(index); });
-
     connect(comboBox_load_types, QOverload<int>::of(&QComboBox::currentIndexChanged),
             [=](int index){ comboboxIndexChanged_load_types(index); });
 
@@ -294,6 +293,7 @@ void MainWindow::OpenSceneFile(QString fileName)
 
     controller.Load(fileName);
     comboBox_load_types->setCurrentIndex(controller.prms.loadType);
+    pbrowser->setActiveObject(&controller.prms);
 
     // update window title
     QFileInfo fi(fileName);
@@ -499,10 +499,6 @@ void MainWindow::sliderValueChanged(int val)
 }
 
 void MainWindow::on_action_GotoStep0_triggered() { slider->setValue(0); }
-
-
-
-
 
 void MainWindow::updateGUI()
 {
@@ -728,7 +724,7 @@ void MainWindow::comboboxIndexChanged_load_types(int index)
     controller.model.floes_vtk.UnsafeUpdateValues(controller.model.floes.nodes.get(),
                                                   controller.model.floes.elems.get(),
                                                   controller.prms.temporal_attenuation,
-                                                  (icy::FloeVisualization::VisOpt)index);
+                                                  (icy::FloeVisualization::VisOpt)prefsGUI.VisualizationOption);
     renderWindow->Render();
 }
 
@@ -831,11 +827,9 @@ void MainWindow::on_action_Screenshot_triggered()
     windowToImageFilter->Modified();
 
     writer->Modified();
-//    writer->SetInputConnection(windowToImageFilter->GetOutputPort());
     QString outputPath = QString::number(controller.getCurrentStep()) + ".png";
     qDebug() << "taking screenshot: " << outputPath;
     writer->SetFileName(outputPath.toUtf8().constData());
     writer->Write();
-//    writer->RemoveAllInputConnections(0);
 }
 

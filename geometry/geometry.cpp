@@ -428,7 +428,7 @@ long icy::Geometry::IdentifyDisconnectedRegions()
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
-
+/*
 long icy::Geometry::RemoveDegenerateFragments()
 {
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -491,3 +491,4 @@ void icy::Geometry::RemoveRegion(unsigned idx)
 
     CreateEdges2();
 }
+*/

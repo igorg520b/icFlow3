@@ -112,7 +112,7 @@ public:
         Damping = 0.1;
         Thickness = 0.1;
 
-        loadType = 5;
+        loadType = 0;
 
         PoissonsRatio = 0.3;
         YoungsModulus = 3.7e9;

@@ -24,6 +24,8 @@
 #include "linearsystem.h"
 #include "element.h"
 #include "edge.h"
+#include "SimpleObjectPool.h"
+
 
 #include <concurrent_unordered_map.h>
 
@@ -51,7 +53,7 @@ public:
     void AssignLsIds();
     long CreateEdges2();     // from the list of elements, infer inner edges and boundary
     long IdentifyDisconnectedRegions(); // used to deal with small fragments
-    long RemoveDegenerateFragments();
+//    long RemoveDegenerateFragments();
     std::vector<std::tuple<unsigned, double, unsigned>> regions; // region#, area, element count
 
     unsigned getElemCount() {return elems->size();}
@@ -103,15 +105,18 @@ private:
 
     void MeshingStepTwo(double CharacteristicLengthMax);
 
-    boost::object_pool<icy::Node> pool_nodes{10000, 0};
-    boost::object_pool<icy::Element> pool_elems{10000, 0};
+//    boost::object_pool<icy::Node> pool_nodes{10000, 0};
+//    boost::object_pool<icy::Element> pool_elems{10000, 0};
+
+    icy::SimpleObjectPool<icy::Node> s_pool_nodes;
+    icy::SimpleObjectPool<icy::Element> s_pool_elems;
 
     void CreateSupportRange(int neighborLevel, std::vector<Node*> &initial_set);
     std::unique_ptr<std::unordered_set<Node*>> tmp_range0 = std::make_unique<std::unordered_set<Node*>>();
     std::unique_ptr<std::unordered_set<Node*>> tmp_range1 = std::make_unique<std::unordered_set<Node*>>();
 
     std::vector<Element*> wave; // used by IdentifyDisconnectedRegions()
-    void RemoveRegion(unsigned idx);
+//    void RemoveRegion(unsigned idx);
 
 };
 #endif

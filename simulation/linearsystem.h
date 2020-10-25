@@ -3,6 +3,7 @@
 #define LINEARSYSTEM_H
 #define TBB_PREVIEW_CONCURRENT_ORDERED_CONTAINERS 1
 #include <concurrent_set.h>
+#include <concurrent_unordered_set.h>
 #include <Eigen/Core>
 #include <map>
 #include <vector>
