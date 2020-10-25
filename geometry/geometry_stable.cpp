@@ -56,7 +56,6 @@ void icy::Geometry::ResizeNodes(std::size_t newSize)
     else if(newSize > nNodes)
     {
         do {
-//            icy::Node* newNode = pool_nodes.construct();
             icy::Node* newNode = s_pool_nodes.take();
             newNode->Reset();
             newNode->locId = nodes->size();
@@ -67,7 +66,6 @@ void icy::Geometry::ResizeNodes(std::size_t newSize)
     {
         do {
             s_pool_nodes.release(nodes->back());
-            //pool_nodes.destroy(nodes->back());
             nodes->pop_back();
         } while(nodes->size() > newSize);
     }
@@ -84,14 +82,12 @@ void icy::Geometry::ResizeElems(std::size_t newSize)
     else if(newSize > nElems)
     {
         do {
-//            elems->push_back(pool_elems.malloc());
             elems->push_back(s_pool_elems.take());
         } while(elems->size() < newSize);
     }
     else if(newSize < nElems)
     {
         do {
-//            pool_elems.free(elems->back());
             s_pool_elems.release(elems->back());
             elems->pop_back();
         } while(elems->size() > newSize);
@@ -100,7 +96,6 @@ void icy::Geometry::ResizeElems(std::size_t newSize)
 
 icy::Node* icy::Geometry::AddNode(icy::Node *otherNd)
 {
-//    icy::Node* result = pool_nodes.construct();
     icy::Node* result = s_pool_nodes.take();
     result->Reset();
     result->locId = nodes->size();
@@ -111,7 +106,6 @@ icy::Node* icy::Geometry::AddNode(icy::Node *otherNd)
 
 icy::Element* icy::Geometry::AddElement()
 {
-//    icy::Element* result = pool_elems.malloc();
     icy::Element* result = s_pool_elems.take();
     elems->push_back(result);
     return result;

@@ -235,7 +235,7 @@
     <string>Benchmark</string>
    </property>
    <property name="shortcut">
-    <string>F4</string>
+    <string>F3</string>
    </property>
   </action>
   <action name="action_show_model">
@@ -270,7 +270,7 @@
     <string>Mohr's</string>
    </property>
    <property name="shortcut">
-    <string>F3</string>
+    <string>F2</string>
    </property>
   </action>
   <action name="action_Tentative">

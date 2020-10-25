@@ -48,6 +48,7 @@ public:
     Eigen::Vector3d str_b, str_m, str_b_top, str_b_bottom;
     Eigen::Vector2d str_s[3];
     Eigen::Matrix2f str_top, str_bottom;    // stress on top and bottom surface of the plate, as 3x3 matrix
+    bool principal_stress_exceeds_threshold;
 
     void InitializePersistentVariables(); // everything that depends on initial position (not K and M)
     // K and M are computed after rho, Y and nu are set/changed
@@ -68,10 +69,12 @@ public:
     icy::Node* getOppositeNode(icy::Edge *edge);    // return the node across from a given edge
     std::pair<int,int> getOppositeEdge(icy::Node *nd);
     Eigen::Vector3d getCenter();
-    icy::Node* getCWNode(icy::Node* nd);
-    icy::Node* getCCWNode(icy::Node* nd);
-    short getCWIdx(icy::Node* nd);
-    short getCCWIdx(icy::Node* nd);
+//    icy::Node* getCWNode(icy::Node* nd);
+//    icy::Node* getCCWNode(icy::Node* nd);
+//    short getCWIdx(icy::Node* nd);
+//    short getCCWIdx(icy::Node* nd);
+    void getIdxs(icy::Node*nd, short &thisIdx, short &CWIdx, short &CCWIdx);
+    icy::Edge getEdgeOppositeToNode(icy::Node *nd);
 
     bool ContainsNode(icy::Node *nd){return (nds[0]==nd || nds[1]==nd || nds[2]==nd);}
     void ReplaceNode(icy::Node *replaceWhat, icy::Node *replaceWith);

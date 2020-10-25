@@ -168,10 +168,15 @@ void icy::Element::EvaluateStresses(icy::SimParams &prms,
     // stress on top/bottom of the plate and corresponding principal stresses
     str_b_top = elasticityMatrix*bmat_b*u*area_initial*(-thickness/2);
 
-    float sx = (float)str_b_top.coeff(0);
-    float sy = str_b_top.coeff(1);
-    float txy = str_b_top.coeff(2);
+    float sx = str_b_top.coeff(0) + str_m(0);
+    float sy = str_b_top.coeff(1) + str_m(1);
+    float txy = str_b_top.coeff(2) + str_m(2);
     str_top << sx, txy, txy, sy;
+
+    float coeff1 = sqrt((sx-sy)*(sx-sy)+txy*txy*4.0);
+    float s1 = 0.5*(sx+sy+coeff1);
+    float s2 = 0.5*(sx+sy-coeff1);
+    float max_principal_top = std::max(s1,s2);
 
     str_b_bottom = elasticityMatrix*bmat_b*u*area_initial*(thickness/2);
 
@@ -179,6 +184,14 @@ void icy::Element::EvaluateStresses(icy::SimParams &prms,
     sy = str_b_bottom.coeff(1) + str_m(1);
     txy = str_b_bottom.coeff(2) + str_m(2);
     str_bottom << sx, txy, txy, sy;
+
+    coeff1 = sqrt((sx-sy)*(sx-sy)+txy*txy*4.0);
+    s1 = 0.5*(sx+sy+coeff1);
+    s2 = 0.5*(sx+sy-coeff1);
+    float max_principal_bottom = std::max(s1,s2);
+
+    principal_stress_exceeds_threshold =
+            std::max(max_principal_top, max_principal_bottom) > prms.normal_traction_threshold*0.4;
 
     ComputeNormal();
 }
@@ -215,6 +228,9 @@ void icy::Element::DistributeStresses()
 
 //        nd->normal_n += normal_n;
     }
+
+    if(principal_stress_exceeds_threshold)
+        for(int k=0;k<3;k++) nds[k]->potentially_can_fracture=true;
 }
 
 void icy::Element::rotationMatrix(Eigen::Vector3d &p1, Eigen::Vector3d &p2, Eigen::Matrix3d &result,
@@ -334,7 +350,7 @@ Eigen::Vector3d icy::Element::getCenter()
 {
     return (nds[0]->x_initial + nds[1]->x_initial + nds[2]->x_initial).block(0,0,3,1)/3.0;
 }
-
+/*
 icy::Node* icy::Element::getCCWNode(icy::Node* nd)
 {
     if(normal_initial.z()<0) {
@@ -365,6 +381,7 @@ icy::Node* icy::Element::getCWNode(icy::Node* nd)
     throw std::runtime_error("nd not found");
 }
 
+
 short icy::Element::getCCWIdx(icy::Node* nd)
 {
     if(!initial_normal_up) {
@@ -393,3 +410,34 @@ short icy::Element::getCWIdx(icy::Node* nd)
     }
     throw std::runtime_error("nd not found");
 }
+*/
+
+void icy::Element::getIdxs(icy::Node*nd, short &thisIdx, short &CWIdx, short &CCWIdx)
+{
+    if(nd==nds[0]) thisIdx=0;
+    else if(nd==nds[1]) thisIdx=1;
+    else if(nd==nds[2]) thisIdx=2;
+    else throw std::runtime_error("getIdxs; node does not belong to the element");
+
+    if(initial_normal_up)
+    {
+        CWIdx = (thisIdx+1)%3;
+        CCWIdx = (thisIdx+2)%3;
+    }
+    else
+    {
+        CWIdx = (thisIdx+2)%3;
+        CCWIdx = (thisIdx+1)%3;
+    }
+}
+
+icy::Edge icy::Element::getEdgeOppositeToNode(icy::Node *nd)
+{
+    int thisIdx;
+    if(nd==nds[0]) thisIdx=0;
+    else if(nd==nds[1]) thisIdx=1;
+    else if(nd==nds[2]) thisIdx=2;
+    else throw std::runtime_error("getIdxs; node does not belong to the element");
+    return edges[thisIdx];
+}
+

@@ -39,7 +39,7 @@ public:
         icy::Element *face;
         float centerAngle; // angle from the node to the center of the adjacent element
         icy::Node* nd[2];
-        icy::Edge e[2]; // begins with CW boundary; ends with CCW boundary
+        icy::Edge e[3]; // [0] CW boundary; [1] CCW boundary; [2] across from the center node
         float angle0, angle1, angle_span;
         Eigen::Vector2f u_normalized, v_normalized, u_p, v_p;
         Eigen::Vector2f t0_top, t1_top, t0_bottom, t1_bottom;
@@ -85,6 +85,7 @@ public:
         float phi[2], theta[2];
         float trac_normal_top, trac_tangential_top, trac_normal_bottom, trac_tangential_bottom, trac_normal_max;
         icy::Edge e[4];
+        icy::Edge e_opposite[2]; // edges that lie opposite of the center node
     };
 
     void evaluate_tractions(float angle_fwd, SepStressResult &ssr, const float weakening_coeff) const;
@@ -97,7 +98,7 @@ public:
     float max_normal_traction;
 
     // additional fracture parameters
-    bool crack_tip, core_node, support_node;
+    bool crack_tip, core_node, support_node, potentially_can_fracture;
     double timeLoadedAboveThreshold;
 
     static double Smoothstep(double edge0, double edge1, double x);

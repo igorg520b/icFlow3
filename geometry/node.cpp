@@ -341,6 +341,7 @@ void icy::Node::evaluate_tractions(float angle_fwd, SepStressResult &ssr, const 
             ssr.faces[0] = fp.face;
             ssr.e[0] = fp.e[0];
             ssr.e[1] = fp.e[1];
+            ssr.e_opposite[0] = fp.e[2];
 
             float phi = ssr.phi[0] = angle_fwd - fp.angle0;
             ssr.theta[0] = fp.angle1 - angle_fwd;
@@ -363,6 +364,7 @@ void icy::Node::evaluate_tractions(float angle_fwd, SepStressResult &ssr, const 
             ssr.faces[1] = fp.face;
             ssr.e[2] = fp.e[0];
             ssr.e[3] = fp.e[1];
+            ssr.e_opposite[1] = fp.e[2];
 
             float phi = ssr.phi[1] = angle_bwd - fp.angle0;
             ssr.theta[1] = fp.angle1 - angle_bwd;
@@ -443,7 +445,7 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
     unsigned idx = std::distance(grid_results, highest_grid_pt);
 
     // reject if the grid max is low
-    if(*highest_grid_pt < prms.normal_traction_threshold/3) return;
+    if(*highest_grid_pt < prms.normal_traction_threshold*0.4) return;
 
     // sectors
     int sector1, sector2;
@@ -505,8 +507,8 @@ void icy::Node::PrepareFan2()
         Eigen::Vector3d tcv = elem->getCenter() - nd_vec;
         s.centerAngle = atan2(tcv.y(), tcv.x());
 
-        short CWIdx = elem->getCWIdx(this);
-        short CCWIdx = elem->getCCWIdx(this);
+        short thisIdx, CWIdx, CCWIdx;
+        elem->getIdxs(this, thisIdx, CWIdx, CCWIdx);
 
         s.nd[0] = elem->nds[CWIdx];
         s.nd[1] = elem->nds[CCWIdx];
@@ -514,6 +516,7 @@ void icy::Node::PrepareFan2()
         // note that the indices are swapped
         s.e[0] = elem->edges[CCWIdx];
         s.e[1] = elem->edges[CWIdx];
+        s.e[2] = elem->edges[thisIdx];
         fan.push_back(s);
 
         if(s.e[0].isBoundary || s.e[1].isBoundary) isBoundary = true;

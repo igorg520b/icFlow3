@@ -19,6 +19,7 @@ void icy::Geometry::DistributeStresses()
         icy::Node *nd = (*nodes)[i];
         for(int k=0;k<3;k++) nd->str_b[k] = nd->str_m[k] = nd->str_b_top[k] = nd->str_b_bottom[k] = 0;
         nd->str_s[0] = nd->str_s[1] = 0;
+        nd->potentially_can_fracture = false;
     }
 
 #pragma omp parallel for
@@ -66,8 +67,15 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
         for(std::size_t i=0;i<nNodes;i++)
         {
             icy::Node *nd = (*nodes)[i];
-            nd->InitializeFan();
-            nd->ComputeFanVariablesAlt(prms);
+            if(nd->potentially_can_fracture)
+            {
+                nd->InitializeFan();
+                nd->ComputeFanVariablesAlt(prms);
+            }
+            else
+            {
+                nd->max_normal_traction = 0;
+            }
 
             if(startingFracture)
             {
@@ -224,16 +232,7 @@ long icy::Geometry::SplitNode(SimParams &prms)
     double factor1 = sin(ssr.theta[0])*ssr.e[1].getVec(nd).norm();
     double whereToSplit = forwardEdge ? factor1/(factor0+factor1) : factor0/(factor0+factor1);
 
-    icy::Edge splitEdge0 = getEdgeByNodalIdx(nd0idx, nd1idx);
-
-    /*
-    Eigen::Vector3d dir = ssr.tn;
-    if(nd->crack_tip)
-    {
-        dir+=2*nd->weakening_direction;
-        dir.normalize();
-    }
-    */
+    icy::Edge splitEdge0 = ssr.e_opposite[0];
 
     SplitEdge(splitEdge0, whereToSplit, nd, mainSplit, forwardEdge, prms, ssr.tn);
 
@@ -249,7 +248,8 @@ long icy::Geometry::SplitNode(SimParams &prms)
         double factor1 = sin(ssr.theta[1])*ssr.e[3].getVec(nd).norm();
         double whereToSplit = forwardEdge ? factor1/(factor0+factor1) : factor0/(factor0+factor1);
 
-        icy::Edge splitEdge0 = getEdgeByNodalIdx(nd0idx, nd1idx);
+        icy::Edge splitEdge0 = ssr.e_opposite[1];
+
         SplitEdge(splitEdge0, whereToSplit, nd, mainSplit, !forwardEdge, prms, -ssr.tn);
     }
 
@@ -354,7 +354,8 @@ void icy::Geometry::SplitAlongExistingEdge(Edge edge, Node *centerNode, Node* &s
 
     icy::Node *oppositeNode = edge.nds[oppositeNodeIdx];
 
-    icy::Edge edgeBeingSplit = getEdgeByNodalIdx(oppositeNode->locId, centerNode->locId);
+    icy::Edge edgeBeingSplit = existingFace->getEdgeOppositeToNode(edge.nds[(oppositeNodeIdx+1)%2]);
+
     if(edgeBeingSplit.isBoundary) return; // trying to split a boundary edge
 
     if(splitNode == nullptr) splitNode = AddNode(centerNode);
