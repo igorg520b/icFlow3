@@ -178,9 +178,9 @@ private:
     ObjectPropertyBrowser *pbrowser;
 
     // charts_pie
-    QChartView *chartView_motion;
-    QChart *chart_pie_motion;
-    QPieSeries *series_pie_motion;
+    QChartView *chartView_benchmark;
+    QChart *chart_pie_benchmark;
+    QPieSeries *series_pie_benchmark;
 
     // series
     QChartView *chartView;

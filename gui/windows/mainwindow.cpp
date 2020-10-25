@@ -31,24 +31,27 @@ MainWindow::MainWindow(QWidget *parent)
     chartView = new QChartView;
     chartView->setRenderHint(QPainter::Antialiasing);
     chartView->setChart(chart_line_mohr);
+    chartView->hide();
 
     // pie chart for benchmarking
-    chartView_motion = new QChartView;
-    chartView_motion->setRenderHint(QPainter::Antialiasing);
+    chartView_benchmark = new QChartView;
+    chartView_benchmark->setRenderHint(QPainter::Antialiasing);
 
-    series_pie_motion = new QPieSeries;
-    series_pie_motion->setHoleSize(0.35);
-//    series_pie_motion->setPieSize(0.5);
+    series_pie_benchmark = new QPieSeries;
+    series_pie_benchmark->setHoleSize(0.35);
+//    series_pie_benchmark->setPieSize(0.5);
 
-    chart_pie_motion = new QChart;
-    chart_pie_motion->addSeries(series_pie_motion);
-    chart_pie_motion->legend()->setAlignment(Qt::AlignBottom);
-    //chart_pie_motion->setTheme(QChart::ChartThemeBlueCerulean);
-    chart_pie_motion->legend()->setFont(QFont("Arial", 14));
-    chart_pie_motion->setFont(QFont("Arial", 16));
-    chart_pie_motion->setBackgroundRoundness(0);
+    chart_pie_benchmark = new QChart;
+    chart_pie_benchmark->addSeries(series_pie_benchmark);
+    chart_pie_benchmark->legend()->setAlignment(Qt::AlignBottom);
+    //chart_pie_benchmark->setTheme(QChart::ChartThemeBlueCerulean);
+    chart_pie_benchmark->legend()->setFont(QFont("Arial", 14));
+    chart_pie_benchmark->setFont(QFont("Arial", 16));
+    chart_pie_benchmark->setBackgroundRoundness(0);
 
-    chartView_motion->setChart(chart_pie_motion);
+    chartView_benchmark->setChart(chart_pie_benchmark);
+    chartView_benchmark->setContentsMargins(0,0,0,0);
+    chartView_benchmark->hide();
 
     // tree
     tree = new QTreeWidget;
@@ -124,6 +127,8 @@ MainWindow::MainWindow(QWidget *parent)
     right_side_layout->setSpacing(0);
     right_side_layout->setMargin(0);
     right_side_layout->addWidget(qt_vtk_widget);
+    right_side_layout->addWidget(chartView_benchmark, 1);
+    right_side_layout->addWidget(chartView, 1);
 
     // splitter
     splitter_main = new QSplitter(Qt::Orientation::Horizontal);
@@ -552,11 +557,11 @@ void MainWindow::on_action_show_axes_triggered(bool checked)
 
 void MainWindow::on_action_show_benchmark_triggered()
 {
-    series_pie_motion->clear();
-    series_pie_motion->setPieStartAngle(45);
-    series_pie_motion->setPieEndAngle(45+360);
+    series_pie_benchmark->clear();
+    series_pie_benchmark->setPieStartAngle(45);
+    series_pie_benchmark->setPieEndAngle(45+360);
 
-    series_pie_motion->setName("Motion (per solve)");
+    series_pie_benchmark->setName("Motion (per solve)");
 
     if(controller.stepStats.size() > 0)
     {
@@ -571,13 +576,13 @@ void MainWindow::on_action_show_benchmark_triggered()
             long val = p.second;
             if(val > 0) {
                 QString str= QString::fromStdString(p.first) + " " + QString::number(val)+ " ms";
-                series_pie_motion->append(str, val);
+                series_pie_benchmark->append(str, val);
                 std::cout << "{\"" << p.first << "\"," << val << "},\n";
             }
         }
         std::cout << std::endl;
 
-        QList<QPieSlice*> list1 = series_pie_motion->slices();
+        QList<QPieSlice*> list1 = series_pie_benchmark->slices();
         foreach(QPieSlice *slice, list1)
         {
             slice->setLabelFont(QFont("Times", 20));
@@ -587,29 +592,22 @@ void MainWindow::on_action_show_benchmark_triggered()
         QString strSolves = QString::number(n_solves);
         QString strSteps = QString::number(controller.stepStats.size()-1);
         QString str = "Total " + strTotal + " s; solves " + strSolves + "; steps " + strSteps;
-        chart_pie_motion->setTitle(str);
+        chart_pie_benchmark->setTitle(str);
     } else {
-        chart_pie_motion->setTitle("No data");
+        chart_pie_benchmark->setTitle("No data");
     }
-    series_pie_motion->setLabelsVisible();
+    series_pie_benchmark->setLabelsVisible();
 
-    QLayoutItem *qli;
-    while ((qli = right_side_layout->takeAt(0)) != nullptr) {
-        if (qli->widget()) qli->widget()->setParent(nullptr);
-        delete qli;
-    }
-
-    right_side_layout->addWidget(chartView_motion, 1);
+    qt_vtk_widget->hide();
+    chartView_benchmark->show();
+    chartView->hide();
 }
 
 void MainWindow::on_action_show_model_triggered()
 {
-    QLayoutItem *qli;
-    while ((qli = right_side_layout->takeAt(0)) != nullptr) {
-        if (qli->widget()) qli->widget()->setParent(nullptr);
-        delete qli;
-    }
-    right_side_layout->addWidget(qt_vtk_widget);
+    qt_vtk_widget->show();
+    chartView_benchmark->hide();
+    chartView->hide();
     renderWindow->Render();
 }
 
@@ -617,13 +615,6 @@ void MainWindow::on_actionMohr_s_triggered()
 {
     int idx = controller.model.floes_vtk.selectedPointId;
     if(idx<0) return;
-
-    QLayoutItem *qli;
-    while ((qli = right_side_layout->takeAt(0)) != nullptr) {
-        if (qli->widget()) qli->widget()->setParent(nullptr);
-        delete qli;
-    }
-    right_side_layout->addWidget(chartView, 1);
 
     series_mohr->clear();
     mohr_sectors->clear();
@@ -704,6 +695,10 @@ void MainWindow::on_actionMohr_s_triggered()
     }
     std::cout << std::endl;
     */
+
+    chartView->show();
+    qt_vtk_widget->hide();
+    chartView_benchmark->hide();
 }
 
 
