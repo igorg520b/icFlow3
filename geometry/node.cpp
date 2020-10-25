@@ -459,9 +459,9 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
         sector2 = (idx-1+nFan)%nFan;
     }
 
-    int bits = std::numeric_limits<float>::digits;
+    int bits = std::numeric_limits<float>::digits/2;
 
-    boost::uintmax_t max_iter = 20;
+    boost::uintmax_t max_iter = 15;
     auto [fracture_angle, max1] = boost::math::tools::brent_find_minima(
                     [=](double x){return -normal_traction(x, weakening_coeff);},
         fan[sector1].angle0, fan[sector1].angle1, bits, max_iter);
@@ -469,7 +469,7 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
 
     if(sector2 > -1)
     {
-        max_iter = 20;
+        max_iter = 15;
         auto [fracture_angle2, max2] = boost::math::tools::brent_find_minima(
                         [=](double x){return -normal_traction(x, weakening_coeff);},
             fan[sector2].angle0, fan[sector2].angle1, bits, max_iter);

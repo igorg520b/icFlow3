@@ -191,15 +191,29 @@ void icy::Element::DistributeStresses()
         double coeff1 = area_initial/nd->area;
         double coeff2 = area_initial/(3*nd->area);
 
-        nd->str_b += str_b*coeff1;
-        nd->str_m += str_m*coeff1;
+        for(int j=0;j<3;j++)
+        {
+#pragma omp atomic
+            nd->str_b[j] += str_b.coeff(j)*coeff1;
+#pragma omp atomic
+            nd->str_m[j] += str_m.coeff(j)*coeff1;
+#pragma omp atomic
+            nd->str_b_top[j] += str_b_top.coeff(j)*coeff1;
+#pragma omp atomic
+            nd->str_b_bottom[j] += str_b_bottom.coeff(j)*coeff1;
+        }
 
-        for(int j=0;j<3;j++) nd->str_s += str_s[j]*coeff2*N[i][j];
+        float str_s_combined[2] = {};
+        for(int j=0;j<3;j++) {
+            str_s_combined[0] += str_s[j].coeff(0)*coeff2*N[i][j];
+            str_s_combined[1] += str_s[j].coeff(1)*coeff2*N[i][j];
+        }
+#pragma omp atomic
+            nd->str_s[0] += str_s_combined[0];
+#pragma omp atomic
+            nd->str_s[1] += str_s_combined[1];
 
-        nd->str_b_top += str_b_top*coeff1;
-        nd->str_b_bottom += str_b_bottom*coeff1;
-
-        nd->normal_n += normal_n;
+//        nd->normal_n += normal_n;
     }
 }
 

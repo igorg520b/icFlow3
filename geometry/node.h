@@ -64,9 +64,9 @@ public:
     Eigen::Matrix<double,DOFS,1> F;
     Eigen::Matrix<double,DOFS,DOFS> dF;
 
-    // visualized values, distributed from elements in Element::DistributeStresses()
-    Eigen::Vector3d str_b, str_m, str_b_top, str_b_bottom;
-    Eigen::Vector2d str_s, str_b_top_principal, str_b_bottom_principal;
+    // visualized stress values, distributed from elements in Element::DistributeStresses()
+    float str_b[3], str_m[3], str_b_top[3], str_b_bottom[3];
+    float str_s[2];
 
     Eigen::Vector3d normal_n;   // averaged normal of the surrounding elements
 

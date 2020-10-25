@@ -17,10 +17,11 @@ void icy::Geometry::DistributeStresses()
 #pragma omp parallel for
     for(std::size_t i=0;i<nNodes;i++) {
         icy::Node *nd = (*nodes)[i];
-        nd->str_b = nd->str_m = nd->str_b_top = nd->str_b_bottom = Eigen::Vector3d::Zero();
-        nd->str_s = nd->str_b_top_principal = nd->str_b_bottom_principal = Eigen::Vector2d::Zero();
+        for(int k=0;k<3;k++) nd->str_b[k] = nd->str_m[k] = nd->str_b_top[k] = nd->str_b_bottom[k] = 0;
+        nd->str_s[0] = nd->str_s[1] = 0;
     }
-    // this step is performed sequentially
+
+#pragma omp parallel for
     for(std::size_t i=0;i<nElems;i++) (*elems)[i]->DistributeStresses();
 }
 
@@ -28,6 +29,8 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
 {
     auto t1 = std::chrono::high_resolution_clock::now();
 
+    maxNode=nullptr;
+    breakable_range.clear();
     double temporal_attenuation = prms.temporal_attenuation;
     EvaluateStresses(prms);
     DistributeStresses();
@@ -35,56 +38,80 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
     float threashold = prms.normal_traction_threshold;
 
     std::size_t nNodes = nodes->size();
-    // compute max traction and potential fracture direction
+
+    // first, try to find a "breakable" crack tip
+    // no need for multi-core, because there are few existing crack tips
+    if(!startingFracture)
+    {
+        for(std::size_t i=0;i<nNodes;i++)
+        {
+            icy::Node *nd = (*nodes)[i];
+            if(!nd->crack_tip) continue;
+            nd->InitializeFan();
+            nd->ComputeFanVariablesAlt(prms);
+            if(nd->crack_tip && nd->max_normal_traction > threashold)
+            {
+                maxNode = nd;
+                breakable_range.push_back(maxNode);
+                break;
+            }
+        }
+    }
+
+    // crack tip not found - do a more elaborate search
+    if(maxNode == nullptr)
+    {
+        // compute max traction and potential fracture direction
 #pragma omp parallel for
-    for(std::size_t i=0;i<nNodes;i++)
-    {
-        icy::Node *nd = (*nodes)[i];
-        nd->InitializeFan();
-        nd->ComputeFanVariablesAlt(prms);
-
-        if(startingFracture)
+        for(std::size_t i=0;i<nNodes;i++)
         {
-            nd->core_node = (nd->max_normal_traction > threashold && nd->timeLoadedAboveThreshold >= temporal_attenuation);
-            if(nd->max_normal_traction > threashold) nd->timeLoadedAboveThreshold+=timeStep;
-            else nd->timeLoadedAboveThreshold=0;
+            icy::Node *nd = (*nodes)[i];
+            nd->InitializeFan();
+            nd->ComputeFanVariablesAlt(prms);
+
+            if(startingFracture)
+            {
+                nd->core_node = (nd->max_normal_traction > threashold && nd->timeLoadedAboveThreshold >= temporal_attenuation);
+                if(nd->max_normal_traction > threashold) nd->timeLoadedAboveThreshold+=timeStep;
+                else nd->timeLoadedAboveThreshold=0;
+            }
+            else
+            {
+                if(nd->max_normal_traction < threashold || nd->timeLoadedAboveThreshold < temporal_attenuation) nd->core_node = false;
+            }
+
+            if(nd->crack_tip && nd->max_normal_traction > threashold)
+                nd->core_node = true;
+            if(!nd->core_node) nd->dir=Eigen::Vector2f::Zero();
         }
-        else
+
+        // put "core_nodes" into breakable_range
+
+        std::copy_if(nodes->begin(), nodes->end(), std::back_inserter(breakable_range),
+                     [](icy::Node *nd){return nd->core_node;});
+
+        if(breakable_range.size()==0)
         {
-            if(nd->max_normal_traction < threashold || nd->timeLoadedAboveThreshold < temporal_attenuation) nd->core_node = false;
+            maxNode=nullptr;
+            auto t2 = std::chrono::high_resolution_clock::now();
+            return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
         }
 
-        if(nd->crack_tip && nd->max_normal_traction > threashold)
-            nd->core_node = true;
-        if(!nd->core_node) nd->dir=Eigen::Vector2f::Zero();
+        // give priority to an existing crack tip
+        std::vector<Node*>::iterator it_nd = std::find_if(breakable_range.begin(),
+                                                          breakable_range.end(),
+                                                          [](Node *nd) {return nd->crack_tip;});
+
+        // if no tips, break the node under strongest load
+        if(it_nd == breakable_range.end())
+        {
+            it_nd = std::max_element(breakable_range.begin(), breakable_range.end(),
+                                     [](Node *nd1, Node *nd2) {
+                    return nd1->max_normal_traction < nd2->max_normal_traction; });
+        }
+
+        maxNode = *it_nd;
     }
-
-    // put "core_nodes" into breakable_range
-    breakable_range.clear();
-    std::copy_if(nodes->begin(), nodes->end(), std::back_inserter(breakable_range),
-                 [](icy::Node *nd){return nd->core_node;});
-
-    if(breakable_range.size()==0)
-    {
-        maxNode=nullptr;
-        auto t2 = std::chrono::high_resolution_clock::now();
-        return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
-    }
-
-    // give priority to an existing crack tip
-    std::vector<Node*>::iterator it_nd = std::find_if(breakable_range.begin(),
-                                                      breakable_range.end(),
-                                                      [](Node *nd) {return nd->crack_tip;});
-
-    // if no tips, break the node under strongest load
-    if(it_nd == breakable_range.end())
-    {
-        it_nd = std::max_element(breakable_range.begin(), breakable_range.end(),
-                                      [](Node *nd1, Node *nd2) {
-                return nd1->max_normal_traction < nd2->max_normal_traction; });
-    }
-
-    maxNode = *it_nd;
     maxNode->dir*=3;
 
     local_support.clear();
