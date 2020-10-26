@@ -234,7 +234,7 @@ void icy::Node::Reset()
     prescribed = false;
     area = 0;
     adjacent_nodes.clear();
-    //adjacent_edges_map.clear();
+    adjacent_elems.clear();
     crack_tip = support_node = core_node = false;
     timeLoadedAboveThreshold = 0;
 }

@@ -108,6 +108,7 @@ icy::Element* icy::Geometry::AddElement()
 {
     icy::Element* result = s_pool_elems.take();
     elems->push_back(result);
+    for(int i=0;i<3;i++) result->adj_elems[i]=nullptr;
     return result;
 }
 
@@ -244,10 +245,8 @@ void icy::Geometry::MeshingStepTwo(double CharacteristicLengthMax)
 }
 
 
-long icy::Geometry::CreateEdges2()
+void icy::Geometry::CreateEdges2()
 {
-    auto t1 = std::chrono::high_resolution_clock::now();
-
     std::size_t nNodes = nodes->size();
 
 #pragma omp parallel for
@@ -349,9 +348,6 @@ long icy::Geometry::CreateEdges2()
 
 #pragma omp parallel for
     for(std::size_t i=0;i<nodes->size();i++) (*nodes)[i]->PrepareFan2();
-
-    auto t2 = std::chrono::high_resolution_clock::now();
-    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
 
 

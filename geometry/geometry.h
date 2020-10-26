@@ -4,7 +4,6 @@
 #define FL333_H
 
 #include <gmsh.h>
-//#include <boost/pool/object_pool.hpp>
 
 #include <vector>
 #include <memory>
@@ -26,7 +25,7 @@
 #include "edge.h"
 #include "SimpleObjectPool.h"
 
-
+#include <set>
 #include <concurrent_unordered_map.h>
 
 namespace icy { class Geometry; class Node; class Element; class Edge;}
@@ -51,7 +50,7 @@ public:
 
     void PrecomputePersistentVariables(SimParams &prms);
     void AssignLsIds();
-    long CreateEdges2();     // from the list of elements, infer inner edges and boundary
+    void CreateEdges2();     // from the list of elements, infer inner edges and boundary
     long IdentifyDisconnectedRegions(); // used to deal with small fragments
 //    long RemoveDegenerateFragments();
     std::vector<std::tuple<unsigned, double, unsigned>> regions; // region#, area, element count
@@ -94,19 +93,18 @@ private:
     void ResizeElems(std::size_t newSize);
 
     icy::Node* AddNode(icy::Node *otherNd=nullptr);
-    icy::Element* AddElement();
-    // returns newly inserted face for the fan
+    icy::Element* AddElement(); // makes a new element
     void SplitEdge(Edge edge, double where,
                    Node *centerNode, Node* &splitNode, bool forwardDirection, SimParams &prms,
                    Eigen::Vector2f dir);
 
     void SplitAlongExistingEdge(Edge edge, Node *centerNode, Node* &splitNode,
                                 int oppositeNodeIdx, bool forwardDirection, Eigen::Vector2f dir);
+    std::set<icy::Element*> affected_elements_during_split; // a list of elements that were affected by SplitNode
+    std::set<icy::Node*> affected_nodes_during_split;
+    void UpdateEdges();
 
     void MeshingStepTwo(double CharacteristicLengthMax);
-
-//    boost::object_pool<icy::Node> pool_nodes{10000, 0};
-//    boost::object_pool<icy::Element> pool_elems{10000, 0};
 
     icy::SimpleObjectPool<icy::Node> s_pool_nodes;
     icy::SimpleObjectPool<icy::Element> s_pool_elems;

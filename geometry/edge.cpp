@@ -94,6 +94,7 @@ icy::Element* icy::Edge::getElementWithNode(icy::Node *nd)
         else qDebug() << "elem0: " << elems[0]->nds[0]->locId << ", " << elems[0]->nds[1]->locId << ", " << elems[0]->nds[2]->locId;
         if(elems[1] == nullptr) qDebug() << "elem1 is null";
         else qDebug() << "elem1: " << elems[1]->nds[0]->locId << ", " << elems[1]->nds[1]->locId << ", " << elems[1]->nds[2]->locId;
+        nd->PrintoutFan();
         throw std::runtime_error("getElementWithNode: cannot find element with a given node");
     }
 }
