@@ -58,11 +58,8 @@ public:
     Eigen::Matrix<double,DOFS,1> ut, xt, vt, at; // at step n+1
 
     // forces per node (gravity and any test forces)
-    void ComputeElasticForce(SimParams &prms, double timeStep, double totalTime);
-    void Assemble(icy::LinearSystem &ls) const;   // distributed F and dF into linear system
+    void ComputeElasticForce(LinearSystem &ls, SimParams &prms, double timeStep, double totalTime);
     void AcceptTentativeValues();
-    Eigen::Matrix<double,DOFS,1> F;
-    Eigen::Matrix<double,DOFS,DOFS> dF;
 
     // visualized stress values, distributed from elements in Element::DistributeStresses()
     float str_b[3], str_m[3], str_b_top[3], str_b_bottom[3];
@@ -108,11 +105,6 @@ public:
 
     static double BellShapedPolynomial(double x);
     static double BellShapedPolynomialDx(double x);
-
-private:
-    int idxSepStressResult;
-    static const int num_disc = 200;
-    SepStressResult sep_stress_results[num_disc];
 };
 
 #endif // NODE_H

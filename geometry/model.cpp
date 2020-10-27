@@ -74,7 +74,7 @@ long icy::Model::PullFromLinearSystem(double timeStep, double beta, double gamma
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
 
-long icy::Model::ComputeElasticForces(SimParams &prms, double timeStep, double totalTime)
+long icy::Model::ComputeElasticForcesAndAssemble(SimParams &prms, double timeStep, double totalTime)
 {
     std::size_t nNodes = floes.nodes->size();
     std::size_t nElems = floes.elems->size();
@@ -86,29 +86,7 @@ long icy::Model::ComputeElasticForces(SimParams &prms, double timeStep, double t
 
 #pragma omp parallel for
     for(std::size_t i=0;i<nNodes;i++)
-        (*floes.nodes)[i]->ComputeElasticForce(prms, timeStep, totalTime);
-
-    auto t2 = std::chrono::high_resolution_clock::now();
-    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
-}
-
-long icy::Model::Assemble()
-{
-    auto t1 = std::chrono::high_resolution_clock::now();
-
-    /*
-    for(icy::Node *nd : *floes.nodes) nd->Assemble(ls);
-    for(icy::Element *elem : *floes.elems) elem->Assemble(ls);
-    */
-    std::size_t nNodes = floes.nodes->size();
-    std::size_t nElems = floes.elems->size();
-#pragma omp parallel for
-    for(std::size_t i=0;i<nElems;i++)
-        (*floes.elems)[i]->Assemble(ls);
-
-#pragma omp parallel for
-    for(std::size_t i=0;i<nNodes;i++)
-        (*floes.nodes)[i]->Assemble(ls);
+        (*floes.nodes)[i]->ComputeElasticForce(ls, prms, timeStep, totalTime);
 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
@@ -142,9 +120,13 @@ void icy::Model::AssembleAndSolve(long &time_clear, long &time_forces, long &tim
                                   double &resultSqNorm)
 {
     time_clear += ls.ClearAndResize(floes.getFreeNodeCount());
-    time_forces += ComputeElasticForces(prms, timeStep, totalTime);
+
+    std::size_t nElems = floes.elems->size();
+#pragma omp parallel for
+    for(std::size_t i=0;i<nElems;i++) (*floes.elems)[i]->UpdateSparseSystemEntries(ls);
+
     time_structure += ls.CreateStructure();
-    time_assemble += Assemble();
+    time_forces += ComputeElasticForcesAndAssemble(prms, timeStep, totalTime);
     time_solve += ls.Solve();
     time_pull += PullFromLinearSystem(timeStep, prms.NewmarkBeta, prms.NewmarkGamma);
     resultSqNorm = ls.SqNormOfDx();
@@ -180,22 +162,17 @@ long icy::Model::LocalSubstep(SimParams &prms, double timeStep, double totalTime
         ls.ClearAndResize(count);
 
 #pragma omp parallel for
+    for(std::size_t i=0;i<nElemsLocal;i++) floes.local_elems[i]->UpdateSparseSystemEntries(ls);
+
+        ls.CreateStructure();
+
+#pragma omp parallel for
         for(std::size_t i=0;i<nElemsLocal;i++)
             floes.local_elems[i]->ComputeElasticForce(ls, prms, timeStep);
 
 #pragma omp parallel for
         for(std::size_t i=0;i<nNodesLocal;i++)
-            floes.breakable_range[i]->ComputeElasticForce(prms, localTimeStep, totalTime);
-
-        ls.CreateStructure();
-
-#pragma omp parallel for
-        for(std::size_t i=0;i<floes.local_elems.size();i++)
-            floes.local_elems[i]->Assemble(ls);
-
-#pragma omp parallel for
-        for(std::size_t i=0;i<floes.breakable_range.size();i++)
-            floes.breakable_range[i]->Assemble(ls);
+            floes.breakable_range[i]->ComputeElasticForce(ls, prms, localTimeStep, totalTime);
 
         ls.Solve();
         PullFromLinearSystem(localTimeStep, prms.NewmarkBeta, prms.NewmarkGamma);

@@ -30,8 +30,7 @@ public:
     double area_initial;
     Eigen::Vector3d normal_initial, normal_n;
     bool initial_normal_up; // normal_initial.z() > 0
-    Eigen::Vector3d pr1_initial, pr2_initial;
-    Eigen::Matrix3d R0, R0t; // for testing
+//    Eigen::Vector3d pr1_initial, pr2_initial;
     Eigen::Matrix<double,DOFS*3,1> x_initial;
 
     // strain-displacement for bending, shear and membrane
@@ -39,10 +38,6 @@ public:
     Eigen::Matrix<double,2,DOFS*3> bmat_s[3];   // 3 gauss points
     Eigen::Matrix<double,3,DOFS*3> bmat_m;
     Eigen::Matrix<double,DOFS*3,DOFS*3> K;    // element stiffness matrix (3 gauss points)
-
-    // linear system
-    Eigen::Matrix<double,DOFS*3,1> F;      // right-hand side of the equation is equal to -F
-    Eigen::Matrix<double,DOFS*3,DOFS*3> dF;
 
     // sress values / visualization
     Eigen::Vector3d str_b, str_m, str_b_top, str_b_bottom;
@@ -56,8 +51,8 @@ public:
                                    Eigen::Matrix3d &elasticityMatrix,
                                    Eigen::Matrix2d &D_mats);
     // compute forces and insert nz-entries to sparse structure
+    void UpdateSparseSystemEntries(LinearSystem &ls);
     void ComputeElasticForce(LinearSystem &ls, SimParams &prms, double timeStep);
-    void Assemble(LinearSystem &ls) const;   // distributed computed F and dF into linear system
 
     // this is done after the new displacement values are accepted
     void EvaluateStresses(SimParams &prms,
@@ -69,10 +64,7 @@ public:
     icy::Node* getOppositeNode(Edge edge);    // return the node across from a given edge
     std::pair<int,int> getOppositeEdge(Node *nd);
     Eigen::Vector3d getCenter();
-//    icy::Node* getCWNode(icy::Node* nd);
-//    icy::Node* getCCWNode(icy::Node* nd);
-//    short getCWIdx(icy::Node* nd);
-//    short getCCWIdx(icy::Node* nd);
+
     void getIdxs(Node*nd, short &thisIdx, short &CWIdx, short &CCWIdx);
     Edge getEdgeOppositeToNode(Node *nd);
     short getNodeIdx(Node *nd);

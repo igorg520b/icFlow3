@@ -14,13 +14,16 @@ icy::Node::Node()
     fan.reserve(10);
 }
 
-void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double totalTime)
+void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double timeStep, double totalTime)
 {
     if(prescribed || lsId < 0) return;
     double beta = prms.NewmarkBeta;
     double alpha = prms.HHTalpha;
     double mass = area*prms.Thickness*prms.IceDensity;
     if(mass <= 0) throw std::runtime_error("zero nodal mass");
+
+    Eigen::Matrix<double,DOFS,1> F;
+    Eigen::Matrix<double,DOFS,DOFS> dF;
 
     F = Eigen::Matrix<double,DOFS,1>::Zero();
     F = at*mass;
@@ -41,11 +44,11 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
 
     double disp_t = xt(2)-water_line;
     double disp_n = xn(2)-water_line;
-    if(prms.loadType==5) {
+    if(prms.loadType==icy::Model::LoadOpt::waterfall) {
         std::clamp(disp_t, -prms.Thickness/2, prms.Thickness/2);
         std::clamp(disp_n, -prms.Thickness/2, prms.Thickness/2);
-    } else if(prms.loadType==6 || prms.loadType==7) {
-        spring*=100;
+    } else if(prms.loadType==icy::Model::LoadOpt::waves_x || prms.loadType==icy::Model::LoadOpt::waves_xy) {
+        spring*=1000;
     }
 
     F(2) += disp_t*spring*(1-alpha);
@@ -139,6 +142,11 @@ void icy::Node::ComputeElasticForce(SimParams &prms, double timeStep, double tot
     for(int i=0;i<DOFS;i++) if(std::isnan(dF(i))) throw std::runtime_error("node; dF contains NaN");
 #endif
 
+    // assemble
+
+    if(prescribed || lsId < 0) return;
+    ls.SubtractRHS(lsId, F);
+    ls.AddLHS(lsId, lsId, dF);
 }
 
 double icy::Node::Smoothstep(double edge0, double edge1, double x)
@@ -266,12 +274,6 @@ void icy::Node::InitializeFromAnother(const Node *nd)
     an = nd->an;
 }
 
-void icy::Node::Assemble(icy::LinearSystem &ls) const
-{
-    if(prescribed || lsId < 0) return;
-    ls.SubtractRHS(lsId, F);
-    ls.AddLHS(lsId, lsId, dF);
-}
 
 void icy::Node::AcceptTentativeValues()
 {
@@ -457,7 +459,7 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
     unsigned idx = std::distance(grid_results, highest_grid_pt);
 
     // reject if the grid max is low
-    if(*highest_grid_pt < prms.normal_traction_threshold*0.4) return;
+    if(*highest_grid_pt < prms.normal_traction_threshold*0.35) return;
 
     // sectors
     int sector1, sector2;

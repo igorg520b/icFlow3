@@ -7,18 +7,18 @@ icy::FloeVisualization::FloeVisualization()
     selectedPointId = -1;
 
     ugrid->SetPoints(points);
-    ugrid_vertices->SetPoints(points);
+//    ugrid_vertices->SetPoints(points);
     ugrid_boundary->SetPoints(points);
     ugrid_selection->SetPoints(points);
 
     actor_mesh->PickableOn();
     actor_boundary->PickableOff();
-    actor_arrows->PickableOff();
+//    actor_arrows->PickableOff();
     actor_labels->PickableOff();
 
     actor_mesh->GetProperty()->VertexVisibilityOff();
     actor_boundary->GetProperty()->VertexVisibilityOff();
-    actor_arrows->GetProperty()->VertexVisibilityOff();
+//    actor_arrows->GetProperty()->VertexVisibilityOff();
 
     dataSetMapper->SetInputData(ugrid);
     dataSetMapper->UseLookupTableScalarRangeOn();
@@ -43,6 +43,7 @@ icy::FloeVisualization::FloeVisualization()
     edgeNumbers->SetName("edgeNumbers");
 
     // arrows
+    /*
     arrowCoords->SetNumberOfComponents(3);
     arrowCoords->SetName("arrowCoords");
     ugrid_vertices->GetPointData()->AddArray(arrowCoords);
@@ -61,7 +62,7 @@ icy::FloeVisualization::FloeVisualization()
     mapper_arrows->SetInputConnection(glyph3D->GetOutputPort());
     actor_arrows->SetMapper(mapper_arrows);
     actor_arrows->GetProperty()->SetColor(colors->GetColor3d("Black").GetData());
-
+*/
     actor_labels->VisibilityOff();
 
     // water level
@@ -72,12 +73,6 @@ icy::FloeVisualization::FloeVisualization()
     actor_water->SetMapper(mapper_water);
     actor_water->GetProperty()->SetRepresentationToWireframe();
     actor_water->GetProperty()->SetColor(colors->GetColor3d("Black").GetData());
-
-    // mesh 3d
-    ugrid_mesh3d->SetPoints(points_mesh3d);
-    mapper_mesh3d->SetInputData(ugrid_mesh3d);
-    actor_mesh_mesh3d->SetMapper(mapper_mesh3d);
-    mapper_mesh3d->UseLookupTableScalarRangeOn();
 
     // indenter
     sphereSource->SetCenter(0.0, 0.0, 0.0);
@@ -105,7 +100,7 @@ void icy::FloeVisualization::UnsafeUpdateTopology(std::vector<Node*> *nodes, std
 
     cellArray->Reset();
     cellArray_boundary->Reset();
-    cellArray_vertices->Reset();
+//    cellArray_vertices->Reset();
     UnsafeUpdateDisplacements(nodes, elems, temporalThreshold);
 
     // create ugrid
@@ -287,6 +282,11 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
         for(icy::Node* nd : *nodes) visualized_values->SetValue(nd->locId, nd->str_b_bottom[2]);
         break;
 
+    case VisOpt::stx_e:
+        visualized_values->SetNumberOfValues(elems->size());
+        for(std::size_t i=0;i<elems->size();i++) visualized_values->SetValue(i, (*elems)[i]->str_b_top[0]);
+        break;
+
     default:
         break;
     }
@@ -296,7 +296,8 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
     if(VisualizingVariable == VisOpt::Mxy_e ||
             VisualizingVariable == VisOpt::Mx_e ||
             VisualizingVariable == VisOpt::My_e ||
-            VisualizingVariable == VisOpt::region)
+            VisualizingVariable == VisOpt::region ||
+            VisualizingVariable == VisOpt::stx_e)
     {
         // elements
         ugrid->GetPointData()->RemoveArray("visualized_values");
@@ -422,6 +423,7 @@ void icy::FloeVisualization::UnsafeUpdateSelection(std::vector<icy::Node*> *node
 
 void icy::FloeVisualization::UnsafeUpdateArrows(std::vector<icy::Node*> *nodes)
 {
+    /*
     actor_arrows->SetVisibility(update_arrows);
     if(!update_arrows)
     {
@@ -445,6 +447,7 @@ void icy::FloeVisualization::UnsafeUpdateArrows(std::vector<icy::Node*> *nodes)
 
     ugrid_vertices->GetPointData()->AddArray(arrowCoords);
     ugrid_vertices->GetPointData()->SetActiveVectors("arrowCoords");
+*/
 }
 
 

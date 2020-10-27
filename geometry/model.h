@@ -57,8 +57,8 @@ public:
 
 private:
     icy::LinearSystem ls;
-    long ComputeElasticForces(SimParams &prms, double timeStep, double totalTime);
-    long Assemble(); // return execution time
+    long ComputeElasticForcesAndAssemble(SimParams &prms, double timeStep, double totalTime);
+//    long Assemble(); // return execution time
     long LocalSubstep(SimParams &prms, double timeStep, double totalTime);
 
     // synchronize VTK visualization and internal representation

@@ -54,7 +54,7 @@ public:
     enum VisOpt { none, boundary, vert_force,
                   fracture_support, max_normal_traction, time_loaded, region,
                   deflection, disp_x, AbsMx, Mx, My, Mxy, Mx_e, My_e, Mxy_e, Tx, Ty, Txy, Qx, Qy,
-                  stx, sty, stxy, sbx, sby, sbxy};
+                  stx, sty, stxy, sbx, sby, sbxy, stx_e};
     Q_ENUM(VisOpt)
 
     // presenting via VTK
@@ -70,13 +70,6 @@ public:
     vtkNew<vtkCellArray> cellArray;
     vtkNew<vtkDataSetMapper> dataSetMapper;
     vtkNew<vtkActor> actor_mesh;
-
-    // 3D mesh
-    vtkNew<vtkPoints> points_mesh3d;
-    vtkNew<vtkUnstructuredGrid> ugrid_mesh3d;
-    vtkNew<vtkCellArray> cellArray_mesh3d;
-    vtkNew<vtkDataSetMapper> mapper_mesh3d;
-    vtkNew<vtkActor> actor_mesh_mesh3d;
 
     // labels
     vtkNew<vtkUnstructuredGrid> ugrid_selection;
@@ -94,6 +87,7 @@ public:
     vtkNew<vtkActor> actor_boundary;
 
     // arrows
+    /*
     vtkNew<vtkCellArray> cellArray_vertices;
     vtkNew<vtkUnstructuredGrid> ugrid_vertices;
     vtkNew<vtkDoubleArray> arrowCoords;
@@ -101,6 +95,7 @@ public:
     vtkNew<vtkGlyph3D> glyph3D;
     vtkNew<vtkPolyDataMapper> mapper_arrows;
     vtkNew<vtkActor> actor_arrows;
+*/
 
     // surface
     static constexpr unsigned gridSizeX = 100;

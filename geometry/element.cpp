@@ -20,21 +20,26 @@ void icy::Element::InitializePersistentVariables()
     p1 = nds[1]->x_initial.block(0,0,3,1) - nds[0]->x_initial.block(0,0,3,1);
     p2 = nds[2]->x_initial.block(0,0,3,1) - nds[0]->x_initial.block(0,0,3,1);
 
-    rotationMatrix(p1, p2, R0, area_initial, normal_initial);
+//    Eigen::Vector3d r1 = p1.normalized();
+    normal_initial = p1.cross(p2);
+    area_initial=normal_initial.norm()/2;
+    normal_initial.normalize();
+
+//    rotationMatrix(p1, p2, R0, area_initial, normal_initial);
     initial_normal_up = normal_initial.z() > 0;
     for(int j=0;j<3;j++) nds[j]->area += area_initial/3; // distribute area to adjacent nodes
 
-    R0t = R0.transpose();
-    pr1_initial = p1;
-    pr2_initial = p2;
+//    R0t = R0.transpose();
+//    pr1_initial = p1;
+//    pr2_initial = p2;
 
     // (use 1-based indices, yij = yi-yj)
     double x1 = 0;
-    double x2 = pr1_initial.x();
-    double x3 = pr2_initial.x();
+    double x2 = p1.x();
+    double x3 = p2.x();
     double y1 = 0;
-    double y2 = pr1_initial.y();
-    double y3 = pr2_initial.y();
+    double y2 = p1.y();
+    double y3 = p2.y();
 
     double A2 = 2*area_initial;
     double y23, y31, y12, x32, x13, x21;
@@ -100,7 +105,7 @@ void icy::Element::FdF(
     if(dFo != nullptr) *dFo = K;
 }
 
-void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &prms, double)
+void icy::Element::UpdateSparseSystemEntries(LinearSystem &ls)
 {
     if(nds[0]->lsId < 0 && nds[1]->lsId < 0 && nds[2]->lsId < 0) return;
 
@@ -108,6 +113,12 @@ void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &pr
     ls.AddElementToStructure(nds[0]->lsId, nds[1]->lsId);
     ls.AddElementToStructure(nds[0]->lsId, nds[2]->lsId);
     ls.AddElementToStructure(nds[1]->lsId, nds[2]->lsId);
+}
+
+
+void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &prms, double)
+{
+    if(nds[0]->lsId < 0 && nds[1]->lsId < 0 && nds[2]->lsId < 0) return;
 
     Eigen::Matrix<double,DOFS*3,1> un;
     Eigen::Matrix<double,DOFS*3,1> ut;
@@ -125,6 +136,9 @@ void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &pr
 
     // combine the results into a linearized equation of motion with HHT-alpha integration scheme
     double alpha = prms.HHTalpha;
+    Eigen::Matrix<double,DOFS*3,1> F;      // right-hand side of the equation is equal to -F
+    Eigen::Matrix<double,DOFS*3,DOFS*3> dF;
+
     F = Fn*alpha + Fnp1*(1-alpha);
     dF= dFnp1*(1-alpha);
 
@@ -135,11 +149,8 @@ void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &pr
             if(std::isnan(dF(i,j)))
                 throw std::runtime_error("elem.ComputeElasticForce: dF contains NaN");
 #endif
-}
 
-void icy::Element::Assemble(icy::LinearSystem &ls) const
-{
-    if(nds[0]->lsId < 0 && nds[1]->lsId < 0 && nds[2]->lsId < 0) return;
+    // assemble
     for(int i=0;i<3;i++) {
         int row = nds[i]->lsId;
         Eigen::Matrix<double,DOFS,1> locF = F.block(i*DOFS,0,DOFS,1);
@@ -151,6 +162,7 @@ void icy::Element::Assemble(icy::LinearSystem &ls) const
         }
     }
 }
+
 
 void icy::Element::EvaluateStresses(icy::SimParams &prms,
                                     Eigen::Matrix3d &elasticityMatrix,
@@ -191,7 +203,7 @@ void icy::Element::EvaluateStresses(icy::SimParams &prms,
     float max_principal_bottom = std::max(s1,s2);
 
     principal_stress_exceeds_threshold =
-            std::max(max_principal_top, max_principal_bottom) > prms.normal_traction_threshold*0.4;
+            std::max(max_principal_top, max_principal_bottom) > prms.normal_traction_threshold*0.3;
 
     ComputeNormal();
 }
@@ -352,67 +364,7 @@ Eigen::Vector3d icy::Element::getCenter()
 {
     return (nds[0]->x_initial + nds[1]->x_initial + nds[2]->x_initial).block(0,0,3,1)/3.0;
 }
-/*
-icy::Node* icy::Element::getCCWNode(icy::Node* nd)
-{
-    if(normal_initial.z()<0) {
-        if(nd==nds[0]) return nds[1];
-        if(nd==nds[1]) return nds[2];
-        if(nd==nds[2]) return nds[0];
-    } else
-    {
-        if(nd==nds[0]) return nds[2];
-        if(nd==nds[1]) return nds[0];
-        if(nd==nds[2]) return nds[1];
-    }
-    throw std::runtime_error("nd not found");
-}
 
-icy::Node* icy::Element::getCWNode(icy::Node* nd)
-{
-    if(normal_initial.z()<0) {
-
-        if(nd==nds[0]) return nds[2];
-        if(nd==nds[1]) return nds[0];
-        if(nd==nds[2]) return nds[1];
-    } else {
-        if(nd==nds[0]) return nds[1];
-        if(nd==nds[1]) return nds[2];
-        if(nd==nds[2]) return nds[0];
-    }
-    throw std::runtime_error("nd not found");
-}
-
-
-short icy::Element::getCCWIdx(icy::Node* nd)
-{
-    if(!initial_normal_up) {
-        if(nd==nds[0]) return 1;
-        if(nd==nds[1]) return 2;
-        if(nd==nds[2]) return 0;
-    } else
-    {
-        if(nd==nds[0]) return 2;
-        if(nd==nds[1]) return 0;
-        if(nd==nds[2]) return 1;
-    }
-    throw std::runtime_error("nd not found");
-}
-
-short icy::Element::getCWIdx(icy::Node* nd)
-{
-    if(!initial_normal_up) {
-        if(nd==nds[0]) return 2;
-        if(nd==nds[1]) return 0;
-        if(nd==nds[2]) return 1;
-    } else {
-        if(nd==nds[0]) return 1;
-        if(nd==nds[1]) return 2;
-        if(nd==nds[2]) return 0;
-    }
-    throw std::runtime_error("nd not found");
-}
-*/
 
 void icy::Element::getIdxs(icy::Node*nd, short &thisIdx, short &CWIdx, short &CCWIdx)
 {

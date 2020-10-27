@@ -83,7 +83,6 @@ MainWindow::MainWindow(QWidget *parent)
     renderer->SetBackground(colors->GetColor3d("White").GetData());
     renderer->AddActor(controller.model.floes_vtk.actor_mesh);
     renderer->AddActor(controller.model.floes_vtk.actor_boundary);
-    renderer->AddActor(controller.model.floes_vtk.actor_arrows);
     renderer->AddActor(controller.model.floes_vtk.actor_labels);
     renderer->AddActor(controller.model.floes_vtk.actor_water);
     renderer->AddActor(controller.model.floes_vtk.actor_sphere);
@@ -256,13 +255,16 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->action_draw_water_Level->setChecked(prefsGUI.ShowWaterLevel);
     on_action_draw_water_Level_triggered(prefsGUI.ShowWaterLevel);
+
+    comboBox_visualizations->setCurrentIndex(prefsGUI.VisualizationOption);
 }
 
 void MainWindow::showEvent( QShowEvent*)
 {
-    // for testing
+    qDebug() << "size of element " << sizeof(icy::Element);
+    qDebug() << "size of node " << sizeof(icy::Node);
+    qDebug() << "size of edge " << sizeof(icy::Edge);
     pbrowser->setActiveObject(&controller.prms);
-    comboBox_visualizations->setCurrentIndex(prefsGUI.VisualizationOption);
     updateGUI();
     renderWindow->Render();
 }
