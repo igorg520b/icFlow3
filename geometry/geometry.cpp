@@ -287,11 +287,9 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
     if(maxNode == nullptr) throw std::runtime_error("trying to split nullptr");
 
     affected_elements_during_split.clear();
-    affected_nodes_during_split.clear();
 
     icy::Node* nd = maxNode;
     nd->core_node = false;
-    affected_nodes_during_split.insert(nd);
 
     // subsequent calculations are based on the fracture direction where the traction is maximal
     icy::Node::SepStressResult &ssr = nd->result_with_max_traction;
@@ -346,8 +344,7 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
     nd->weakening_direction = Eigen::Vector2f::Zero();
     nd->crack_tip = false;
 
-    // TODO: replace with UpdateEdges
-    CreateEdges2();
+    UpdateEdges();
 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
@@ -363,6 +360,7 @@ void icy::Geometry::Fix_X_Topology(Node *nd)
     {
         if(replacing)s.face->ReplaceNode(nd, split);
         if(s.e[1].toSplit) replacing=!replacing;
+        affected_elements_during_split.insert(s.face);
     }
 }
 
@@ -483,6 +481,11 @@ void icy::Geometry::CarefulSplitNonBoundaryElem(Element *originalElem, Element *
     insertedFace->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
     adjElem->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
     insertedFace_adj->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
+
+    affected_elements_during_split.insert(originalElem);
+    affected_elements_during_split.insert(insertedFace);
+    affected_elements_during_split.insert(adjElem);
+    affected_elements_during_split.insert(insertedFace_adj);
 }
 
 
@@ -515,10 +518,6 @@ void icy::Geometry::CarefulSplitBoundaryElem(Element *originalElem, Node *nd,
     insertedEdge.isBoundary = false;
     insertedEdge.toSplit = true;
 
-//    insertedFace->edges[nd1Idx] = insertedEdge;
-//    originalElem->edges[nd0Idx] = insertedEdge;
-
-
     Edge exteriorEdge1 = Edge(split, nd1);
     exteriorEdge1.isBoundary = true;
     exteriorEdge1.AddElement(insertedFace, ndIdx);
@@ -534,5 +533,129 @@ void icy::Geometry::CarefulSplitBoundaryElem(Element *originalElem, Node *nd,
 
     originalElem->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
     insertedFace->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
+
+    affected_elements_during_split.insert(originalElem);
+    affected_elements_during_split.insert(insertedFace);
 }
 
+void icy::Geometry::UpdateEdges()
+{
+    std::unordered_set<Node*> affected_nodes_during_split;
+    std::unordered_set<Element *> expanded_set_elems;
+    for(Element *elem : affected_elements_during_split)
+        for(int k=0;k<3;k++) {
+            affected_nodes_during_split.insert(elem->nds[k]);
+            if(elem->adj_elems[k]!=nullptr) expanded_set_elems.insert(elem->adj_elems[k]);
+            elem->adj_elems[k]=nullptr;
+        }
+
+    for(Node *nd : affected_nodes_during_split)
+    {
+        for(Element *elem : nd->adjacent_elems) expanded_set_elems.insert(elem);
+        nd->adjacent_elems.clear();
+        nd->adjacent_nodes.clear();
+        nd->area=0;
+        nd->isBoundary=false;
+    }
+
+    std::unordered_map<uint64_t, Edge> edges_map;
+
+    for(Element *elem : expanded_set_elems)
+    {
+        for(int i=0;i<3;i++)
+        {
+            Node *nd = elem->nds[i];
+            // only work with the nodes in the affected_nodes set
+            if(affected_nodes_during_split.find(nd)!=affected_nodes_during_split.end())
+            {
+                nd->adjacent_elems.push_back(elem);
+            }
+            // process edges
+            int nd0idx = elem->nds[i]->locId;
+            int nd1idx = elem->nds[(i+1)%3]->locId;
+            if(nd0idx > nd1idx) std::swap(nd0idx, nd1idx);
+            uint64_t key = ((uint64_t)nd0idx << 32) | nd1idx;
+
+            icy::Node *nd0 = (*nodes)[nd0idx];
+            icy::Node *nd1 = (*nodes)[nd1idx];
+
+            Edge edge(nd0, nd1);
+
+            edges_map.insert({key,edge});
+        }
+    }
+
+    // note that edges_map may contain edges outside of affected_elements
+    for(Element *elem : expanded_set_elems)
+    {
+        for(int i=0;i<3;i++)
+        {
+            int nd0idx = elem->nds[i]->locId;
+            int nd1idx = elem->nds[(i+1)%3]->locId;
+            if(nd0idx > nd1idx) std::swap(nd0idx, nd1idx);
+            uint64_t key = ((uint64_t)nd0idx << 32) | nd1idx;
+
+            icy::Edge &existing_edge = edges_map.at(key);
+            existing_edge.AddElement(elem, (i+2)%3);
+        }
+    }
+
+    std::unordered_map<uint64_t, Edge> correctly_inferred_edges;
+    // only take edges in the affected_elements set
+    for(Element *elem : affected_elements_during_split)
+    {
+        for(int i=0;i<3;i++)
+        {
+            int nd0idx = elem->nds[i]->locId;
+            int nd1idx = elem->nds[(i+1)%3]->locId;
+            if(nd0idx > nd1idx) std::swap(nd0idx, nd1idx);
+            uint64_t key = ((uint64_t)nd0idx << 32) | nd1idx;
+
+            icy::Edge &existing_edge = edges_map.at(key);
+            correctly_inferred_edges.insert({key,existing_edge});
+        }
+    }
+
+//    qDebug() << "affected elems " << affected_elements_during_split.size();
+//    qDebug() << "affected nodes " << affected_nodes_during_split.size();
+ //   qDebug() << "expanded set of elems " << expanded_set_elems.size();
+//    qDebug() << "edges_map " << edges_map.size();
+//    qDebug() << "correctly inferred edges " << correctly_inferred_edges.size();
+
+
+    boundaryEdges.erase(std::remove_if(boundaryEdges.begin(),boundaryEdges.end(),
+                   [affected_nodes_during_split](Edge e)
+    {return (affected_nodes_during_split.find(e.nds[0])!=affected_nodes_during_split.end() &&
+                affected_nodes_during_split.find(e.nds[1])!=affected_nodes_during_split.end());}),
+            boundaryEdges.end());
+
+    for(auto kvp : correctly_inferred_edges)
+    {
+        Edge &existing_edge = kvp.second;
+        icy::Element *elem_of_edge0 = existing_edge.elems[0];
+        icy::Element *elem_of_edge1 = existing_edge.elems[1];
+        short idx0 = existing_edge.edge_in_elem_idx[0];
+        short idx1 = existing_edge.edge_in_elem_idx[1];
+
+        if(elem_of_edge0 == nullptr && elem_of_edge1 == nullptr) throw std::runtime_error("disconnected edge?");
+        existing_edge.isBoundary = (existing_edge.elems[0] == nullptr || existing_edge.elems[1] == nullptr);
+
+        if(elem_of_edge0 != nullptr) elem_of_edge0->edges[idx0] = existing_edge;
+        if(elem_of_edge1 != nullptr) elem_of_edge1->edges[idx1] = existing_edge;
+
+        if(!existing_edge.isBoundary)
+        {
+            elem_of_edge0->adj_elems[idx0] = elem_of_edge1;
+            elem_of_edge1->adj_elems[idx1] = elem_of_edge0;
+        }
+
+        icy::Node *nd0 = existing_edge.nds[0];
+        icy::Node *nd1 = existing_edge.nds[1];
+        nd0->adjacent_nodes.push_back(nd1);
+        nd1->adjacent_nodes.push_back(nd0);
+
+        if(existing_edge.isBoundary) boundaryEdges.push_back(existing_edge);
+    }
+
+    for(Node *nd : affected_nodes_during_split) nd->PrepareFan2();
+}

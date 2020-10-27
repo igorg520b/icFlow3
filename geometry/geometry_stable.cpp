@@ -348,6 +348,8 @@ void icy::Geometry::CreateEdges2()
 
 #pragma omp parallel for
     for(std::size_t i=0;i<nodes->size();i++) (*nodes)[i]->PrepareFan2();
+
+    edges_map2.clear();
 }
 
 

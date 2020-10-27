@@ -135,8 +135,8 @@ public:
 
         t_other = total - (t_prepare+t_clear_ls+t_force_elem+
                            t_force_buoyancy+t_force_collision+
-                           t_create_structure+t_assemble+t_solve+//t_pull_from_ls+
-                           t_split+t_local_substep+t_compute_fracture_directions);
+                           t_create_structure+t_assemble+t_solve+//t_pull_from_ls+t_split+
+                           t_local_substep+t_compute_fracture_directions);
 
         // t_total is computed for all frames
         // everything else is presented per frame
@@ -168,7 +168,7 @@ public:
         timing_motion.push_back(std::make_pair<std::string, long>("solve",t_solve));
 //        timing_motion.push_back(std::make_pair<std::string, long>("pull",t_pull_from_ls));
 
-        timing_motion.push_back(std::make_pair<std::string, long>("split",t_split));
+//        timing_motion.push_back(std::make_pair<std::string, long>("split",t_split));
         timing_motion.push_back(std::make_pair<std::string, long>("substep",(long)t_local_substep));
         timing_motion.push_back(std::make_pair<std::string, long>("frac_dir",t_compute_fracture_directions));
 

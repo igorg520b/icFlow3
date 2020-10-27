@@ -96,8 +96,7 @@ private:
     icy::Node* AddNode(icy::Node *otherNd=nullptr);
     icy::Element* AddElement(); // makes a new element
 
-    std::set<Element*> affected_elements_during_split; // a list of elements that were affected by SplitNode
-    std::set<Node*> affected_nodes_during_split;
+    std::unordered_set<Element*> affected_elements_during_split; // a list of elements that were affected by SplitNode
     void UpdateEdges();
 
     void EstablishSplittingEdge(Edge &splitEdge, Node* nd,
