@@ -5,6 +5,7 @@
 
 icy::Edge::Edge(icy::Node* nd0, icy::Node* nd1)
 {
+    if(nd0->locId > nd1->locId) std::swap(nd0,nd1);
     nds[0] = nd0;
     nds[1] = nd1;
     elems[0] = elems[1] = nullptr;
@@ -26,7 +27,6 @@ void icy::Edge::AddElement(icy::Element* elem, short idx)
     if(elem1_isCCW && elems[0] == nullptr) { elems[0] = elem; edge_in_elem_idx[0] = idx; }
     else if(!elem1_isCCW && elems[1] == nullptr) { elems[1] = elem; edge_in_elem_idx[1] = idx; }
     else throw std::runtime_error("mesh topology error");
-
 }
 
 
@@ -82,6 +82,14 @@ icy::Element* icy::Edge::getTheOnlyElement()
     return elems[0]==nullptr ? elems[1] : elems[0];
 }
 
+icy::Element* icy::Edge::getOtherElement(const icy::Element* elem) const
+{
+    if (elems[0]==elem) return elems[1];
+    else if(elems[1]==elem) return elems[0];
+    else throw std::runtime_error("getOtherElement can't find other element");
+}
+
+
 icy::Element* icy::Edge::getElementWithNode(icy::Node *nd)
 {
     if(elems[0] != nullptr && elems[0]->ContainsNode(nd)) return elems[0];
@@ -99,9 +107,8 @@ icy::Element* icy::Edge::getElementWithNode(icy::Node *nd)
     }
 }
 
-icy::Node* icy::Edge::getFarNode(icy::Node *nd)
+bool icy::Edge::sameAs(Edge other)
 {
-    if(elems[0]->ContainsNode(nd)) return elems[1]->getOppositeNode(this);
-    else if(elems[1]->ContainsNode(nd)) return elems[0]->getOppositeNode(this);
-    else throw std::runtime_error("getFarNode: cannot find element with a given node");
+    return (nds[0]==other.nds[0] && nds[1]==other.nds[1]);
 }
+

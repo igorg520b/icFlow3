@@ -63,7 +63,8 @@ public:
     void EvaluateStresses(SimParams &prms);     // needed for ComputeFractureDirections
     void DistributeStresses();                  // needed for visualization
     long ComputeFractureDirections(SimParams &prms, double timeStep = 0, bool startingFracture = false); // sets maxNode to breakable node
-    long SplitNode(SimParams &prms);   // split the node with the highest normal traction
+
+    long SplitNodeAlt(SimParams &prms);
 
     // save/load
     void WriteToSerializationBuffers();
@@ -94,20 +95,24 @@ private:
 
     icy::Node* AddNode(icy::Node *otherNd=nullptr);
     icy::Element* AddElement(); // makes a new element
-    void SplitEdge(Edge edge, double where,
-                   Node *centerNode, Node* &splitNode, bool forwardDirection, SimParams &prms,
-                   Eigen::Vector2f dir);
 
-    void SplitAlongExistingEdge(Edge edge, Node *centerNode, Node* &splitNode,
-                                int oppositeNodeIdx, bool forwardDirection, Eigen::Vector2f dir);
-    std::set<icy::Element*> affected_elements_during_split; // a list of elements that were affected by SplitNode
-    std::set<icy::Node*> affected_nodes_during_split;
+    std::set<Element*> affected_elements_during_split; // a list of elements that were affected by SplitNode
+    std::set<Node*> affected_nodes_during_split;
     void UpdateEdges();
+
+    void EstablishSplittingEdge(Edge &splitEdge, Node* nd,
+                                const float phi, const float theta, const float fracture_epsilon,
+                                const Edge e0, const Edge e1, const Edge e_opposite, Element *elem, SimParams &prms);
+    void Fix_X_Topology(Node *nd);
+    // preserve boundaries and orientation
+    void CarefulSplitBoundaryElem(Element *originalElem, Node *nd, Node *nd0, Node *nd1, float where, Edge &insertedEdge, SimParams &prms);
+    void CarefulSplitNonBoundaryElem(Element *originalElem, Element *adjElem, Node *nd,
+                                     Node *nd0, Node *nd1, float where, Edge &insertedEdge, SimParams &prms);
 
     void MeshingStepTwo(double CharacteristicLengthMax);
 
-    icy::SimpleObjectPool<icy::Node> s_pool_nodes;
-    icy::SimpleObjectPool<icy::Element> s_pool_elems;
+    icy::SimpleObjectPool<Node> s_pool_nodes;
+    icy::SimpleObjectPool<Element> s_pool_elems;
 
     void CreateSupportRange(int neighborLevel, std::vector<Node*> &initial_set);
     std::unique_ptr<std::unordered_set<Node*>> tmp_range0 = std::make_unique<std::unordered_set<Node*>>();

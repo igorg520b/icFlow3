@@ -52,34 +52,35 @@ public:
 
     void InitializePersistentVariables(); // everything that depends on initial position (not K and M)
     // K and M are computed after rho, Y and nu are set/changed
-    void PrecomputeStiffnessMatrix(icy::SimParams &prms,
+    void PrecomputeStiffnessMatrix(SimParams &prms,
                                    Eigen::Matrix3d &elasticityMatrix,
                                    Eigen::Matrix2d &D_mats);
     // compute forces and insert nz-entries to sparse structure
-    void ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &prms, double timeStep);
-    void Assemble(icy::LinearSystem &ls) const;   // distributed computed F and dF into linear system
+    void ComputeElasticForce(LinearSystem &ls, SimParams &prms, double timeStep);
+    void Assemble(LinearSystem &ls) const;   // distributed computed F and dF into linear system
 
     // this is done after the new displacement values are accepted
-    void EvaluateStresses(icy::SimParams &prms,
+    void EvaluateStresses(SimParams &prms,
                           Eigen::Matrix3d &elasticityMatrix,
                           Eigen::Matrix2d &D_mats);
     void DistributeStresses();
 
     // helper functions for fracture
-    icy::Node* getOppositeNode(icy::Edge *edge);    // return the node across from a given edge
-    std::pair<int,int> getOppositeEdge(icy::Node *nd);
+    icy::Node* getOppositeNode(Edge edge);    // return the node across from a given edge
+    std::pair<int,int> getOppositeEdge(Node *nd);
     Eigen::Vector3d getCenter();
 //    icy::Node* getCWNode(icy::Node* nd);
 //    icy::Node* getCCWNode(icy::Node* nd);
 //    short getCWIdx(icy::Node* nd);
 //    short getCCWIdx(icy::Node* nd);
-    void getIdxs(icy::Node*nd, short &thisIdx, short &CWIdx, short &CCWIdx);
-    icy::Edge getEdgeOppositeToNode(icy::Node *nd);
+    void getIdxs(Node*nd, short &thisIdx, short &CWIdx, short &CCWIdx);
+    Edge getEdgeOppositeToNode(Node *nd);
+    short getNodeIdx(Node *nd);
 
-    bool ContainsNode(icy::Node *nd){return (nds[0]==nd || nds[1]==nd || nds[2]==nd);}
-    void ReplaceNode(icy::Node *replaceWhat, icy::Node *replaceWith);
-    void Initialize(icy::Node* nd0, icy::Node* nd1, icy::Node* nd2, bool orientation);
-    bool Orientation(icy::Node* nd0, icy::Node* nd1);
+    bool ContainsNode(Node *nd){return (nds[0]==nd || nds[1]==nd || nds[2]==nd);}
+    void ReplaceNode(Node *replaceWhat, Node *replaceWith);
+    void Initialize(Node* nd0, Node* nd1, Node* nd2, bool orientation);
+    bool Orientation(const Node* nd0, const Node* nd1);
     void ComputeNormal();
 
 private:

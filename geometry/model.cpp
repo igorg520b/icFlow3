@@ -211,7 +211,7 @@ void icy::Model::FractureStep(SimParams &prms, double timeStep, double totalTime
     if(floes.maxNode == nullptr) return;
 
     mutex.lock();
-    b_split += floes.SplitNode(prms);
+    b_split += floes.SplitNodeAlt(prms);
     mutex.unlock();
     topologyInvalid = true;
 

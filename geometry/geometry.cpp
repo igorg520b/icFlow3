@@ -168,293 +168,6 @@ void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Node*> &in
 }
 
 
-long icy::Geometry::SplitNode(SimParams &prms)
-{
-    auto t1 = std::chrono::high_resolution_clock::now();
-    affected_elements_during_split.clear();
-    affected_nodes_during_split.clear();
-
-    if(maxNode == nullptr) {
-        // qDebug() << "SplitNode: nothing to split";
-        return 0;
-    }
-
-    icy::Node* nd = maxNode;
-    nd->core_node = false;
-    affected_nodes_during_split.insert(nd);
-
-    // the central node nd splits into itself an mainSplit
-    icy::Node *mainSplit = nullptr;
-
-    // subsequent calculations are based on the fracture direction where the traction is maximal
-    icy::Node::SepStressResult &ssr = nd->result_with_max_traction;
-
-    // make sure that the interior node has two split faces
-    bool isBoundary = (ssr.faces[1] == nullptr);
-    if(isBoundary != nd->isBoundary) std::runtime_error("isBoundary != nd->isBoundary");
-    qDebug() << "center node is boundary: " << isBoundary;
-    qDebug() << "center node " << nd->locId;
-
-    // iterate over the "fan" and replace nd with mainSplit on the elements between angle_fwd and angle_bwd
-    if(isBoundary)
-    {
-        for(icy::Node::Sector &f : nd->fan)
-        {
-            affected_elements_during_split.insert(f.face);
-            if(f.angle0 > ssr.angle_fwd && f.angle1 > ssr.angle_fwd)
-            {
-                if(mainSplit == nullptr) { mainSplit = AddNode(nd); affected_nodes_during_split.insert(nd);}
-                f.face->ReplaceNode(nd, mainSplit);
-            }
-        }
-    }
-    else if(ssr.angle_fwd > ssr.angle_bwd)
-    {
-        for(icy::Node::Sector &f : nd->fan)
-        {
-            affected_elements_during_split.insert(f.face);
-            if((f.angle0 > ssr.angle_fwd || f.angle0 < ssr.angle_bwd)
-                    && (f.angle1 > ssr.angle_fwd || f.angle1 < ssr.angle_bwd)) {
-                if(mainSplit == nullptr) { mainSplit = AddNode(nd); affected_nodes_during_split.insert(nd);}
-                f.face->ReplaceNode(nd, mainSplit);
-            }
-        }
-    }
-    else
-    {
-        // (ssr.angle_fwd < ssr.angle_bwd)
-        for(icy::Node::Sector &f : nd->fan)
-        {
-            affected_elements_during_split.insert(f.face);
-            if(f.angle0 > ssr.angle_fwd && f.angle1 > ssr.angle_fwd &&
-                    f.angle0 < ssr.angle_bwd && f.angle1 < ssr.angle_bwd) {
-                if(mainSplit == nullptr) { mainSplit = AddNode(nd); affected_nodes_during_split.insert(nd);}
-                f.face->ReplaceNode(nd, mainSplit);
-            }
-        }
-    }
-
-    // split face #0
-    icy::Node *nd0 = ssr.e[0].getOtherNode(nd);
-    icy::Node *nd1 = ssr.e[1].getOtherNode(nd);
-    int nd0idx = nd0->locId;
-    int nd1idx = nd1->locId;
-    bool forwardEdge = (nd0idx < nd1idx);
-
-    double factor0 = sin(ssr.phi[0])*ssr.e[0].getVec(nd).norm();
-    double factor1 = sin(ssr.theta[0])*ssr.e[1].getVec(nd).norm();
-    double whereToSplit = forwardEdge ? factor1/(factor0+factor1) : factor0/(factor0+factor1);
-
-    icy::Edge splitEdge0 = ssr.e_opposite[0];
-
-    qDebug() << "SplitEdge on face 0";
-    SplitEdge(splitEdge0, whereToSplit, nd, mainSplit, forwardEdge, prms, ssr.tn);
-
-    if(ssr.faces[1] != nullptr)
-    {
-        // center node is interior, split face #0
-        icy::Node *nd0 = ssr.e[2].getOtherNode(nd);
-        icy::Node *nd1 = ssr.e[3].getOtherNode(nd);
-        int nd0idx = nd0->locId;
-        int nd1idx = nd1->locId;
-        bool forwardEdge = (nd0idx < nd1idx);
-        double factor0 = sin(ssr.phi[1])*ssr.e[2].getVec(nd).norm();
-        double factor1 = sin(ssr.theta[1])*ssr.e[3].getVec(nd).norm();
-        double whereToSplit = forwardEdge ? factor1/(factor0+factor1) : factor0/(factor0+factor1);
-
-        icy::Edge splitEdge0 = ssr.e_opposite[1];
-
-        qDebug() << "SplitEdge on face 1";
-        SplitEdge(splitEdge0, whereToSplit, nd, mainSplit, !forwardEdge, prms, -ssr.tn);
-    }
-
-    nd->weakening_direction = Eigen::Vector2f::Zero();
-    nd->crack_tip = false;
-
-    // TODO: replace with UpdateEdges
-    CreateEdges2();
-    qDebug() << "affected elements: " << affected_elements_during_split.size();
-    qDebug() << "affected nodes: " << affected_nodes_during_split.size();
-    qDebug() << " ";
-
-    auto t2 = std::chrono::high_resolution_clock::now();
-    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
-}
-
-
-void icy::Geometry::SplitEdge(icy::Edge edge, double where,
-                              icy::Node *centerNode, icy::Node* &splitNode,
-                              bool forwardDirection,
-                              SimParams &prms, Eigen::Vector2f dir)
-{
-    if(where < prms.fracture_epsilon)
-    {
-        SplitAlongExistingEdge(edge, centerNode, splitNode, 1, forwardDirection, dir);
-        return;
-    }
-    else if(where > 1.0-prms.fracture_epsilon)
-    {
-        SplitAlongExistingEdge(edge, centerNode, splitNode, 0, forwardDirection, dir);
-        return;
-    }
-
-    if(splitNode == nullptr) { splitNode = AddNode(centerNode); affected_nodes_during_split.insert(splitNode); }
-
-    if(edge.isBoundary)
-    {
-        // break edge with 2 additional nodes; add one element on the "nd" side
-
-        icy::Node *split0 = AddNode();
-        icy::Node *split1 = AddNode();
-        affected_nodes_during_split.insert(split0);
-        affected_nodes_during_split.insert(split1);
-
-        split0->InitializeFromAdjacent(edge.nds[0], edge.nds[1], where);
-        split1->InitializeFromAnother(split0);
-
-        icy::Element *existingFace = edge.getTheOnlyElement();
-        affected_elements_during_split.insert(existingFace);
-        bool orientation = existingFace->Orientation(edge.nds[0], edge.nds[1]);
-
-        icy::Element *additionalFace = AddElement();
-        affected_elements_during_split.insert(additionalFace);
-
-        if(forwardDirection)
-        {
-            existingFace->Initialize(edge.nds[0], split0, centerNode, orientation);
-            additionalFace->Initialize(split1, edge.nds[1], splitNode, orientation);
-        } else
-        {
-            existingFace->Initialize(edge.nds[0], split0, splitNode, orientation);
-            additionalFace->Initialize(split1, edge.nds[1], centerNode, orientation);
-        }
-        existingFace->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
-        additionalFace->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
-    }
-    else
-    {
-//        qDebug() << "invoking getElementWithNode; 0; centerNode; no-boundary case in SplitEdge";
-        icy::Element *existingFace0 = edge.getElementWithNode(centerNode);
-        bool orientation0 = existingFace0->Orientation(edge.nds[0], edge.nds[1]);
-
-        // insert one point to the edge; add element to each side of the edge (2 total)
-        // CRACK TIP NODE
-        icy::Node *split0 = AddNode();
-        affected_nodes_during_split.insert(split0);
-        split0->InitializeFromAdjacent(edge.nds[0], edge.nds[1], where);
-        split0->weakening_direction = dir;
-        split0->crack_tip = true;
-
-        icy::Node *farNode = edge.getFarNode(centerNode);
-        affected_nodes_during_split.insert(farNode);
-
-//        qDebug() << "invoking getElementWithNode; 1 farNode; no-boundary case in SplitEdge";
-        icy::Element *existingFace1 = edge.getElementWithNode(farNode);
-        bool orientation1 = existingFace1->Orientation(edge.nds[0], edge.nds[1]);
-
-        icy::Element *additionalFace0 = AddElement();
-        icy::Element *additionalFace1 = AddElement();
-
-        existingFace1->Initialize(edge.nds[0], split0, farNode, orientation1);
-        additionalFace1->Initialize(split0, edge.nds[1], farNode, orientation1);
-        if(forwardDirection)
-        {
-            existingFace0->Initialize(edge.nds[0], split0, centerNode, orientation0);
-            additionalFace0->Initialize(split0, edge.nds[1], splitNode, orientation0);
-        }
-        else
-        {
-            existingFace0->Initialize(edge.nds[0], split0, splitNode, orientation0);
-            additionalFace0->Initialize(split0, edge.nds[1], centerNode, orientation0);
-        }
-        existingFace0->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
-        additionalFace0->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
-        existingFace1->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
-        additionalFace1->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
-        affected_elements_during_split.insert(existingFace0);
-        affected_elements_during_split.insert(additionalFace0);
-        affected_elements_during_split.insert(existingFace1);
-        affected_elements_during_split.insert(additionalFace1);
-    }
-    affected_nodes_during_split.insert(edge.nds[0]);
-    affected_nodes_during_split.insert(edge.nds[1]);
-}
-
-void icy::Geometry::SplitAlongExistingEdge(Edge edge, Node *centerNode, Node* &splitNode,
-                                           int oppositeNodeIdx, bool forwardDirection, Eigen::Vector2f dir)
-{
-    qDebug() << "invoking getElementWithNode from SplitAlongExistingEdge";
-    qDebug() << "center node  " << centerNode->locId;
-    qDebug() << "split node  " << splitNode->locId;
-
-    icy::Element *existingFace = edge.getElementWithNode(centerNode);
-    bool orientation = existingFace->Orientation(edge.nds[0], edge.nds[1]);
-
-    icy::Node *oppositeNode = edge.nds[oppositeNodeIdx];
-    affected_nodes_during_split.insert(oppositeNode);
-
-    icy::Edge edgeBeingSplit = existingFace->getEdgeOppositeToNode(edge.nds[(oppositeNodeIdx+1)%2]);
-
-    if(edgeBeingSplit.isBoundary) return; // trying to split a boundary edge
-
-    if(splitNode == nullptr) { splitNode = AddNode(centerNode); affected_nodes_during_split.insert(splitNode);}
-
-    bool boundary_detected = oppositeNode->isBoundary;
-    //    qDebug() << "edge: " << edge->nds[0]->locId << " -- " << edge->nds[1]->locId;
-    //    qDebug() << "elem0: " << edge->elems[0] << "; elem1: " << edge->elems[1];
-    //    qDebug() << "boundary: " << boundary_detected << "; fwd: " << forwardDirection;
-
-    auto fan_iter = std::find_if(oppositeNode->fan.begin(),
-                                 oppositeNode->fan.end(),
-                                 [existingFace](icy::Node::Sector &f)
-    {return f.face == existingFace;});
-    if(fan_iter == oppositeNode->fan.end()) throw std::runtime_error("existing face not in the fan");
-    icy::Node::Sector &fanItem = *fan_iter;
-    int whichEdge;
-    if(fanItem.nd[0] == centerNode) whichEdge = 0;
-    else if(fanItem.nd[1] == centerNode) whichEdge = 1;
-    else throw std::runtime_error("split edge not detected");
-
-    // reconnect the element
-    if((oppositeNodeIdx == 0 && forwardDirection) || (oppositeNodeIdx == 1 && !forwardDirection))
-    {
-        existingFace->Initialize(edge.nds[0], edge.nds[1], splitNode, orientation);
-    }
-    else
-    {
-        // nothing changes
-        //existingFace->Initialize(edge->nds[0], edge->nds[1], centerNode, orientation);
-    }
-
-    if(!boundary_detected)
-    {
-        // CRACK TIP NODE
-        oppositeNode->weakening_direction = dir;
-        oppositeNode->crack_tip = true;
-    }
-    else
-    {
-        // break boundary
-        icy::Node *split = AddNode(oppositeNode);
-        affected_nodes_during_split.insert(split);
-
-        //        qDebug() << "whichEdge " << whichEdge;
-        if(whichEdge == 1) fan_iter++;
-        if(fan_iter == oppositeNode->fan.end()) throw std::runtime_error("not supposed to happen");
-        while(fan_iter != oppositeNode->fan.end())
-        {
-            fan_iter->face->ReplaceNode(oppositeNode, split);
-            fan_iter++;
-            affected_elements_during_split.insert(fan_iter->face);
-        }
-    }
-
-    //existingFace->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
-    affected_elements_during_split.insert(edgeBeingSplit.elems[0]);
-    affected_elements_during_split.insert(edgeBeingSplit.elems[1]);
-}
-
-
 long icy::Geometry::IdentifyDisconnectedRegions()
 {
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -564,3 +277,262 @@ void icy::Geometry::RemoveRegion(unsigned idx)
     CreateEdges2();
 }
 */
+
+
+//========================== ALTERNATIVE ALGORITHM FOR SPLITTING
+long icy::Geometry::SplitNodeAlt(SimParams &prms)
+{
+    auto t1 = std::chrono::high_resolution_clock::now();
+
+    if(maxNode == nullptr) throw std::runtime_error("trying to split nullptr");
+
+    affected_elements_during_split.clear();
+    affected_nodes_during_split.clear();
+
+    icy::Node* nd = maxNode;
+    nd->core_node = false;
+    affected_nodes_during_split.insert(nd);
+
+    // subsequent calculations are based on the fracture direction where the traction is maximal
+    icy::Node::SepStressResult &ssr = nd->result_with_max_traction;
+
+    // make sure that the interior node has two split faces
+    bool isBoundary = (ssr.faces[1] == nullptr);
+    if(isBoundary != nd->isBoundary) std::runtime_error("isBoundary != nd->isBoundary");
+
+    icy::Edge splitEdge_fw;
+    EstablishSplittingEdge(splitEdge_fw, nd,
+                                ssr.phi[0], ssr.theta[0], prms.fracture_epsilon,
+                                ssr.e[0], ssr.e[1], ssr.e_opposite[0], ssr.faces[0],prms);
+
+    if(isBoundary)
+    {
+        Fix_X_Topology(nd); // split as fan.front().e[0] --- splitEdge_fw --- fan.back().e[1]
+    }
+    else
+    {
+        // determine splitEdge_bw (create if necessary)
+        icy::Edge splitEdge_bw;
+        EstablishSplittingEdge(splitEdge_bw, nd,
+                                    ssr.phi[1], ssr.theta[1], prms.fracture_epsilon,
+                                    ssr.e[2], ssr.e[3], ssr.e_opposite[1], ssr.faces[1],prms);
+
+        Fix_X_Topology(nd);
+        // split between splitEdge_fw and splitEdge_bw
+        Node *split1=splitEdge_bw.getOtherNode(nd);
+        if(split1->isBoundary)
+        {
+            Fix_X_Topology(split1);
+        }
+        else
+        {
+            split1->crack_tip = true;
+            split1->weakening_direction = Eigen::Vector2f(split1->xt.x()-nd->xt.x(), split1->xt.y()-nd->xt.y());
+            split1->weakening_direction.normalize();
+        }
+    }
+    Node *split0=splitEdge_fw.getOtherNode(nd);
+    if(split0->isBoundary)
+    {
+        Fix_X_Topology(split0);
+    }
+    else
+    {
+        split0->crack_tip = true;
+        split0->weakening_direction = Eigen::Vector2f(split0->xt.x()-nd->xt.x(), split0->xt.y()-nd->xt.y());
+        split0->weakening_direction.normalize();
+    }
+
+    nd->weakening_direction = Eigen::Vector2f::Zero();
+    nd->crack_tip = false;
+
+    // TODO: replace with UpdateEdges
+    CreateEdges2();
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
+}
+
+void icy::Geometry::Fix_X_Topology(Node *nd)
+{
+    nd->PrepareFan2(false);
+    Node *split=AddNode();
+    split->InitializeFromAnother(nd);
+    bool replacing = true;
+    for(Node::Sector &s : nd->fan)
+    {
+        if(replacing)s.face->ReplaceNode(nd, split);
+        if(s.e[1].toSplit) replacing=!replacing;
+    }
+}
+
+
+void icy::Geometry::EstablishSplittingEdge(Edge &splitEdge, Node* nd,
+                            const float phi, const float theta, const float fracture_epsilon,
+                            const Edge e0, const Edge e1, const Edge e_opposite, Element *elem, SimParams &prms)
+{
+    icy::Node *nd0 = e0.getOtherNode(nd);
+    icy::Node *nd1 = e1.getOtherNode(nd);
+
+    Eigen::Vector2f nd_vec((float)nd->xt.x(),(float)nd->xt.y());
+    Eigen::Vector2f nd0_vec((float)nd0->xt.x(),(float)nd0->xt.y());
+    Eigen::Vector2f nd1_vec((float)nd1->xt.x(),(float)nd1->xt.y());
+
+    float factor0 = sin(phi)*(nd0_vec-nd_vec).norm();
+    float factor1 = sin(theta)*(nd1_vec-nd_vec).norm();
+    float whereToSplit = factor1/(factor0+factor1);  // ~1 means the split is near nd0, ~0 means it is near nd1
+
+    if(whereToSplit < fracture_epsilon && !e1.isBoundary)
+    {
+        splitEdge = e1;
+    }
+    else if(whereToSplit > 1-fracture_epsilon && !e0.isBoundary)
+    {
+        splitEdge = e0;
+    }
+    else
+    {
+        if(e_opposite.isBoundary)
+        {
+            CarefulSplitBoundaryElem(elem, nd, nd0, nd1, whereToSplit, splitEdge,prms);
+        }
+        else
+        {
+            icy::Element *elem_adj = e_opposite.getOtherElement(elem);
+            CarefulSplitNonBoundaryElem(elem, elem_adj, nd, nd0, nd1, whereToSplit, splitEdge,prms);
+        }
+
+    }
+    splitEdge.toSplit = true;
+    splitEdge.elems[0]->edges[splitEdge.edge_in_elem_idx[0]]=splitEdge;
+    splitEdge.elems[1]->edges[splitEdge.edge_in_elem_idx[1]]=splitEdge;
+}
+
+void icy::Geometry::CarefulSplitNonBoundaryElem(Element *originalElem, Element *adjElem,
+                                 Node *nd, Node *nd0, Node *nd1, float where, Edge &insertedEdge, SimParams &prms)
+{
+    short ndIdx_orig = originalElem->getNodeIdx(nd);
+    short nd0Idx_orig = originalElem->getNodeIdx(nd0);
+    short nd1Idx_orig = originalElem->getNodeIdx(nd1);
+
+    Node *oppositeNode = adjElem->getOppositeNode(originalElem->edges[ndIdx_orig]);
+    short nd0Idx_adj = adjElem->getNodeIdx(nd0);
+    short nd1Idx_adj = adjElem->getNodeIdx(nd1);
+    short oppIdx_adj = adjElem->getNodeIdx(oppositeNode);
+
+    Element *insertedFace = AddElement();
+    nd->adjacent_elems.push_back(insertedFace);
+
+    Element *insertedFace_adj = AddElement();
+    oppositeNode->adjacent_elems.push_back(insertedFace_adj);
+
+    Node *split=AddNode();
+    split->InitializeFromAdjacent(nd0, nd1, where);
+    split->isBoundary=false;
+    split->adjacent_elems.push_back(originalElem);
+    split->adjacent_elems.push_back(insertedFace);
+    split->adjacent_elems.push_back(adjElem);
+    split->adjacent_elems.push_back(insertedFace_adj);
+
+    originalElem->nds[nd1Idx_orig] = split;
+    insertedFace->nds[ndIdx_orig] = nd;
+    insertedFace->nds[nd1Idx_orig] = nd1;
+    insertedFace->nds[nd0Idx_orig] = split;
+    insertedFace->edges[nd0Idx_orig] = originalElem->edges[nd0Idx_orig];
+
+    adjElem->nds[nd1Idx_adj] = split;
+    insertedFace_adj->nds[oppIdx_adj] = oppositeNode;
+    insertedFace_adj->nds[nd1Idx_adj] = nd1;
+    insertedFace_adj->nds[nd0Idx_adj] = split;
+    insertedFace_adj->edges[nd0Idx_adj] = adjElem->edges[nd0Idx_adj];
+
+    insertedEdge = Edge(nd, split);
+    insertedEdge.AddElement(insertedFace, nd1Idx_orig);
+    insertedEdge.AddElement(originalElem, nd0Idx_orig);
+    insertedEdge.isBoundary = false;
+    insertedEdge.toSplit = true;
+
+    Edge insertedEdge_adj = Edge(oppositeNode, split);
+    insertedEdge_adj.AddElement(insertedFace_adj, nd1Idx_adj);
+    insertedEdge_adj.AddElement(adjElem, nd0Idx_adj);
+    insertedEdge_adj.isBoundary = false;
+    insertedEdge_adj.toSplit = false;
+    insertedFace_adj->edges[nd1Idx_adj] = insertedEdge_adj;
+    adjElem->edges[nd0Idx_adj] = insertedEdge_adj;
+
+    Edge exteriorEdge1 = Edge(split, nd1);
+    exteriorEdge1.isBoundary = false;
+    exteriorEdge1.AddElement(insertedFace, ndIdx_orig);
+    exteriorEdge1.AddElement(insertedFace_adj, oppIdx_adj);
+    insertedFace->edges[ndIdx_orig] = exteriorEdge1;
+    insertedFace_adj->edges[oppIdx_adj] = exteriorEdge1;
+
+    Edge exteriorEdge2 = Edge(split, nd0);
+    exteriorEdge2.isBoundary = false;
+    exteriorEdge2.AddElement(originalElem, ndIdx_orig);
+    exteriorEdge2.AddElement(adjElem, oppIdx_adj);
+    originalElem->edges[ndIdx_orig] = exteriorEdge2;
+    adjElem->edges[oppIdx_adj] = exteriorEdge2;
+
+    originalElem->InitializePersistentVariables();
+    insertedFace->InitializePersistentVariables();
+    adjElem->InitializePersistentVariables();
+    insertedFace_adj->InitializePersistentVariables();
+
+    originalElem->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
+    insertedFace->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
+    adjElem->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
+    insertedFace_adj->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
+}
+
+
+
+void icy::Geometry::CarefulSplitBoundaryElem(Element *originalElem, Node *nd,
+                                             Node *nd0, Node *nd1, float where, Edge &insertedEdge,SimParams &prms)
+{
+    short ndIdx = originalElem->getNodeIdx(nd);
+    short nd0Idx = originalElem->getNodeIdx(nd0);
+    short nd1Idx = originalElem->getNodeIdx(nd1);
+
+    Element *insertedFace = AddElement();
+    nd->adjacent_elems.push_back(insertedFace);
+
+    Node *split=AddNode();
+    split->InitializeFromAdjacent(nd0, nd1, where);
+    split->isBoundary=true;
+    split->adjacent_elems.push_back(originalElem);
+    split->adjacent_elems.push_back(insertedFace);
+
+    originalElem->nds[nd1Idx] = split;
+    insertedFace->nds[ndIdx] = nd;
+    insertedFace->nds[nd1Idx] = nd1;
+    insertedFace->nds[nd0Idx] = split;
+    insertedFace->edges[nd0Idx] = originalElem->edges[nd0Idx];
+
+    insertedEdge = Edge(nd, split);
+    insertedEdge.AddElement(insertedFace, nd1Idx);
+    insertedEdge.AddElement(originalElem, nd0Idx);
+    insertedEdge.isBoundary = false;
+    insertedEdge.toSplit = true;
+
+//    insertedFace->edges[nd1Idx] = insertedEdge;
+//    originalElem->edges[nd0Idx] = insertedEdge;
+
+
+    Edge exteriorEdge1 = Edge(split, nd1);
+    exteriorEdge1.isBoundary = true;
+    exteriorEdge1.AddElement(insertedFace, ndIdx);
+    insertedFace->edges[ndIdx] = exteriorEdge1;
+
+    Edge exteriorEdge2 = Edge(split, nd0);
+    exteriorEdge2.isBoundary = true;
+    exteriorEdge2.AddElement(originalElem, ndIdx);
+    originalElem->edges[ndIdx] = exteriorEdge2;
+
+    originalElem->InitializePersistentVariables();
+    insertedFace->InitializePersistentVariables();
+
+    originalElem->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
+    insertedFace->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
+}
+

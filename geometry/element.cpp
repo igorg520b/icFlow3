@@ -282,10 +282,10 @@ void icy::Element::ComputeNormal()
 
 
 //=============== fracture helpers
-icy::Node* icy::Element::getOppositeNode(icy::Edge *edge)
+icy::Node* icy::Element::getOppositeNode(icy::Edge edge)
 {
-    icy::Node *nd0 = edge->nds[0];
-    icy::Node *nd1 = edge->nds[1];
+    icy::Node *nd0 = edge.nds[0];
+    icy::Node *nd1 = edge.nds[1];
 
     for(int i=0;i<3;i++)
     {
@@ -313,13 +313,14 @@ std::pair<int,int> icy::Element::getOppositeEdge(icy::Node *nd)
 
 void icy::Element::ReplaceNode(icy::Node *replaceWhat, icy::Node *replaceWith)
 {
-    if(nds[0] == replaceWhat) { nds[0] = replaceWith; return; }
-    if(nds[1] == replaceWhat) { nds[1] = replaceWith; return; }
-    if(nds[2] == replaceWhat) { nds[2] = replaceWith; return; }
-    throw std::runtime_error("replaceWhat is not in nds[]");
+    if(nds[0] == replaceWhat) nds[0] = replaceWith;
+    else if(nds[1] == replaceWhat) nds[1] = replaceWith;
+    else if(nds[2] == replaceWhat) nds[2] = replaceWith;
+    else throw std::runtime_error("replaceWhat is not in nds[]");
+    InitializePersistentVariables();
 }
 
-void icy::Element::Initialize(icy::Node* nd0, icy::Node* nd1, icy::Node* nd2, bool orientation)
+void icy::Element::Initialize(Node* nd0, Node* nd1, Node* nd2, bool orientation)
 {
     nds[0] = nd0;
     if(orientation) {
@@ -330,9 +331,10 @@ void icy::Element::Initialize(icy::Node* nd0, icy::Node* nd1, icy::Node* nd2, bo
         nds[1] = nd2;
     }
     InitializePersistentVariables();
+    for(int i=0;i<3;i++) edges[i] = Edge(nds[(i+1)%3],nds[(i+2)%3]);
 }
 
-bool icy::Element::Orientation(icy::Node* nd0, icy::Node* nd1)
+bool icy::Element::Orientation(const icy::Node* nd0, const icy::Node* nd1)
 {
     if(nds[0] == nd0 && nds[1] == nd1) return true;
     if(nds[1] == nd0 && nds[0] == nd1) return false;
@@ -439,5 +441,13 @@ icy::Edge icy::Element::getEdgeOppositeToNode(icy::Node *nd)
     else if(nd==nds[2]) thisIdx=2;
     else throw std::runtime_error("getIdxs; node does not belong to the element");
     return edges[thisIdx];
+}
+
+short icy::Element::getNodeIdx(Node *nd)
+{
+    if(nds[0]==nd) return 0;
+    else if(nds[1]==nd) return 1;
+    else if(nds[2]==nd) return 2;
+    else throw std::runtime_error("getNodeIdx");
 }
 

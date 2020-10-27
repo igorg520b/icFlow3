@@ -237,9 +237,10 @@ void icy::Node::Reset()
     adjacent_elems.clear();
     crack_tip = support_node = core_node = false;
     timeLoadedAboveThreshold = 0;
+    weakening_direction = Eigen::Vector2f::Zero();
 }
 
-void icy::Node::InitializeFromAdjacent(icy::Node *nd0, icy::Node *nd1, double f)
+void icy::Node::InitializeFromAdjacent(const Node *nd0, const Node *nd1, double f)
 {
     x_initial = nd0->x_initial*f + nd1->x_initial*(1-f);
     ut = nd0->ut*f + nd1->ut*(1-f);
@@ -252,7 +253,7 @@ void icy::Node::InitializeFromAdjacent(icy::Node *nd0, icy::Node *nd1, double f)
     an = nd0->an*f + nd1->an*(1-f);
 }
 
-void icy::Node::InitializeFromAnother(icy::Node *nd)
+void icy::Node::InitializeFromAnother(const Node *nd)
 {
     x_initial = nd->x_initial;
     ut = nd->ut;
@@ -438,8 +439,19 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
     unsigned gridPts = isBoundary ? nFan+1 : nFan;
 
     float grid_results[gridPts];
-    for(unsigned i=0; i<nFan; i++) grid_results[i] = normal_traction(fan[i].angle0, weakening_coeff);
-    if(isBoundary) grid_results[nFan] = normal_traction(fan[nFan-1].angle1, weakening_coeff);
+    for(unsigned i=0; i<nFan; i++)
+    {
+        grid_results[i] = normal_traction(fan[i].angle0, weakening_coeff);
+#ifdef QT_DEBUG
+        if(std::isnan(grid_results[i])) throw std::runtime_error("traction is nan");
+#endif
+    }
+    if(isBoundary) {
+        grid_results[nFan] = normal_traction(fan[nFan-1].angle1, weakening_coeff);
+#ifdef QT_DEBUG
+        if(std::isnan(grid_results[nFan])) throw std::runtime_error("traction is nan");
+#endif
+    }
 
     float *highest_grid_pt = std::max_element(grid_results, &grid_results[gridPts]);
     unsigned idx = std::distance(grid_results, highest_grid_pt);
@@ -490,12 +502,16 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
 }
 
 
-void icy::Node::PrepareFan2()
+void icy::Node::PrepareFan2(bool assert)
 {
     Eigen::Vector3d nd_vec = x_initial.block(0,0,3,1);
 
     unsigned nElems = adjacent_elems.size();
-    if(nElems == 0) throw std::runtime_error("disconnected node");
+    if(nElems == 0)
+    {
+        qDebug() << "node " << this->locId;
+        throw std::runtime_error("disconnected node");
+    }
     fan.clear();
     for(unsigned k=0;k<nElems;k++)
     {
@@ -537,17 +553,19 @@ void icy::Node::PrepareFan2()
         }
         std::rotate(fan.begin(), cw_boundary, fan.end());
     }
-
-    // assert that the nodes of the fan connect
-    for(std::size_t i = 0;i<fan.size()-1;i++)
-    {
-        if(fan[i].nd[1] != fan[i+1].nd[0])
+    if(assert) {
+        // assert that the nodes of the fan connect
+        for(std::size_t i = 0;i<fan.size()-1;i++)
         {
-            PrintoutFan();
-            throw std::runtime_error("fan nodes are not contiguous");
+            if(fan[i].nd[1] != fan[i+1].nd[0])
+            {
+                std::cout << "\n\n\nfan nodes are not contiguous " << locId << std::endl;
+                PrintoutFan();
+                throw std::runtime_error("fan nodes are not contiguous");
+            }
+            if(fan[i].e[1].nds[0] != fan[i+1].e[0].nds[0] || fan[i].e[1].nds[1] != fan[i+1].e[0].nds[1])
+                throw std::runtime_error("edges not shared");
         }
-        if(fan[i].e[1].nds[0] != fan[i+1].e[0].nds[0] || fan[i].e[1].nds[1] != fan[i+1].e[0].nds[1])
-            throw std::runtime_error("edges not shared");
     }
 }
 
@@ -560,11 +578,14 @@ void icy::Node::PrintoutFan()
     for(Sector &s : fan)
     {
         std::cout << s.nd[0]->locId << "-" << s.nd[1]->locId;
-        std::cout << " ; eCW " << s.e[0].nds[0]->locId << "-" << s.e[0].nds[1]->locId << (s.e[0].isBoundary ? " b; " : " nb;");
-        std::cout << " ; eCCW " << s.e[1].nds[0]->locId << "-" << s.e[1].nds[1]->locId << (s.e[1].isBoundary ? " b; " : " nb;");
+        std::cout << " ; eCW " << s.e[0].nds[0]->locId << "-" << s.e[0].nds[1]->locId << (s.e[0].isBoundary ? " b " : " nb ");
+        std::cout << (s.e[0].toSplit ? "*" : " ");
+        std::cout << "; eCCW " << s.e[1].nds[0]->locId << "-" << s.e[1].nds[1]->locId << (s.e[1].isBoundary ? " b " : " nb ");
+        std::cout << (s.e[1].toSplit ? "*" : " ");
         std::cout << std::endl;
     }
     std::cout << "--------------------------------\n";
     std::cout << std::endl;
-
+    for(int i=0;i<100;i++)
+    std::cout << std::flush;
 }

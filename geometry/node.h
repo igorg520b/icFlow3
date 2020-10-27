@@ -21,8 +21,8 @@ class icy::Node
 public:
     Node();
     void Reset();
-    void InitializeFromAdjacent(icy::Node *nd0, icy::Node *nd1, double f);
-    void InitializeFromAnother(icy::Node *nd);
+    void InitializeFromAdjacent(const Node *nd0, const Node *nd1, double f);
+    void InitializeFromAnother(const Node *nd);
 
     static const int NumberOfSerializedFields = 19; // number of double values saved to file
 
@@ -71,7 +71,7 @@ public:
     Eigen::Vector3d normal_n;   // averaged normal of the surrounding elements
 
     // set the size and initialize with adjacent elements
-    void PrepareFan2();  // performed when topology changes
+    void PrepareFan2(bool assert = true);  // performed when topology changes
     void InitializeFan(); // performed when tentative displacements and stress distribution change
     float fan_angle_span;  // assigned in InitializeFan();
 
