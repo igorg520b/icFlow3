@@ -122,30 +122,36 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
     }
     maxNode->dir*=3;
 
+    local_elems.clear();
+    std::copy(maxNode->adjacent_elems.begin(),maxNode->adjacent_elems.end(),std::back_inserter(local_elems));
+
     local_support.clear();
     local_support.push_back(maxNode);
 
     // prevent the nodes surrounging maxNode from fracturing
-    CreateSupportRange(prms.substep_radius, local_support);
-    for(Node *nd : local_support) nd->timeLoadedAboveThreshold = 0;
+    CreateSupportRange(prms.substep_radius, local_elems);
+    std::unordered_set<Node*> local_support_set;
+    for(Element *elem : local_elems)
+        for(int k=0;k<3;k++) local_support_set.insert(elem->nds[k]);
+    local_support.clear();
+    std::copy(local_support_set.begin(), local_support_set.end(),std::back_inserter(local_support));
 
-    CreateSupportRange(prms.substep_radius, breakable_range);
+    local_elems2.clear();
+    std::copy(local_elems.begin(), local_elems.end(), std::back_inserter(local_elems2));
+    CreateSupportRange(prms.substep_radius2, local_elems2);
+    for(Element *e : local_elems2)
+        for(int k=0;k<3;k++) e->nds[k]->timeLoadedAboveThreshold=0;
+
 
     // for visualization - mark support range (stored in breakable_range)
     for(icy::Node *nd : *nodes) nd->support_node = false;
-    for(icy::Node *nd : breakable_range) nd->support_node = true; // for visualization
-
-    // create a list of elements corresponding to breakable_range
-    local_elems_set.clear();
-    local_elems.clear();
-    for(icy::Node *nd : breakable_range) for(icy::Element *elem : nd->adjacent_elems) local_elems_set.insert(elem);
-    if(local_elems_set.size()>0) std::copy(local_elems_set.begin(), local_elems_set.end(), std::back_inserter(local_elems));
+    for(icy::Node *nd : local_support) nd->support_node = true; // for visualization
 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
 
-void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Node*> &initial_set)
+void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Element*> &initial_set)
 {
     tmp_range0->clear();
     tmp_range1->clear();
@@ -157,10 +163,10 @@ void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Node*> &in
     for(int i=0;i<neighborLevel;i++)
     {
         std::swap(tmp_range0, tmp_range1);
-        for(icy::Node *nd : *tmp_range1) {
-            tmp_range0->insert(nd);
-            for(icy::Node *nd2 : nd->adjacent_nodes)
-                tmp_range0->insert(nd2);
+        for(icy::Element *elem : *tmp_range1) {
+            for(int k=0;k<3;k++)
+                if(elem->adj_elems[k]!=nullptr)
+                    tmp_range0->insert(elem->adj_elems[k]);
         }
     }
     initial_set.clear();
@@ -345,6 +351,7 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
     nd->crack_tip = false;
 
     UpdateEdges();
+//    CreateEdges2();
 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
@@ -413,7 +420,7 @@ void icy::Geometry::CarefulSplitNonBoundaryElem(Element *originalElem, Element *
     short nd0Idx_orig = originalElem->getNodeIdx(nd0);
     short nd1Idx_orig = originalElem->getNodeIdx(nd1);
 
-    Node *oppositeNode = adjElem->getOppositeNode(originalElem->edges[ndIdx_orig]);
+    Node *oppositeNode = adjElem->getOppositeNode(nd0, nd1);
     short nd0Idx_adj = adjElem->getNodeIdx(nd0);
     short nd1Idx_adj = adjElem->getNodeIdx(nd1);
     short oppIdx_adj = adjElem->getNodeIdx(oppositeNode);
@@ -540,27 +547,39 @@ void icy::Geometry::CarefulSplitBoundaryElem(Element *originalElem, Node *nd,
 
 void icy::Geometry::UpdateEdges()
 {
-    std::unordered_set<Node*> affected_nodes_during_split;
-    std::unordered_set<Element *> expanded_set_elems;
-    for(Element *elem : affected_elements_during_split)
+    std::unordered_set<Node*> affected_nodes_during_split; // their neighbors are also affected
+    std::unordered_set<Element *> expanded_set_elems1;
+    std::unordered_set<Element *> expanded_set_elems2;
+
+    for(Element *elem : affected_elements_during_split) {
         for(int k=0;k<3;k++) {
             affected_nodes_during_split.insert(elem->nds[k]);
-            if(elem->adj_elems[k]!=nullptr) expanded_set_elems.insert(elem->adj_elems[k]);
-            elem->adj_elems[k]=nullptr;
+            if(elem->adj_elems[k]!=nullptr) expanded_set_elems1.insert(elem->adj_elems[k]);
         }
+        expanded_set_elems1.insert(elem);
+    }
 
     for(Node *nd : affected_nodes_during_split)
     {
-        for(Element *elem : nd->adjacent_elems) expanded_set_elems.insert(elem);
+        for(Element *elem : nd->adjacent_elems) expanded_set_elems2.insert(elem);
         nd->adjacent_elems.clear();
-        nd->adjacent_nodes.clear();
         nd->area=0;
         nd->isBoundary=false;
     }
 
+    for(Element *elem : expanded_set_elems1) {
+        for(int k=0;k<3;k++) {
+            if(elem->adj_elems[k]!=nullptr) expanded_set_elems2.insert(elem->adj_elems[k]);
+            elem->adj_elems[k]=nullptr;
+        }
+        expanded_set_elems2.insert(elem);
+    }
+
+
+
     std::unordered_map<uint64_t, Edge> edges_map;
 
-    for(Element *elem : expanded_set_elems)
+    for(Element *elem : expanded_set_elems2)
     {
         for(int i=0;i<3;i++)
         {
@@ -586,7 +605,7 @@ void icy::Geometry::UpdateEdges()
     }
 
     // note that edges_map may contain edges outside of affected_elements
-    for(Element *elem : expanded_set_elems)
+    for(Element *elem : expanded_set_elems2)
     {
         for(int i=0;i<3;i++)
         {
@@ -602,7 +621,7 @@ void icy::Geometry::UpdateEdges()
 
     std::unordered_map<uint64_t, Edge> correctly_inferred_edges;
     // only take edges in the affected_elements set
-    for(Element *elem : affected_elements_during_split)
+    for(Element *elem : expanded_set_elems1)
     {
         for(int i=0;i<3;i++)
         {
@@ -648,11 +667,6 @@ void icy::Geometry::UpdateEdges()
             elem_of_edge0->adj_elems[idx0] = elem_of_edge1;
             elem_of_edge1->adj_elems[idx1] = elem_of_edge0;
         }
-
-        icy::Node *nd0 = existing_edge.nds[0];
-        icy::Node *nd1 = existing_edge.nds[1];
-        nd0->adjacent_nodes.push_back(nd1);
-        nd1->adjacent_nodes.push_back(nd0);
 
         if(existing_edge.isBoundary) boundaryEdges.push_back(existing_edge);
     }

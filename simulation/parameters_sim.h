@@ -52,6 +52,7 @@ class icy::SimParams : public QObject
     Q_PROPERTY(double f_epsilon MEMBER fracture_epsilon NOTIFY propertyChanged)
     Q_PROPERTY(double f_CharacteristicLengthMax MEMBER CharacteristicLengthMax NOTIFY propertyChanged)
     Q_PROPERTY(int f_substep_radius MEMBER substep_radius NOTIFY propertyChanged)
+    Q_PROPERTY(int f_substep_radius2 MEMBER substep_radius2 NOTIFY propertyChanged)
     Q_PROPERTY(bool f_enable MEMBER fracture_enable NOTIFY propertyChanged)
     Q_PROPERTY(int f_max_substeps MEMBER fracture_max_substeps NOTIFY propertyChanged)
     Q_PROPERTY(int f_substep_iterations MEMBER substep_iterations NOTIFY propertyChanged)
@@ -78,7 +79,7 @@ public:
     float normal_traction_threshold;
     float fracture_epsilon;
     double CharacteristicLengthMax; // initial meshing
-    int substep_radius; // how many neighbor levels involved in local substep
+    int substep_radius, substep_radius2; // how many neighbor levels involved in local substep
     bool fracture_enable;
     int fracture_max_substeps;
     int substep_iterations;
@@ -87,6 +88,7 @@ public:
     double wave_height;
     double wave_start_location;
     double substepping_timestep_factor;
+    double cutoff_coefficient; // used to reduce the computation cost of max_traction
 
     // other
 
@@ -122,7 +124,8 @@ public:
         normal_traction_threshold = 47000;
         fracture_epsilon = 0.1;
         CharacteristicLengthMax = 0.5;
-        substep_radius = 7;
+        substep_radius = 5;
+        substep_radius2 = 100;
         fracture_enable = true;
         fracture_max_substeps=1000;
         substep_iterations = 2;
@@ -130,7 +133,8 @@ public:
         temporal_attenuation = 0.2;
         wave_height = 1;
         substepping_timestep_factor = 0.1;
-        wave_start_location = 10.3;
+        wave_start_location = 10;
+        cutoff_coefficient = 0.4;
 
         emit propertyChanged();
     }
@@ -185,6 +189,7 @@ public:
         oa << wave_height;
         oa << wave_start_location;
         oa << substepping_timestep_factor;
+        oa << substep_radius2;
     }
 
     void Deserialize()
@@ -220,6 +225,7 @@ public:
         oa >> wave_height;
         oa >> wave_start_location;
         oa >> substepping_timestep_factor;
+        oa >> substep_radius2;
     }
 
 

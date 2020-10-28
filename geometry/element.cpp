@@ -178,11 +178,11 @@ void icy::Element::EvaluateStresses(icy::SimParams &prms,
     for(int i=0;i<3;i++) str_s[i] = D_mats*bmat_s[i]*u*(thickness/3.0);
 
     // stress on top/bottom of the plate and corresponding principal stresses
-    str_b_top = elasticityMatrix*bmat_b*u*area_initial*(-thickness/2);
+    str_b_top = elasticityMatrix*bmat_b*u*(-thickness/2);
 
-    float sx = str_b_top.coeff(0) + str_m(0);
-    float sy = str_b_top.coeff(1) + str_m(1);
-    float txy = str_b_top.coeff(2) + str_m(2);
+    float sx = str_b_top.coeff(0) + str_m.coeff(0);
+    float sy = str_b_top.coeff(1) + str_m.coeff(1);
+    float txy = str_b_top.coeff(2) + str_m.coeff(2);
     str_top << sx, txy, txy, sy;
 
     float coeff1 = sqrt((sx-sy)*(sx-sy)+txy*txy*4.0);
@@ -190,11 +190,11 @@ void icy::Element::EvaluateStresses(icy::SimParams &prms,
     float s2 = 0.5*(sx+sy-coeff1);
     float max_principal_top = std::max(s1,s2);
 
-    str_b_bottom = elasticityMatrix*bmat_b*u*area_initial*(thickness/2);
+    str_b_bottom = -str_b_top;//elasticityMatrix*bmat_b*u*area_initial*(thickness/2);
 
-    sx = str_b_bottom.coeff(0) + str_m(0);
-    sy = str_b_bottom.coeff(1) + str_m(1);
-    txy = str_b_bottom.coeff(2) + str_m(2);
+    sx = str_b_bottom.coeff(0) + str_m.coeff(0);
+    sy = str_b_bottom.coeff(1) + str_m.coeff(1);
+    txy = str_b_bottom.coeff(2) + str_m.coeff(2);
     str_bottom << sx, txy, txy, sy;
 
     coeff1 = sqrt((sx-sy)*(sx-sy)+txy*txy*4.0);
@@ -203,7 +203,7 @@ void icy::Element::EvaluateStresses(icy::SimParams &prms,
     float max_principal_bottom = std::max(s1,s2);
 
     principal_stress_exceeds_threshold =
-            std::max(max_principal_top, max_principal_bottom) > prms.normal_traction_threshold*0.3;
+            std::max(max_principal_top, max_principal_bottom) > prms.normal_traction_threshold*prms.cutoff_coefficient;
 
     ComputeNormal();
 }
@@ -213,8 +213,8 @@ void icy::Element::DistributeStresses()
     // distribute the values from elements to nodes
     for(int i=0;i<3;i++) {
         Node *nd = nds[i];
-        double coeff1 = area_initial/nd->area;
-        double coeff2 = area_initial/(3*nd->area);
+        double coeff1 = 1.0/nd->adjacent_elems.size();//area_initial/nd->area;
+        double coeff2 = coeff1/3;//area_initial/(3*nd->area);
 
         for(int j=0;j<3;j++)
         {
@@ -308,6 +308,19 @@ icy::Node* icy::Element::getOppositeNode(icy::Edge edge)
     }
     throw std::runtime_error("opposite node not found");
 }
+
+icy::Node* icy::Element::getOppositeNode(Node *nd0, Node* nd1)
+{
+    for(int i=0;i<3;i++)
+    {
+        int idx_next = (i+1)%3;
+        if((nds[i] == nd0 && nds[idx_next] == nd1)||
+                (nds[i] == nd1 && nds[idx_next] == nd0))
+            return nds[(i+2)%3];
+    }
+    throw std::runtime_error("opposite node not found 2");
+}
+
 
 std::pair<int,int> icy::Element::getOppositeEdge(icy::Node *nd)
 {

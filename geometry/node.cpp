@@ -10,7 +10,7 @@
 icy::Node::Node()
 {
     Reset();
-    adjacent_nodes.reserve(10);
+    //adjacent_nodes.reserve(10);
     fan.reserve(10);
 }
 
@@ -241,7 +241,7 @@ void icy::Node::Reset()
     normal_n = Eigen::Vector3d::Zero();
     prescribed = false;
     area = 0;
-    adjacent_nodes.clear();
+    //adjacent_nodes.clear();
     adjacent_elems.clear();
     crack_tip = support_node = core_node = false;
     timeLoadedAboveThreshold = 0;
@@ -459,7 +459,7 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
     unsigned idx = std::distance(grid_results, highest_grid_pt);
 
     // reject if the grid max is low
-    if(*highest_grid_pt < prms.normal_traction_threshold*0.35) return;
+    if(*highest_grid_pt < prms.normal_traction_threshold*prms.cutoff_coefficient) return;
 
     // sectors
     int sector1, sector2;

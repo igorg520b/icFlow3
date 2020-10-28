@@ -62,6 +62,7 @@ public:
 
     // helper functions for fracture
     icy::Node* getOppositeNode(Edge edge);    // return the node across from a given edge
+    icy::Node* getOppositeNode(Node *nd0, Node* nd1);
     std::pair<int,int> getOppositeEdge(Node *nd);
     Eigen::Vector3d getCenter();
 

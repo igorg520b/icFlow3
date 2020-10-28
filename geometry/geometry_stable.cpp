@@ -253,7 +253,7 @@ void icy::Geometry::CreateEdges2()
     for(std::size_t i=0;i<nNodes;i++)
     {
         icy::Node* nd = (*nodes)[i];
-        nd->adjacent_nodes.clear();
+        //nd->adjacent_nodes.clear();
         nd->adjacent_elems.clear();
         nd->isBoundary = false;
         nd->area = 0;
@@ -342,8 +342,8 @@ void icy::Geometry::CreateEdges2()
 
         icy::Node *nd0 = existing_edge.nds[0];
         icy::Node *nd1 = existing_edge.nds[1];
-        nd0->adjacent_nodes.push_back(nd1);
-        nd1->adjacent_nodes.push_back(nd0);
+//        nd0->adjacent_nodes.push_back(nd1);
+//        nd1->adjacent_nodes.push_back(nd0);
     }
 
 #pragma omp parallel for

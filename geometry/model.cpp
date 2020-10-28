@@ -138,7 +138,7 @@ long icy::Model::LocalSubstep(SimParams &prms, double timeStep, double totalTime
     auto t1 = std::chrono::high_resolution_clock::now();
 
     double localTimeStep = timeStep*prms.substepping_timestep_factor;
-    if(floes.breakable_range.size() == 0)
+    if(floes.local_support.size() == 0)
     {
         // this may occur in manual "testing" situation
         qDebug() << "LocalSubstep: support size is zero, aborting";
@@ -147,15 +147,11 @@ long icy::Model::LocalSubstep(SimParams &prms, double timeStep, double totalTime
 
     for(icy::Node *nd : *floes.nodes) nd->lsId=-1;
     int count = 0;
-    for(icy::Node *nd : floes.breakable_range)
-    {
-        nd->support_node = true;
-        nd->lsId = count++;
-    }
+    for(icy::Node *nd : floes.local_support) nd->lsId = count++;
 
     //support_range1
     // similar to AssembleAndSolve, but only run on the local domain
-    std::size_t nNodesLocal = floes.breakable_range.size();
+    std::size_t nNodesLocal = floes.local_support.size();
     std::size_t nElemsLocal = floes.local_elems.size();
     for(int i=0;i<prms.substep_iterations;i++)
     {
@@ -172,7 +168,7 @@ long icy::Model::LocalSubstep(SimParams &prms, double timeStep, double totalTime
 
 #pragma omp parallel for
         for(std::size_t i=0;i<nNodesLocal;i++)
-            floes.breakable_range[i]->ComputeElasticForce(ls, prms, localTimeStep, totalTime);
+            floes.local_support[i]->ComputeElasticForce(ls, prms, localTimeStep, totalTime);
 
         ls.Solve();
         PullFromLinearSystem(localTimeStep, prms.NewmarkBeta, prms.NewmarkGamma);

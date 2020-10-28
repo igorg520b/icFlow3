@@ -200,8 +200,8 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
         for(icy::Node* nd : *nodes) {
             double value;
             if(nd->crack_tip) value = 3;
-            else if(nd->core_node) value = 2;
-            else if(nd->support_node) value = 1;
+            //else if(nd->core_node) value = 2;
+            else if(nd->support_node) value = 2;
             else value = 0;
             visualized_values->SetValue(nd->locId, value);
         }
