@@ -44,11 +44,11 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
 
     double disp_t = xt(2)-water_line;
     double disp_n = xn(2)-water_line;
-    if(prms.loadType==icy::Model::LoadOpt::waterfall) {
+    if(prms.loadType==icy::Model::LoadOpt::waterfall || prms.loadType==icy::Model::LoadOpt::indentation) {
         std::clamp(disp_t, -prms.Thickness/2, prms.Thickness/2);
         std::clamp(disp_n, -prms.Thickness/2, prms.Thickness/2);
     } else if(prms.loadType==icy::Model::LoadOpt::waves_x || prms.loadType==icy::Model::LoadOpt::waves_xy) {
-        spring*=100;
+        spring*=10;
     }
 
     F(2) += disp_t*spring*(1-alpha);
@@ -133,9 +133,9 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
             }
         }
         // add normal buoyancy "spring"
-        F(2) += xt(2)*spring*(1-alpha);
-        F(2) += xn(2)*spring*alpha;
-        dF(2,2) += spring*(1-alpha);
+        //F(2) += xt(2)*spring*(1-alpha);
+        //F(2) += xn(2)*spring*alpha;
+        //dF(2,2) += spring*(1-alpha);
     }
 
 #ifdef QT_DEBUG

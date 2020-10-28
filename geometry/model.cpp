@@ -244,4 +244,7 @@ void icy::Model::IdentifyDisconnectedRegions()
     floes.IdentifyDisconnectedRegions();
     topologyInvalid = displacementsInvalid = valuesInvalid = true;
     if(!updateRequested) { updateRequested = true; emit requestGeometryUpdate(); }
+    mutex.lock();
+    floes.CreateEdges2();
+    mutex.unlock();
 }

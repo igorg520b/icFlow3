@@ -25,7 +25,8 @@ icy::FloeVisualization::FloeVisualization()
     dataSetMapper->SetLookupTable(hueLut);
     actor_mesh->SetMapper(dataSetMapper);
     actor_mesh->GetProperty()->SetColor(218/255.0,228/255.0,242/255.0);
-    actor_mesh->GetProperty()->SetEdgeColor(161.0/255.0, 176.0/255.0, 215.0/255.0);
+//    actor_mesh->GetProperty()->SetEdgeColor(161.0/255.0, 176.0/255.0, 215.0/255.0);
+    actor_mesh->GetProperty()->SetEdgeColor(91.0/255.0, 116.0/255.0, 145.0/255.0);
     actor_mesh->GetProperty()->SetLineWidth(1.5);
     actor_mesh->GetProperty()->LightingOff();
     actor_mesh->GetProperty()->ShadingOff();
