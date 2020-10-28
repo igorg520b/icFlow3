@@ -48,7 +48,7 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
         std::clamp(disp_t, -prms.Thickness/2, prms.Thickness/2);
         std::clamp(disp_n, -prms.Thickness/2, prms.Thickness/2);
     } else if(prms.loadType==icy::Model::LoadOpt::waves_x || prms.loadType==icy::Model::LoadOpt::waves_xy) {
-        spring*=1000;
+        spring*=100;
     }
 
     F(2) += disp_t*spring*(1-alpha);
@@ -121,11 +121,11 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
         double r = sqrt(rsq);
         if(r < ind_radius)
         {
-            double sphere_z = sqrt(ind_radius*ind_radius - rsq) - ind_radius + totalTime*ind_rate+0.09;
+            double sphere_z = sqrt(ind_radius*ind_radius - rsq) - ind_radius + totalTime*ind_rate+0.0;
             if(sphere_z > 0)
             {
                 double indented_position = -sphere_z;
-                double spring2 = spring*1000;
+                double spring2 = spring*100;
                 F(2) += (xt(2)-indented_position)*spring2*(1-alpha);
                 F(2) += (xn(2)-indented_position)*spring2*alpha;
                 dF(2,2) += spring2*(1-alpha);

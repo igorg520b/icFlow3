@@ -468,7 +468,7 @@ void icy::FloeVisualization::UnsafeUpdateWaterLine(double totalTime, SimParams &
     actor_sphere->SetVisibility(mode==4);
     if(mode == icy::Model::LoadOpt::indentation)
     {
-        sphereSource->SetCenter(0.0, 0.0, 1-totalTime*2.0/100-0.09);
+        sphereSource->SetCenter(0.0, 0.0, 1-totalTime*2.0/100-0.00);
         sphereSource->Modified();
         actor_sphere->VisibilityOn();
     } else actor_sphere->VisibilityOff();
