@@ -132,7 +132,7 @@ public:
         weakening_coeff = 0.75;
         temporal_attenuation = 0.2;
         wave_height = 1;
-        substepping_timestep_factor = 0.1;
+        substepping_timestep_factor = 0.001;
         wave_start_location = 10;
         cutoff_coefficient = 0.4;
 

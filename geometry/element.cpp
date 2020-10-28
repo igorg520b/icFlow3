@@ -14,7 +14,7 @@ double icy::Element::N[3][3] = {
 
 void icy::Element::InitializePersistentVariables()
 {
-    x_initial << nds[0]->x_initial, nds[1]->x_initial, nds[2]->x_initial;
+    // x_initial << nds[0]->x_initial, nds[1]->x_initial, nds[2]->x_initial;
     // translate the element
     Eigen::Vector3d p1, p2;
     p1 = nds[1]->x_initial.block(0,0,3,1) - nds[0]->x_initial.block(0,0,3,1);

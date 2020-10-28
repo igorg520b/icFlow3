@@ -150,7 +150,7 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
-
+/*
 void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Element*> &initial_set)
 {
     tmp_range0->clear();
@@ -172,21 +172,55 @@ void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Element*> 
     initial_set.clear();
     std::copy(tmp_range0->begin(), tmp_range0->end(), std::back_inserter(initial_set));
 }
+*/
 
+void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Element*> &initial_set)
+{
+    for(icy::Element *e : *elems) e->traversal = 0;  // set to not-traversed
+    std::queue<Element*> q_wave;
+    for(Element *e : initial_set)
+    {
+        e->traversal=1;
+        q_wave.push(e);
+    }
+    initial_set.clear();
+
+
+    while(q_wave.size() > 0)
+    {
+        icy::Element *elem = q_wave.front();
+        q_wave.pop();
+        initial_set.push_back(elem);
+
+        unsigned short level = elem->traversal;
+        if(level < neighborLevel)
+        {
+            for(int i=0;i<3;i++)
+            {
+                icy::Element *adj_e = elem->adj_elems[i];
+                if(adj_e!= nullptr && adj_e->traversal==0)
+                {
+                    adj_e->traversal=level+1;
+                    q_wave.push(adj_e);
+                }
+            }
+        }
+    }
+}
 
 long icy::Geometry::IdentifyDisconnectedRegions()
 {
     auto t1 = std::chrono::high_resolution_clock::now();
     regions.clear();
-    for(icy::Element *e : *elems) e->traversed = false;  // set to not-traversed
+    for(icy::Element *e : *elems) e->traversal = 0;  // set to not-traversed
 
-    unsigned current_region = 0;
+    unsigned short current_region = 0;
     wave.clear();
     wave.reserve(elems->size());
     area = 0;
     for(icy::Element *e : *elems)
     {
-        if(e->traversed) continue;
+        if(e->traversal != 0) continue;
 
         wave.push_back(e);
         unsigned count_elems = 0;
@@ -197,12 +231,12 @@ long icy::Geometry::IdentifyDisconnectedRegions()
             wave.pop_back();
             count_elems++;
             region_area += elem->area_initial;
-            elem->traversed = true;
+            elem->traversal = 1;
             elem->region = current_region;
             for(int i=0;i<3;i++)
             {
                 icy::Element *adj_e = elem->adj_elems[i];
-                if(adj_e!= nullptr && !adj_e->traversed) wave.push_back(adj_e);
+                if(adj_e!= nullptr && adj_e->traversal==0) wave.push_back(adj_e);
             }
         }
         regions.push_back(std::make_tuple(current_region, region_area, count_elems));

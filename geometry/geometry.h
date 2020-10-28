@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <chrono>
 #include <tuple>
+#include <queue>
 
 #include <QObject>
 #include <QString>
@@ -114,12 +115,13 @@ private:
     icy::SimpleObjectPool<Element> s_pool_elems;
 
     void CreateSupportRange(int neighborLevel, std::vector<Element*> &initial_set);
-    std::unique_ptr<std::unordered_set<Element*>> tmp_range0 = std::make_unique<std::unordered_set<Element*>>();
-    std::unique_ptr<std::unordered_set<Element*>> tmp_range1 = std::make_unique<std::unordered_set<Element*>>();
+//    std::unique_ptr<std::unordered_set<Element*>> tmp_range0 = std::make_unique<std::unordered_set<Element*>>();
+//    std::unique_ptr<std::unordered_set<Element*>> tmp_range1 = std::make_unique<std::unordered_set<Element*>>();
     std::vector<Element*>local_elems2;
 
 
     std::vector<Element*> wave; // used by IdentifyDisconnectedRegions()
+
 //    void RemoveRegion(unsigned idx);
 
 };

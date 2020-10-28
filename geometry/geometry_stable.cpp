@@ -6,8 +6,8 @@
 
 icy::Geometry::Geometry()
 {
-    tmp_range0->reserve(1000);
-    tmp_range1->reserve(1000);
+    //tmp_range0->reserve(1000);
+    //tmp_range1->reserve(1000);
     breakable_range.reserve(100);
     neighbors_of_crack_tip.reserve(100);
     local_support.reserve(100);
@@ -340,8 +340,8 @@ void icy::Geometry::CreateEdges2()
             elem_of_edge1->adj_elems[idx1] = elem_of_edge0;
         }
 
-        icy::Node *nd0 = existing_edge.nds[0];
-        icy::Node *nd1 = existing_edge.nds[1];
+//        icy::Node *nd0 = existing_edge.nds[0];
+//        icy::Node *nd1 = existing_edge.nds[1];
 //        nd0->adjacent_nodes.push_back(nd1);
 //        nd1->adjacent_nodes.push_back(nd0);
     }

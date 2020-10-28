@@ -23,15 +23,15 @@ public:
     icy::Node* nds[3];          // initialized when the geometry is loaded or remeshed
     icy::Edge edges[3];        // element's edges 0-1; 1-2; 2-0;
     icy::Element* adj_elems[3]; // nullptr of no adjacent element
-    unsigned region;
-    bool traversed;             // for traversal when identifying region connectivity
+    unsigned short region;
+    unsigned short traversal;             // for traversal when identifying region connectivity
 
     // at initial state
     double area_initial;
     Eigen::Vector3d normal_initial, normal_n;
     bool initial_normal_up; // normal_initial.z() > 0
 //    Eigen::Vector3d pr1_initial, pr2_initial;
-    Eigen::Matrix<double,DOFS*3,1> x_initial;
+//    Eigen::Matrix<double,DOFS*3,1> x_initial;
 
     // strain-displacement for bending, shear and membrane
     Eigen::Matrix<double,3,DOFS*3> bmat_b;
