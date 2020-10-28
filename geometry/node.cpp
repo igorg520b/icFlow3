@@ -44,12 +44,13 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
 
     double disp_t = xt(2)-water_line;
     double disp_n = xn(2)-water_line;
-    if(prms.loadType==icy::Model::LoadOpt::waterfall || prms.loadType==icy::Model::LoadOpt::indentation) {
-        std::clamp(disp_t, -prms.Thickness/2, prms.Thickness/2);
-        std::clamp(disp_n, -prms.Thickness/2, prms.Thickness/2);
-    } else if(prms.loadType==icy::Model::LoadOpt::waves_x || prms.loadType==icy::Model::LoadOpt::waves_xy) {
-        spring*=10;
-    }
+    std::clamp(disp_t, -prms.Thickness/2, prms.Thickness/2);
+    std::clamp(disp_n, -prms.Thickness/2, prms.Thickness/2);
+
+//    if(prms.loadType==icy::Model::LoadOpt::waterfall || prms.loadType==icy::Model::LoadOpt::indentation) {
+//    } else if(prms.loadType==icy::Model::LoadOpt::waves_x || prms.loadType==icy::Model::LoadOpt::waves_xy) {
+//        spring*=2;
+//    }
 
     F(2) += disp_t*spring*(1-alpha);
     F(2) += disp_n*spring*alpha;
@@ -58,10 +59,7 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
 
     // damping force
     double vert_velocity = WaterLineDt(x_initial(0), x_initial(1), totalTime, prms);
-    //    double max_velocity_difference = 3;
     double velocity_difference = vt.z()-vert_velocity;
-    //    if(velocity_difference > max_velocity_difference) velocity_difference = max_velocity_difference;
-    //    else if(velocity_difference < -max_velocity_difference) velocity_difference = -max_velocity_difference;
 
     F(2) += prms.Damping*mass*(velocity_difference)/timeStep;
     dF(2,2) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
@@ -88,11 +86,11 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
     }
     else if(prms.loadType == icy::Model::LoadOpt::stretch_xy)
     {
-        spring*=10;
+        spring*=100;
         // radial stretch in all directions
         double attenuation10 = totalTime < 20 ? totalTime/20 : 1;
         Eigen::Vector2d vec(x_initial.x(), x_initial.y());
-        vec*=(1+attenuation10/25);
+        vec*=(1+attenuation10*0.1);
 
         Eigen::Vector2d disp_t = xt.block(0,0,2,1)-vec;
         Eigen::Vector2d disp_n = xn.block(0,0,2,1)-vec;
