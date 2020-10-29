@@ -110,15 +110,20 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
         double r = sqrt(rsq);
         if(r < ind_radius)
         {
-            double sphere_z = sqrt(ind_radius*ind_radius - rsq) - ind_radius + totalTime*ind_rate+0.0;
+            double sphere_z = sqrt(ind_radius*ind_radius - rsq) - ind_radius + totalTime*ind_rate;
             if(sphere_z > 0)
             {
                 double indented_position = -sphere_z;
-                double spring2 = spring*100;
-                F(2) += (xt(2)-indented_position)*spring2*(1-alpha);
-                F(2) += (xn(2)-indented_position)*spring2*alpha;
-                dF(2,2) += spring2*(1-alpha);
-                vertical_force = (xt(2)-indented_position)*spring2*(1-alpha) + (xn(2)-indented_position)*spring2*alpha;
+                double disp_t = xt(2)-indented_position;
+                double disp_n = xn(2)-indented_position;
+                double spring2 = 0;//spring;//*100;
+                if(disp_t>0) { spring2=spring*(1+disp_t*100);
+                F(2) += disp_t*spring2*(1-alpha);
+                F(2) += disp_n*spring2*alpha;
+//                dF(2,2) += spring2*(1-alpha);
+                dF(2,2) += spring*(1+disp_t*200)*(1-alpha);
+                vertical_force = (disp_t)*spring2*(1-alpha) + (xn(2)-indented_position)*spring2*alpha;
+                }
             }
         }
     }
