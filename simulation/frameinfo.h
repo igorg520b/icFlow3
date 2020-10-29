@@ -143,8 +143,9 @@ public:
 
         t_other = total - (t_prepare+t_clear_ls+t_force_elem+
                            t_force_buoyancy+t_force_collision+
-                           t_create_structure+t_assemble+t_solve+t_split+t_infer_support+
-                           t_local_substep+t_compute_fracture_directions);
+                           t_create_structure+t_assemble+t_solve+
+                           t_split+t_local_substep+t_compute_fracture_directions+
+                           t_infer_support+t_identify_regions);
 
         // t_total is computed for all frames
         // everything else is presented per frame

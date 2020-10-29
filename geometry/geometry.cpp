@@ -97,8 +97,12 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
         maxNode = *it_nd;
 
         // make sure that the Sector information is updated
+//        qDebug() << "maxnode before " << maxNode->max_normal_traction;
         maxNode->PrepareFan2();
         maxNode->ComputeFanVariablesAlt(prms);
+        maxNode->timeLoadedAboveThreshold = 0;
+//        qDebug() << "maxnode after " << maxNode->max_normal_traction;
+
 #ifdef QT_DEBUG
         std::cout << "\n\nselected node " << maxNode->locId << std::endl;
         std::cout << "breakable range " << breakable_range.size() << "\n";

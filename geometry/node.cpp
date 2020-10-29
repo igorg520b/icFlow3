@@ -243,6 +243,7 @@ void icy::Node::Reset()
     adjacent_elems.clear();
     crack_tip = support_node = core_node = false;
     timeLoadedAboveThreshold = 0;
+    max_normal_traction = 0;
     weakening_direction = Eigen::Vector2f::Zero();
 }
 
