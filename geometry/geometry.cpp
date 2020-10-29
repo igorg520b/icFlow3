@@ -81,7 +81,7 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
                 breakable_range.end());
 
         // update Sector in case if topology changed around this node
-        for(Node *nd : breakable_range) nd->ComputeFanVariablesAlt(prms);
+        for(Node *nd : breakable_range) {nd->PrepareFan2(); nd->ComputeFanVariablesAlt(prms); }
 
     }
 
@@ -91,17 +91,15 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
         // take out maximal node from breakable_range
         auto it_nd = std::max_element(breakable_range.begin(), breakable_range.end(),
                                       [](Node *nd1, Node *nd2) {
-                if(nd2->crack_tip && !nd1->crack_tip) return true;
                 return nd1->max_normal_traction < nd2->max_normal_traction; });
 
         maxNode = *it_nd;
 
         // make sure that the Sector information is updated
-//        qDebug() << "maxnode before " << maxNode->max_normal_traction;
-        maxNode->PrepareFan2();
-        maxNode->ComputeFanVariablesAlt(prms);
+
+//        maxNode->PrepareFan2();
+//        maxNode->ComputeFanVariablesAlt(prms);
         maxNode->timeLoadedAboveThreshold = 0;
-//        qDebug() << "maxnode after " << maxNode->max_normal_traction;
 
 #ifdef QT_DEBUG
         std::cout << "\n\nselected node " << maxNode->locId << std::endl;
@@ -136,7 +134,7 @@ long icy::Geometry::InferLocalSupport(SimParams &prms)
 
     // reset the loading timer in the vicinity of the crack
     local_elems2.clear();
-    std::copy(local_elems.begin(), local_elems.end(), std::back_inserter(local_elems2));
+    std::copy(maxNode->adjacent_elems.begin(),maxNode->adjacent_elems.end(),std::back_inserter(local_elems2));
     CreateSupportRange(prms.substep_radius2, local_elems2);
     for(Element *e : local_elems2) for(int k=0;k<3;k++) e->nds[k]->timeLoadedAboveThreshold=0;
     auto t2 = std::chrono::high_resolution_clock::now();
@@ -144,33 +142,11 @@ long icy::Geometry::InferLocalSupport(SimParams &prms)
 }
 
 
-/*
 void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Element*> &initial_set)
 {
-    tmp_range0->clear();
-    tmp_range1->clear();
+#pragma omp parallel for
+    for(unsigned i=0;i<elems->size();i++) (*elems)[i]->traversal=0;
 
-    std::copy(initial_set.begin(),
-              initial_set.end(),
-              std::inserter(*tmp_range0, tmp_range0->end()));
-
-    for(int i=0;i<neighborLevel;i++)
-    {
-        std::swap(tmp_range0, tmp_range1);
-        for(icy::Element *elem : *tmp_range1) {
-            for(int k=0;k<3;k++)
-                if(elem->adj_elems[k]!=nullptr)
-                    tmp_range0->insert(elem->adj_elems[k]);
-        }
-    }
-    initial_set.clear();
-    std::copy(tmp_range0->begin(), tmp_range0->end(), std::back_inserter(initial_set));
-}
-*/
-
-void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Element*> &initial_set)
-{
-    for(icy::Element *e : *elems) e->traversal = 0;  // set to not-traversed
     std::queue<Element*> q_wave;
     for(Element *e : initial_set)
     {
@@ -178,7 +154,6 @@ void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Element*> 
         q_wave.push(e);
     }
     initial_set.clear();
-
 
     while(q_wave.size() > 0)
     {

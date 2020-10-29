@@ -11,7 +11,7 @@ void icy::Serializer::CreateFile(std::string fileName, unsigned params_size)
 
     file_handle = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
-    const int deflate_val = 0;
+    const int deflate_val = 3;
     // nodes
     hsize_t current_dims_nodes[2] = {0,NodeDataFields}; // can this be replaced by NULL ?
     hsize_t max_dims_nodes[2] = {H5S_UNLIMITED,NodeDataFields};

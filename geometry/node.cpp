@@ -44,13 +44,8 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
 
     double disp_t = xt(2)-water_line;
     double disp_n = xn(2)-water_line;
-    std::clamp(disp_t, -prms.Thickness/2, prms.Thickness/2);
-    std::clamp(disp_n, -prms.Thickness/2, prms.Thickness/2);
-
-//    if(prms.loadType==icy::Model::LoadOpt::waterfall || prms.loadType==icy::Model::LoadOpt::indentation) {
-//    } else if(prms.loadType==icy::Model::LoadOpt::waves_x || prms.loadType==icy::Model::LoadOpt::waves_xy) {
-//        spring*=2;
-//    }
+    std::clamp(disp_t, -prms.Thickness*0.1, prms.Thickness*0.9);
+    std::clamp(disp_n, -prms.Thickness*0.1, prms.Thickness*0.9);
 
     F(2) += disp_t*spring*(1-alpha);
     F(2) += disp_n*spring*alpha;
@@ -60,10 +55,8 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
     // damping force
     double vert_velocity = WaterLineDt(x_initial(0), x_initial(1), totalTime, prms);
     double velocity_difference = vt.z()-vert_velocity;
-
     F(2) += prms.Damping*mass*(velocity_difference)/timeStep;
     dF(2,2) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
-
 
     if(prms.loadType == icy::Model::LoadOpt::stretch_x)
     {
@@ -107,8 +100,6 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
         dF(0,0) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
         F(1) += prms.Damping*mass*(vt.y())/timeStep;
         dF(1,1) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
-
-
     }
     else if(prms.loadType == icy::Model::LoadOpt::indentation)
     {
@@ -130,10 +121,6 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
                 vertical_force = (xt(2)-indented_position)*spring2*(1-alpha) + (xn(2)-indented_position)*spring2*alpha;
             }
         }
-        // add normal buoyancy "spring"
-        //F(2) += xt(2)*spring*(1-alpha);
-        //F(2) += xn(2)*spring*alpha;
-        //dF(2,2) += spring*(1-alpha);
     }
 
 #ifdef QT_DEBUG
