@@ -4,152 +4,142 @@
 #include <algorithm>
 #include <iterator>
 
-void icy::Geometry::EvaluateStresses(SimParams &prms)
-{
-#pragma omp parallel for
-    for(std::size_t i=0;i<elems->size();i++) (*elems)[i]->EvaluateStresses(prms, elasticityMatrix, D_mats);
-}
-
-void icy::Geometry::DistributeStresses()
-{
-    std::size_t nElems = elems->size();
-    std::size_t nNodes = nodes->size();
-#pragma omp parallel for
-    for(std::size_t i=0;i<nNodes;i++) {
-        icy::Node *nd = (*nodes)[i];
-        for(int k=0;k<3;k++) nd->str_b[k] = nd->str_m[k] = nd->str_b_top[k] = nd->str_b_bottom[k] = 0;
-        nd->str_s[0] = nd->str_s[1] = 0;
-        nd->potentially_can_fracture = false;
-    }
-
-#pragma omp parallel for
-    for(std::size_t i=0;i<nElems;i++) (*elems)[i]->DistributeStresses();
-}
 
 long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, bool startingFracture)
 {
+
     auto t1 = std::chrono::high_resolution_clock::now();
 
     maxNode=nullptr;
-    breakable_range.clear();
     double temporal_attenuation = prms.temporal_attenuation;
-    EvaluateStresses(prms);
-    DistributeStresses();
 
     float threashold = prms.normal_traction_threshold;
 
     std::size_t nNodes = nodes->size();
 
-    // first, try to find a "breakable" crack tip
-    // no need for multi-core, because there are few existing crack tips
-    if(!startingFracture)
-    {
-        for(std::size_t i=0;i<nNodes;i++)
-        {
-            icy::Node *nd = (*nodes)[i];
-            if(!nd->crack_tip) continue;
-            nd->InitializeFan();
-            nd->ComputeFanVariablesAlt(prms);
-            if(nd->crack_tip && nd->max_normal_traction > threashold)
-            {
-                maxNode = nd;
-                breakable_range.push_back(maxNode);
-                break;
-            }
-        }
-    }
 
-    // crack tip not found - do a more elaborate search
-    if(maxNode == nullptr)
+    if(startingFracture)
     {
-        // compute max traction and potential fracture direction
+        // evaluate all nodes to compute breakable range
+        breakable_range_concurrent.clear();
+
+        EvaluateStresses(prms, (*elems));
+        DistributeStresses();
+
 #pragma omp parallel for
         for(std::size_t i=0;i<nNodes;i++)
         {
             icy::Node *nd = (*nodes)[i];
             if(nd->potentially_can_fracture)
             {
-                nd->InitializeFan();
-                nd->ComputeFanVariablesAlt(prms);
+                if(nd->timeLoadedAboveThreshold >= temporal_attenuation)
+                {
+                    nd->ComputeFanVariablesAlt(prms);
+                    if(nd->max_normal_traction > threashold) breakable_range_concurrent.push_back(nd);
+                    else nd->timeLoadedAboveThreshold = 0;
+                }
+                else
+                {
+                    nd->timeLoadedAboveThreshold+=timeStep;
+                    nd->max_normal_traction = 0;
+                }
             }
             else
             {
+                nd->timeLoadedAboveThreshold = 0;
                 nd->max_normal_traction = 0;
             }
-
-            if(startingFracture)
-            {
-                nd->core_node = (nd->max_normal_traction > threashold && nd->timeLoadedAboveThreshold >= temporal_attenuation);
-                if(nd->max_normal_traction > threashold) nd->timeLoadedAboveThreshold+=timeStep;
-                else nd->timeLoadedAboveThreshold=0;
-            }
-            else
-            {
-                if(nd->max_normal_traction < threashold || nd->timeLoadedAboveThreshold < temporal_attenuation) nd->core_node = false;
-            }
-
-            if(nd->crack_tip && nd->max_normal_traction > threashold)
-                nd->core_node = true;
-            if(!nd->core_node) nd->dir=Eigen::Vector2f::Zero();
         }
+        breakable_range.clear();
+        std::copy(breakable_range_concurrent.begin(), breakable_range_concurrent.end(), std::back_inserter(breakable_range));
+        std::sort(breakable_range.begin(), breakable_range.end(), [](Node *nd1, Node *nd2)
+        {return nd1->max_normal_traction > nd2->max_normal_traction;});
 
-        // put "core_nodes" into breakable_range
+        const unsigned max_breakable_range = 100;
+        if(breakable_range.size() > max_breakable_range) breakable_range.resize(max_breakable_range);
+    }
+    else
+    {
 
-        std::copy_if(nodes->begin(), nodes->end(), std::back_inserter(breakable_range),
-                     [](icy::Node *nd){return nd->core_node;});
-
-        if(breakable_range.size()==0)
+        // insert the recently created crack tips into the breakable range
+        for(Node *nct : new_crack_tips)
         {
-            maxNode=nullptr;
-            auto t2 = std::chrono::high_resolution_clock::now();
-            return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
-        }
+            nct->ComputeFanVariablesAlt(prms);
+            auto find_result = std::find(breakable_range.begin(), breakable_range.end(),nct);
+            bool already_contains = find_result!=breakable_range.end();
 
-        // give priority to an existing crack tip
-        std::vector<Node*>::iterator it_nd = std::find_if(breakable_range.begin(),
-                                                          breakable_range.end(),
-                                                          [](Node *nd) {return nd->crack_tip;});
-
-        // if no tips, break the node under strongest load
-        if(it_nd == breakable_range.end())
-        {
-            it_nd = std::max_element(breakable_range.begin(), breakable_range.end(),
-                                     [](Node *nd1, Node *nd2) {
-                    return nd1->max_normal_traction < nd2->max_normal_traction; });
+            if(nct->max_normal_traction > threashold && !already_contains)
+                breakable_range.push_back(nct);
+            nct->timeLoadedAboveThreshold = temporal_attenuation;
         }
+        new_crack_tips.clear();
+
+        // remove the nodes that were affected by the crack on the previous step
+        breakable_range.erase(std::remove_if(breakable_range.begin(), breakable_range.end(),
+                                          [temporal_attenuation](Node *nd)
+                              {return nd->timeLoadedAboveThreshold < temporal_attenuation && !nd->crack_tip;}),
+                breakable_range.end());
+
+        // update Sector in case if topology changed around this node
+        for(Node *nd : breakable_range) nd->ComputeFanVariablesAlt(prms);
+
+    }
+
+
+    if(breakable_range.size() > 0)
+    {
+        // take out maximal node from breakable_range
+        auto it_nd = std::max_element(breakable_range.begin(), breakable_range.end(),
+                                      [](Node *nd1, Node *nd2) {
+                if(nd2->crack_tip && !nd1->crack_tip) return true;
+                return nd1->max_normal_traction < nd2->max_normal_traction; });
 
         maxNode = *it_nd;
+
+        // make sure that the Sector information is updated
+        maxNode->PrepareFan2();
+        maxNode->ComputeFanVariablesAlt(prms);
+#ifdef QT_DEBUG
+        std::cout << "\n\nselected node " << maxNode->locId << std::endl;
+        std::cout << "breakable range " << breakable_range.size() << "\n";
+        for(Node *nd : breakable_range)
+            std::cout << nd->locId << "; " << nd->max_normal_traction << (nd->crack_tip ? " *" : "") << std::endl;
+#endif
+        breakable_range.erase(it_nd);
+
     }
-    maxNode->dir*=3;
 
-    local_elems.clear();
-    std::copy(maxNode->adjacent_elems.begin(),maxNode->adjacent_elems.end(),std::back_inserter(local_elems));
-
-    local_support.clear();
-    local_support.push_back(maxNode);
-
-    // prevent the nodes surrounging maxNode from fracturing
-    CreateSupportRange(prms.substep_radius, local_elems);
-    std::unordered_set<Node*> local_support_set;
-    for(Element *elem : local_elems)
-        for(int k=0;k<3;k++) local_support_set.insert(elem->nds[k]);
-    local_support.clear();
-    std::copy(local_support_set.begin(), local_support_set.end(),std::back_inserter(local_support));
-
-    local_elems2.clear();
-    std::copy(local_elems.begin(), local_elems.end(), std::back_inserter(local_elems2));
-    CreateSupportRange(prms.substep_radius2, local_elems2);
-    for(Element *e : local_elems2)
-        for(int k=0;k<3;k++) e->nds[k]->timeLoadedAboveThreshold=0;
-
-
-    // for visualization - mark support range (stored in breakable_range)
-    for(icy::Node *nd : *nodes) nd->support_node = false;
-    for(icy::Node *nd : local_support) nd->support_node = true; // for visualization
 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
+
+long icy::Geometry::InferLocalSupport(SimParams &prms)
+{
+    auto t1 = std::chrono::high_resolution_clock::now();
+    if(maxNode==nullptr) throw std::runtime_error("CreateSupportRange nullptr");
+    local_elems.clear();
+    std::copy(maxNode->adjacent_elems.begin(),maxNode->adjacent_elems.end(),std::back_inserter(local_elems));
+    CreateSupportRange(prms.substep_radius, local_elems);
+
+    std::unordered_set<Node*> local_support_set;
+    for(Element *elem : local_elems) for(int k=0;k<3;k++) local_support_set.insert(elem->nds[k]);
+    local_support.clear();
+    std::copy(local_support_set.begin(), local_support_set.end(),std::back_inserter(local_support));
+    // for visualization - mark support range (stored in breakable_range)
+    for(icy::Node *nd : *nodes) nd->support_node = false;
+    for(icy::Node *nd : local_support) nd->support_node = true; // for visualization
+
+    // reset the loading timer in the vicinity of the crack
+    local_elems2.clear();
+    std::copy(local_elems.begin(), local_elems.end(), std::back_inserter(local_elems2));
+    CreateSupportRange(prms.substep_radius2, local_elems2);
+    for(Element *e : local_elems2) for(int k=0;k<3;k++) e->nds[k]->timeLoadedAboveThreshold=0;
+    auto t2 = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
+}
+
+
 /*
 void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Element*> &initial_set)
 {
@@ -326,6 +316,7 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
 
     if(maxNode == nullptr) throw std::runtime_error("trying to split nullptr");
 
+    new_crack_tips.clear();
     affected_elements_during_split.clear();
 
     icy::Node* nd = maxNode;
@@ -365,10 +356,12 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
         else
         {
             split1->crack_tip = true;
+            new_crack_tips.push_back(split1);
             split1->weakening_direction = Eigen::Vector2f(split1->xt.x()-nd->xt.x(), split1->xt.y()-nd->xt.y());
             split1->weakening_direction.normalize();
         }
     }
+
     Node *split0=splitEdge_fw.getOtherNode(nd);
     if(split0->isBoundary)
     {
@@ -377,6 +370,7 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
     else
     {
         split0->crack_tip = true;
+        new_crack_tips.push_back(split0);
         split0->weakening_direction = Eigen::Vector2f(split0->xt.x()-nd->xt.x(), split0->xt.y()-nd->xt.y());
         split0->weakening_direction.normalize();
     }
@@ -395,6 +389,7 @@ void icy::Geometry::Fix_X_Topology(Node *nd)
 {
     nd->PrepareFan2(false);
     Node *split=AddNode();
+
     split->InitializeFromAnother(nd);
     bool replacing = true;
     for(Node::Sector &s : nd->fan)
@@ -585,13 +580,20 @@ void icy::Geometry::UpdateEdges()
     std::unordered_set<Element *> expanded_set_elems1;
     std::unordered_set<Element *> expanded_set_elems2;
 
-    for(Element *elem : affected_elements_during_split) {
-        for(int k=0;k<3;k++) {
+    for(Element *elem : affected_elements_during_split)
+    {
+        for(int k=0;k<3;k++)
+        {
             affected_nodes_during_split.insert(elem->nds[k]);
             if(elem->adj_elems[k]!=nullptr) expanded_set_elems1.insert(elem->adj_elems[k]);
+            for(Element *elem2 : elem->nds[k]->adjacent_elems) {
+                expanded_set_elems1.insert(elem2);
+                for(int m=0;m<3;m++) affected_nodes_during_split.insert(elem2->nds[m]);
+            }
         }
         expanded_set_elems1.insert(elem);
     }
+
 
     for(Node *nd : affected_nodes_during_split)
     {

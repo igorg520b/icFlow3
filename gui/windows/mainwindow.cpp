@@ -567,8 +567,7 @@ void MainWindow::on_action_show_benchmark_triggered()
 
     if(controller.stepStats.size() > 0)
     {
-        long long total;
-        long long n_solves;
+        long total, n_solves;
         std::vector<std::pair<std::string, long>> results_motion;
         icy::FrameInfo::BenchmarkingSummarize(controller.stepStats, results_motion, total, n_solves);
         total/=1000000;

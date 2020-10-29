@@ -74,7 +74,12 @@ icy::Node* icy::Edge::getOtherNode(icy::Node *center_node) const
 {
     if(center_node == nds[0]) return nds[1];
     else if(center_node == nds[1]) return nds[0];
-    else throw std::runtime_error("center node does not belong to the edge");
+    else
+    {
+        qDebug() << "center node " << center_node->locId;
+        qDebug() << "edge " << nds[0]->locId << " - " << nds[1]->locId;
+        throw std::runtime_error("center node does not belong to the edge");
+    }
 }
 
 icy::Element* icy::Edge::getTheOnlyElement()

@@ -50,8 +50,8 @@ public:
 
     long PullFromLinearSystem(double timeStep, double beta, double gamma);
     void AcceptTentativeValues(SimParams &prms);
-    void FractureStep(SimParams &prms, double timeStep, double totalTime, long &b_substep, long &b_directions, long &b_split);
-    void IdentifyDisconnectedRegions();
+    void FractureStep(SimParams &prms, double timeStep, double totalTime, long &b_substep, long &b_directions, long &b_split, long &b_support);
+    long IdentifyDisconnectedRegions();
     void UnsafeUpdateGeometry(double simulationTime, SimParams &prms); // to be called from the main thread
     void RestoreFromSerializationBuffers(SimParams &prms); // called from controller after loading data from a file
 

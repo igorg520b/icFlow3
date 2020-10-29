@@ -40,7 +40,7 @@ public:
     Eigen::Matrix<double,DOFS*3,DOFS*3> K;    // element stiffness matrix (3 gauss points)
 
     // sress values / visualization
-    Eigen::Vector3d str_b, str_m, str_b_top, str_b_bottom;
+    Eigen::Vector3d str_b, str_m, str_b_top;
     Eigen::Vector2d str_s[3];
     Eigen::Matrix2f str_top, str_bottom;    // stress on top and bottom surface of the plate, as 3x3 matrix
     bool principal_stress_exceeds_threshold;

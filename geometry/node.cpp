@@ -431,6 +431,7 @@ float icy::Node::normal_traction(float angle_fwd, float weakening_coeff) const
 
 void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
 {
+    InitializeFan();
     max_normal_traction = 0;
     unsigned nFan = fan.size();
 

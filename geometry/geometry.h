@@ -38,9 +38,7 @@ public:
 
     // nodes, elements and edges
     std::unique_ptr<std::vector<icy::Node*>> nodes = std::make_unique<std::vector<icy::Node*>>();
-    std::unique_ptr<std::vector<icy::Node*>> nodes2 = std::make_unique<std::vector<icy::Node*>>();
     std::unique_ptr<std::vector<icy::Element*>> elems = std::make_unique<std::vector<icy::Element*>>();
-    std::unique_ptr<std::vector<icy::Element*>> elems2 = std::make_unique<std::vector<icy::Element*>>();
 
     double length, width, area;
 
@@ -61,11 +59,14 @@ public:
     unsigned getFreeNodeCount() {
         return std::count_if(nodes->begin(), nodes->end(), [](Node* &nd){return !nd->prescribed;}); }
 
-    void EvaluateStresses(SimParams &prms);     // needed for ComputeFractureDirections
+    void EvaluateStresses(SimParams &prms, std::vector<Element*> &elems_range);     // needed for ComputeFractureDirections
     void DistributeStresses();                  // needed for visualization
     long ComputeFractureDirections(SimParams &prms, double timeStep = 0, bool startingFracture = false); // sets maxNode to breakable node
+    long InferLocalSupport(SimParams &prms);
+    void EvaluateAllNormalTractions(SimParams &prms); // for visualization when reloading from file
 
     long SplitNodeAlt(SimParams &prms);
+    std::vector<Node*> new_crack_tips; // populated by SplitNodeAlt
 
     // save/load
     void WriteToSerializationBuffers();
@@ -74,7 +75,9 @@ public:
     std::vector<int> elems_buffer;
 
     // fracture
-    std::vector<Node*> breakable_range, neighbors_of_crack_tip, local_support;
+    tbb::concurrent_vector<Node*> breakable_range_concurrent;
+    std::vector<Node*> breakable_range;
+    std::vector<Node*> neighbors_of_crack_tip, local_support;
     std::vector<Element*> local_elems; // elems corresponding to breakable_range;
     std::unordered_set<Element*> local_elems_set; // for computing local_elems
     icy::Node *maxNode = nullptr;
@@ -90,7 +93,6 @@ private:
     Eigen::Matrix3d elasticityMatrix;        // this has to be pre-computed whenever Y and nu change
     Eigen::Matrix2d D_mats;
 
-    void SwapCurrentAndTmp();
     void ResizeNodes(std::size_t newSize);
     void ResizeElems(std::size_t newSize);
 
@@ -115,11 +117,7 @@ private:
     icy::SimpleObjectPool<Element> s_pool_elems;
 
     void CreateSupportRange(int neighborLevel, std::vector<Element*> &initial_set);
-//    std::unique_ptr<std::unordered_set<Element*>> tmp_range0 = std::make_unique<std::unordered_set<Element*>>();
-//    std::unique_ptr<std::unordered_set<Element*>> tmp_range1 = std::make_unique<std::unordered_set<Element*>>();
     std::vector<Element*>local_elems2;
-
-
     std::vector<Element*> wave; // used by IdentifyDisconnectedRegions()
 
 //    void RemoveRegion(unsigned idx);

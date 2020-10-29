@@ -99,12 +99,12 @@ public:
         MaxSteps = 2000;
 
         // integration
-        InitialTimeStep = 0.025;
+        InitialTimeStep = 0.02;
 
         ConvergenceEpsilon = 0.01;
         ConvergenceCutoff = 1E-8;
         IterationsMax = 10;
-        IterationsMin = 3;
+        IterationsMin = 2;
 
         // material parameters and physical constants
         gravity = 9.81;

@@ -52,8 +52,10 @@ public:
 
     // fracture-related
     long b_split;
-    long b_local_substep=0;
+    long b_local_substep;
     long b_compute_fracture_directions;
+    long b_infer_support;
+    long b_identify_regions;
 
     void BenchmarkingClear()
     {
@@ -71,6 +73,8 @@ public:
         b_split = 0;
         b_local_substep = 0;
         b_compute_fracture_directions = 0;
+        b_infer_support = 0;
+        b_identify_regions = 0;
     }
 
     void Reset() {
@@ -91,24 +95,26 @@ public:
 
     static void BenchmarkingSummarize(std::vector<icy::FrameInfo> &stepStats,
                                       std::vector<std::pair<std::string, long>> &timing_motion,
-                                      long long &total,
-                                      long long &n_solves)
+                                      long &total,
+                                      long &n_solves)
     {
-        long long t_other = 0;
+        long t_other = 0;
 
-        long long t_prepare = 0;
-        long long t_clear_ls = 0;
-        long long t_force_elem = 0;
-        long long t_force_buoyancy = 0;
-        long long t_force_collision = 0;
-        long long t_create_structure = 0;
-        long long t_assemble = 0;
-        long long t_solve = 0;
-        long long t_pull_from_ls = 0;
+        long t_prepare = 0;
+        long t_clear_ls = 0;
+        long t_force_elem = 0;
+        long t_force_buoyancy = 0;
+        long t_force_collision = 0;
+        long t_create_structure = 0;
+        long t_assemble = 0;
+        long t_solve = 0;
+        long t_pull_from_ls = 0;
 
-        long long t_split = 0;
-        long long t_local_substep = 0;
-        long long t_compute_fracture_directions = 0;
+        long t_split = 0;
+        long t_local_substep = 0;
+        long t_compute_fracture_directions = 0;
+        long t_infer_support = 0;
+        long t_identify_regions = 0;
 
         total = 0;
         n_solves = 0;
@@ -127,15 +133,17 @@ public:
             t_pull_from_ls += f.b_pull_from_ls;
 
             t_split += f.b_split;
-            t_local_substep += (long long)f.b_local_substep;
+            t_local_substep += f.b_local_substep;
             t_compute_fracture_directions += f.b_compute_fracture_directions;
+            t_infer_support += f.b_infer_support;
+            t_identify_regions += f.b_identify_regions;
 
             n_solves += f.count_solves;
         }
 
         t_other = total - (t_prepare+t_clear_ls+t_force_elem+
                            t_force_buoyancy+t_force_collision+
-                           t_create_structure+t_assemble+t_solve+//t_pull_from_ls+t_split+
+                           t_create_structure+t_assemble+t_solve+t_split+t_infer_support+
                            t_local_substep+t_compute_fracture_directions);
 
         // t_total is computed for all frames
@@ -155,24 +163,28 @@ public:
         t_split/=1000;
         t_local_substep/=1000;
         t_compute_fracture_directions/=1000;
+        t_infer_support/=1000;
+        t_identify_regions/=1000;
 
         timing_motion.clear();
 
-        timing_motion.push_back(std::make_pair<std::string, long>("prep",t_prepare));
-        timing_motion.push_back(std::make_pair<std::string, long>("clear_ls",t_clear_ls));
-        timing_motion.push_back(std::make_pair<std::string, long>("elem_frc",t_force_elem));
-        timing_motion.push_back(std::make_pair<std::string, long>("buoy_frc",t_force_buoyancy));
-        timing_motion.push_back(std::make_pair<std::string, long>("coll_frc",t_force_collision));
-        timing_motion.push_back(std::make_pair<std::string, long>("ls_strct",t_create_structure));
-        timing_motion.push_back(std::make_pair<std::string, long>("assemble",t_assemble));
-        timing_motion.push_back(std::make_pair<std::string, long>("solve",t_solve));
-//        timing_motion.push_back(std::make_pair<std::string, long>("pull",t_pull_from_ls));
+        timing_motion.push_back({"prep",t_prepare});
+        timing_motion.push_back({"clear_ls",t_clear_ls});
+        timing_motion.push_back({"elem_frc",t_force_elem});
+        timing_motion.push_back({"buoy_frc",t_force_buoyancy});
+        timing_motion.push_back({"coll_frc",t_force_collision});
+        timing_motion.push_back({"ls_strct",t_create_structure});
+        timing_motion.push_back({"assemble",t_assemble});
+        timing_motion.push_back({"solve",t_solve});
+//        timing_motion.push_back({"pull",t_pull_from_ls));
 
-//        timing_motion.push_back(std::make_pair<std::string, long>("split",t_split));
-        timing_motion.push_back(std::make_pair<std::string, long>("substep",(long)t_local_substep));
-        timing_motion.push_back(std::make_pair<std::string, long>("frac_dir",t_compute_fracture_directions));
+        timing_motion.push_back({"split",t_split});
+        timing_motion.push_back({"substep",t_local_substep});
+        timing_motion.push_back({"frac_dir",t_compute_fracture_directions});
+        timing_motion.push_back({"support",t_infer_support});
+        timing_motion.push_back({"regions",t_identify_regions});
 
-        timing_motion.push_back(std::make_pair<std::string, long>("other",t_other));
+        timing_motion.push_back({"other",t_other});
     }
 
 };

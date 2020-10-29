@@ -44,6 +44,7 @@ void icy::ModelController::Load(QString fileName)
     serializer.LoadParams(prms.serialization_buffer, SimParams::buffer_size);
     prms.Deserialize();
     serializer.ReadSteps(stepStats);
+    stepStats.front().BenchmarkingClear();
     GoToStep(0);
 }
 
@@ -227,18 +228,24 @@ void icy::ModelController::Aborting()
 
 void icy::ModelController::Fracture()
 {
+    if(!prms.fracture_enable)
+    {
+        model.floes.EvaluateAllNormalTractions(prms);
+        return;
+    }
+
     ts.b_compute_fracture_directions += model.floes.ComputeFractureDirections(prms, ts.TimeStep, true);
-    if(!prms.fracture_enable) return;
     int count=0;
     model.floes_vtk.update_minmax = false;
 
     while(model.floes.maxNode != nullptr && count < prms.fracture_max_substeps && !abort_requested)
     {
-        model.FractureStep(prms, ts.TimeStep, ts.SimulationTime, ts.b_local_substep, ts.b_compute_fracture_directions, ts.b_split);
+        model.FractureStep(prms, ts.TimeStep, ts.SimulationTime, ts.b_local_substep,
+                           ts.b_compute_fracture_directions, ts.b_split, ts.b_infer_support);
         count++;
         emit fractureUpdated();
     }
     model.floes_vtk.update_minmax = true;
 
-    if(count>0) model.IdentifyDisconnectedRegions();
+    if(count>0) ts.b_identify_regions += model.IdentifyDisconnectedRegions();
 }

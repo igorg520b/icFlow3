@@ -172,13 +172,13 @@ void icy::Element::EvaluateStresses(icy::SimParams &prms,
     u << nds[0]->ut, nds[1]->ut, nds[2]->ut;
 
     double thickness = prms.Thickness;
-    double coeff = thickness*thickness*thickness/12.0;
-    str_b = elasticityMatrix*bmat_b*u*coeff;
+    str_b_top = str_b = elasticityMatrix*bmat_b*u;
+    str_b*= (thickness*thickness*thickness/12.0);
+    str_b_top *= (-thickness/2);
     str_m = -elasticityMatrix*bmat_m*u*thickness;
     for(int i=0;i<3;i++) str_s[i] = D_mats*bmat_s[i]*u*(thickness/3.0);
 
     // stress on top/bottom of the plate and corresponding principal stresses
-    str_b_top = elasticityMatrix*bmat_b*u*(-thickness/2);
 
     float sx = str_b_top.coeff(0) + str_m.coeff(0);
     float sy = str_b_top.coeff(1) + str_m.coeff(1);
@@ -190,11 +190,9 @@ void icy::Element::EvaluateStresses(icy::SimParams &prms,
     float s2 = 0.5*(sx+sy-coeff1);
     float max_principal_top = std::max(s1,s2);
 
-    str_b_bottom = -str_b_top;//elasticityMatrix*bmat_b*u*area_initial*(thickness/2);
-
-    sx = str_b_bottom.coeff(0) + str_m.coeff(0);
-    sy = str_b_bottom.coeff(1) + str_m.coeff(1);
-    txy = str_b_bottom.coeff(2) + str_m.coeff(2);
+    sx = -str_b_top.coeff(0) + str_m.coeff(0);
+    sy = -str_b_top.coeff(1) + str_m.coeff(1);
+    txy = -str_b_top.coeff(2) + str_m.coeff(2);
     str_bottom << sx, txy, txy, sy;
 
     coeff1 = sqrt((sx-sy)*(sx-sy)+txy*txy*4.0);
@@ -225,7 +223,7 @@ void icy::Element::DistributeStresses()
 #pragma omp atomic
             nd->str_b_top[j] += str_b_top.coeff(j)*coeff1;
 #pragma omp atomic
-            nd->str_b_bottom[j] += str_b_bottom.coeff(j)*coeff1;
+            nd->str_b_bottom[j] -= str_b_top.coeff(j)*coeff1;
         }
 
         float str_s_combined[2] = {};
@@ -413,6 +411,11 @@ short icy::Element::getNodeIdx(Node *nd)
     if(nds[0]==nd) return 0;
     else if(nds[1]==nd) return 1;
     else if(nds[2]==nd) return 2;
-    else throw std::runtime_error("getNodeIdx");
+    else
+    {
+        std::cout << "trying to find the index of the node " << nd->locId << "\n";
+        std::cout << "in the element: " << nds[0]->locId << ", " << nds[1]->locId << ", " << nds[2]->locId << std::endl;
+        throw std::runtime_error("getNodeIdx");
+    }
 }
 

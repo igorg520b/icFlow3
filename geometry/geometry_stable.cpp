@@ -6,18 +6,13 @@
 
 icy::Geometry::Geometry()
 {
-    //tmp_range0->reserve(1000);
-    //tmp_range1->reserve(1000);
     breakable_range.reserve(100);
     neighbors_of_crack_tip.reserve(100);
     local_support.reserve(100);
 
     const std::size_t expected_size = 16384;
     nodes->reserve(expected_size);
-    nodes2->reserve(expected_size);
     elems->reserve(expected_size);
-    elems2->reserve(expected_size);
-    //edges->reserve(expected_size);
 
     regions.reserve(100);
     length = width = area = 0;
@@ -31,19 +26,9 @@ void icy::Geometry::Reset()
     qDebug() << "icy::Geometry::Reset()";
     ResizeNodes(0);
     ResizeElems(0);
-    //ResizeEdges(0);
-    SwapCurrentAndTmp();
-    ResizeNodes(0);
-    ResizeElems(0);
-
     length = width = area = 0;
 }
 
-void icy::Geometry::SwapCurrentAndTmp()
-{
-    std::swap(nodes, nodes2);
-    std::swap(elems, elems2);
-}
 
 void icy::Geometry::ResizeNodes(std::size_t newSize)
 {
@@ -499,3 +484,34 @@ void icy::Geometry::RestoreFromSerializationBuffers()
 }
 
 
+//===========================================================
+
+void icy::Geometry::EvaluateStresses(SimParams &prms, std::vector<Element*> &elems_range)
+{
+#pragma omp parallel for
+    for(std::size_t i=0;i<elems_range.size();i++)
+        elems_range[i]->EvaluateStresses(prms, elasticityMatrix, D_mats);
+}
+
+void icy::Geometry::DistributeStresses()
+{
+    std::size_t nElems = elems->size();
+    std::size_t nNodes = nodes->size();
+#pragma omp parallel for
+    for(std::size_t i=0;i<nNodes;i++) {
+        icy::Node *nd = (*nodes)[i];
+        for(int k=0;k<3;k++) nd->str_b[k] = nd->str_m[k] = nd->str_b_top[k] = nd->str_b_bottom[k] = 0;
+        nd->str_s[0] = nd->str_s[1] = 0;
+        nd->potentially_can_fracture = false;
+    }
+
+#pragma omp parallel for
+    for(std::size_t i=0;i<nElems;i++) (*elems)[i]->DistributeStresses();
+}
+
+
+void icy::Geometry::EvaluateAllNormalTractions(SimParams &prms)
+{
+#pragma omp parallel for
+    for(std::size_t i=0;i<nodes->size();i++) (*nodes)[i]->ComputeFanVariablesAlt(prms);
+}

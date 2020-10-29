@@ -94,7 +94,7 @@ long icy::Model::ComputeElasticForcesAndAssemble(SimParams &prms, double timeSte
 
 void icy::Model::AcceptTentativeValues(SimParams &prms)
 {
-    floes.EvaluateStresses(prms);
+    floes.EvaluateStresses(prms, *floes.elems);
     mutex.lock();
     std::size_t nNodes = floes.nodes->size();
 #pragma omp parallel for
@@ -121,9 +121,12 @@ void icy::Model::AssembleAndSolve(long &time_clear, long &time_forces, long &tim
 {
     time_clear += ls.ClearAndResize(floes.getFreeNodeCount());
 
+    auto t1 = std::chrono::high_resolution_clock::now();
     std::size_t nElems = floes.elems->size();
 #pragma omp parallel for
     for(std::size_t i=0;i<nElems;i++) (*floes.elems)[i]->UpdateSparseSystemEntries(ls);
+    auto t2 = std::chrono::high_resolution_clock::now();
+    time_structure+= std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 
     time_structure += ls.CreateStructure();
     time_forces += ComputeElasticForcesAndAssemble(prms, timeStep, totalTime);
@@ -173,29 +176,37 @@ long icy::Model::LocalSubstep(SimParams &prms, double timeStep, double totalTime
         ls.Solve();
         PullFromLinearSystem(localTimeStep, prms.NewmarkBeta, prms.NewmarkGamma);
     }
+
+    floes.EvaluateStresses(prms, floes.local_elems);
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
 
 void icy::Model::FractureStep(SimParams &prms, double timeStep, double totalTime,
-                              long &b_substep, long &b_compute_fracture_directions, long &b_split)
+                              long &b_substep, long &b_compute_fracture_directions, long &b_split, long &b_support)
 {
     // ComputeFractureDirections must be invoked prior to this
-    if(floes.maxNode == nullptr) return;
+    if(floes.maxNode == nullptr) throw std::runtime_error("FractureStep");
 
     mutex.lock();
-    b_split += floes.SplitNodeAlt(prms);
+    try{
+        b_split += floes.SplitNodeAlt(prms);
+    } catch(std::runtime_error e)
+    {
+        floes.maxNode->PrintoutFan();
+        throw e;
+    }
     mutex.unlock();
     topologyInvalid = true;
+    b_support += floes.InferLocalSupport(prms);
 
     b_substep += LocalSubstep(prms, timeStep, totalTime);
-//    LocalSubstep(prms, timeStep, totalTime);
     b_compute_fracture_directions += floes.ComputeFractureDirections(prms);
 
-    mutex.lock();
+//    mutex.lock();
     // for visualization per fracture step
-    floes.DistributeStresses();
-    mutex.unlock();
+//    floes.DistributeStresses();
+//    mutex.unlock();
     displacementsInvalid = true;
 
     if(!updateRequested) {updateRequested = true; emit requestGeometryUpdate(); }
@@ -231,20 +242,23 @@ void icy::Model::RestoreFromSerializationBuffers(SimParams &prms)
     mutex.lock();
     floes.RestoreFromSerializationBuffers();
     floes.PrecomputePersistentVariables(prms);
-    floes.EvaluateStresses(prms);
+    floes.EvaluateStresses(prms, *floes.elems);
     floes.DistributeStresses();
-    floes.ComputeFractureDirections(prms);
+    floes.EvaluateAllNormalTractions(prms);
     mutex.unlock();
     topologyInvalid = displacementsInvalid = valuesInvalid = true;
     if(!updateRequested) { updateRequested = true; emit requestGeometryUpdate(); }
 }
 
-void icy::Model::IdentifyDisconnectedRegions()
+long icy::Model::IdentifyDisconnectedRegions()
 {
+    auto t1 = std::chrono::high_resolution_clock::now();
     floes.IdentifyDisconnectedRegions();
     topologyInvalid = displacementsInvalid = valuesInvalid = true;
     if(!updateRequested) { updateRequested = true; emit requestGeometryUpdate(); }
     mutex.lock();
     floes.CreateEdges2();
     mutex.unlock();
+    auto t2 = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
