@@ -531,7 +531,7 @@ void icy::Node::PrepareFan2(bool assert)
               [](const Sector &f0, const Sector &f1)
     {return f0.centerAngle < f1.centerAngle; });
 
-    if(isBoundary)
+    if(isBoundary) // assert means that PrepareFan2 is not called from Fix_X
     {
         // find the fan element with the border on the CW direction
         auto cw_boundary = std::find_if(fan.begin(), fan.end(), [](const Sector &f){return f.e[0].isBoundary;});
@@ -540,7 +540,10 @@ void icy::Node::PrepareFan2(bool assert)
             PrintoutFan();
             throw std::runtime_error("cw boundary not found");
         }
+        else
+        {
         std::rotate(fan.begin(), cw_boundary, fan.end());
+        }
     }
     if(assert) {
         // assert that the nodes of the fan connect
@@ -568,9 +571,11 @@ void icy::Node::PrintoutFan()
     {
         std::cout << s.nd[0]->locId << "-" << s.nd[1]->locId;
         std::cout << " ; eCW " << s.e[0].nds[0]->locId << "-" << s.e[0].nds[1]->locId << (s.e[0].isBoundary ? " b " : " nb ");
-        std::cout << (s.e[0].toSplit ? "*" : " ");
+        std::cout << (s.e[0].toSplit ? "* " : " ");
+        std::cout << s.e[0].elems[0] << " " << s.e[0].elems[1];
         std::cout << "; eCCW " << s.e[1].nds[0]->locId << "-" << s.e[1].nds[1]->locId << (s.e[1].isBoundary ? " b " : " nb ");
-        std::cout << (s.e[1].toSplit ? "*" : " ");
+        std::cout << (s.e[1].toSplit ? "* " : " ");
+        std::cout << s.e[1].elems[0] << " " << s.e[1].elems[1];
         std::cout << std::endl;
     }
     std::cout << "--------------------------------\n";

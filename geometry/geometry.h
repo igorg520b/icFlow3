@@ -100,7 +100,7 @@ private:
     icy::Element* AddElement(); // makes a new element
 
     std::unordered_set<Element*> affected_elements_during_split; // a list of elements that were affected by SplitNode
-    void UpdateEdges();
+    void UpdateEdges(bool final = false);
 
     void EstablishSplittingEdge(Edge &splitEdge, Node* nd,
                                 const float phi, const float theta, const float fracture_epsilon,
