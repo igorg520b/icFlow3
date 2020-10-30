@@ -419,3 +419,7 @@ short icy::Element::getNodeIdx(Node *nd)
     }
 }
 
+icy::Element* icy::Element::getAdjacentElementOppositeToNode(Node *nd)
+{
+    return adj_elems[getNodeIdx(nd)];
+}

@@ -68,6 +68,7 @@ public:
 
     void getIdxs(Node*nd, short &thisIdx, short &CWIdx, short &CCWIdx);
     Edge getEdgeOppositeToNode(Node *nd);
+    Element* getAdjacentElementOppositeToNode(Node *nd);
     short getNodeIdx(Node *nd);
 
     bool ContainsNode(Node *nd){return (nds[0]==nd || nds[1]==nd || nds[2]==nd);}

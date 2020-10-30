@@ -435,13 +435,15 @@ void icy::Geometry::EstablishSplittingEdge(Edge &splitEdge, Node* nd,
     }
     else
     {
-        if(e_opposite.isBoundary)
+        icy::Element *elem_adj = elem->getAdjacentElementOppositeToNode(nd);
+        if(elem_adj==nullptr)
         {
             CarefulSplitBoundaryElem(elem, nd, nd0, nd1, whereToSplit, splitEdge,prms);
         }
         else
         {
-            icy::Element *elem_adj = e_opposite.getOtherElement(elem);
+//            icy::Element *elem_adj = e_opposite.getOtherElement(elem);
+            if(elem_adj==nullptr) throw std::runtime_error("no adjacent element");
             CarefulSplitNonBoundaryElem(elem, elem_adj, nd, nd0, nd1, whereToSplit, splitEdge,prms);
         }
     }

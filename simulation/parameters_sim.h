@@ -124,14 +124,14 @@ public:
         normal_traction_threshold = 47000;
         fracture_epsilon = 0.1;
         CharacteristicLengthMax = 0.5;
-        substep_radius = 5;
-        substep_radius2 = 100;
+        substep_radius = 25;
+        substep_radius2 = 150;
         fracture_enable = true;
         fracture_max_substeps=1000;
         substep_iterations = 2;
         weakening_coeff = 0.75;
         temporal_attenuation = 0.2;
-        wave_height = 1;
+        wave_height = 0.1;
         substepping_timestep_factor = 0.001;
         wave_start_location = 10;
         cutoff_coefficient = 0.4;
