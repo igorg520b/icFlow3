@@ -26,7 +26,7 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
         EvaluateStresses(prms, (*elems));
         DistributeStresses();
 
-//#pragma omp parallel for
+#pragma omp parallel for
         for(std::size_t i=0;i<nNodes;i++)
         {
             icy::Node *nd = (*nodes)[i];
@@ -89,11 +89,7 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
         {
             nd->PrepareFan2();
             nd->ComputeFanVariablesAlt(prms);
-            if(nd->max_normal_traction>0) {
-                std::cout << "VerifyFan1" <<std::endl;
-                nd->VerifyFan();
-                nd->VerifySSR();
-            }
+//            if(nd->max_normal_traction>0) { nd->VerifyFan(); nd->VerifySSR(); }
         }
 
     }
@@ -144,7 +140,6 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
 
     if(maxNode == nullptr) throw std::runtime_error("trying to split nullptr");
 
-
     new_crack_tips.clear();
     affected_elements_during_split.clear();
 
@@ -158,10 +153,8 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
     // make sure that the interior node has two split faces
     bool isBoundary = (ssr.faces[1] == nullptr);
     if(isBoundary != nd->isBoundary) std::runtime_error("isBoundary != nd->isBoundary");
-//    std::cout << "\n SplitNode " << nd->locId << (isBoundary ? " boundary" : " nb ") << "\n";
 
     icy::Edge splitEdge_fw;
-    std::cout << "forward\n";
     if(!ssr.faces[0]->ContainsNode(nd)) throw std::runtime_error("SplitNode: mesh toplogy error 0");
     nd->VerifyFan();
     nd->VerifySSR();
@@ -170,42 +163,32 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
                                 ssr.e[0], ssr.e[1], ssr.faces[0],prms);
 
     Node *split0=nullptr,*split1=nullptr;
-//    std::cout << "split0" << std::endl;
     split0=splitEdge_fw.getOtherNode(nd);
-//    std::cout << "split0 done: " << nd->locId << "-" << split0->locId << std::endl;
 
     icy::Edge splitEdge_bw;
     if(!isBoundary)
     {
         // determine splitEdge_bw (create if necessary)
-        std::cout << "backward\n";
         if(!ssr.faces[1]->ContainsNode(nd)) throw std::runtime_error("SplitNode: mesh toplogy error 1");
         EstablishSplittingEdge(splitEdge_bw, nd,
                                     ssr.phi[1], ssr.theta[1], prms.fracture_epsilon,
                                     ssr.e[2], ssr.e[3], ssr.faces[1],prms);
 
-//        std::cout << "split1" << std::endl;
         split1=splitEdge_bw.getOtherNode(nd);
-//        std::cout << "split1 done: " << nd->locId << "-" << split1->locId  << (split1->isBoundary ? " b" : " nb" ) << std::endl;
     }
 
 
-//    std::cout << "Fix_X_Topology(nd)" << std::endl;
     Fix_X_Topology(nd); // split as fan.front().e[0] --- splitEdge_fw --- fan.back().e[1]
-//    std::cout << "Fix_X_Topology(nd) done" << std::endl;
 
     if(!isBoundary)
     {
         if(split1==nullptr) throw std::runtime_error("split1==nullptr");
         if(split1->isBoundary)
         {
-//            std::cout << "Fix_X_Topology(split1) " << split1->locId << std::endl;
             Fix_X_Topology(split1);
-//            std::cout << "Fix_X_Topology(split1) done" << std::endl;
         }
         else
         {
-//            std::cout << "split1" << std::endl;
             split1->crack_tip = true;
             new_crack_tips.push_back(split1);
             split1->weakening_direction = Eigen::Vector2f(split1->xt.x()-nd->xt.x(), split1->xt.y()-nd->xt.y());
@@ -218,13 +201,10 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
     if(split0==nullptr)  throw std::runtime_error("split0==nullptr");
     if(split0->isBoundary)
     {
-//        std::cout << "Fix_X_Topology(split0)" << std::endl;
         Fix_X_Topology(split0);
-//        std::cout << "Fix_X_Topology(split0) done" << std::endl;
     }
     else
     {
-        std::cout << "split0" << std::endl;
         split0->crack_tip = true;
         new_crack_tips.push_back(split0);
         split0->weakening_direction = Eigen::Vector2f(split0->xt.x()-nd->xt.x(), split0->xt.y()-nd->xt.y());
@@ -233,7 +213,6 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
         for(Element *e : split0->adjacent_elems) affected_elements_during_split.insert(e);
     }
 
-//    std::cout << "UpdateEdges" << std::endl;
     UpdateEdges();
 //    CreateEdges2();
 
@@ -241,7 +220,6 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
     nd->weakening_direction = Eigen::Vector2f::Zero();
     nd->crack_tip = false;
 
-//    std::cout << "SplitNode done" << std::endl;
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
@@ -279,11 +257,7 @@ void icy::Geometry::Fix_X_Topology(Node *nd)
 
 
     auto cw_boundary = std::find_if(nd->fan.begin(), nd->fan.end(), [](const Node::Sector &f){return f.e[0].isBoundary;});
-    if(cw_boundary != nd->fan.end()) {
-        std::rotate(nd->fan.begin(), cw_boundary, nd->fan.end());
-//        std::cout << "Fix_X_Topology: rotated" << std::endl;
-    }
-
+    if(cw_boundary != nd->fan.end()) std::rotate(nd->fan.begin(), cw_boundary, nd->fan.end());
 
     Node *split=nullptr;
     bool replacing = false;
@@ -303,9 +277,6 @@ void icy::Geometry::Fix_X_Topology(Node *nd)
     if(split==nullptr) qDebug()<<"nothing to split! " << nd->locId;
 
     for(Node::Sector &s : nd->fan) affected_elements_during_split.insert(s.face);
-//    std::cout << "Fix X\n";
-//    nd->PrintoutFan();
-    std::cout << endl;
 }
 
 
@@ -328,20 +299,18 @@ void icy::Geometry::EstablishSplittingEdge(Edge &splitEdge, Node* nd,
 
     if((whereToSplit < 1e-5 && e1.isBoundary) || (whereToSplit > 1-1e-5 && e0.isBoundary))
     {
+        //note: this should not ever happen
         std::cout << "about to create a generate element; nd " << nd->locId << std::endl;
         std::cout << "wheretosplit " << whereToSplit << std::endl;
         throw std::runtime_error("degenerate element 1");
-        //TODO: just don't split anything if this happens
     }
 
     if(whereToSplit < fracture_epsilon && !e1.isBoundary)
     {
-//        std::cout << nd->locId << " aligning with edge1 " << e1.nds[0]->locId << "-" << e1.nds[1]->locId << '\n';
         splitEdge = e1;
     }
     else if(whereToSplit > 1-fracture_epsilon && !e0.isBoundary)
     {
-//        std::cout << nd->locId << "aligning with edge0 " << e0.nds[0]->locId << "-" << e0.nds[1]->locId << '\n';
         splitEdge = e0;
     }
     else
@@ -444,16 +413,10 @@ void icy::Geometry::CarefulSplitNonBoundaryElem(Element *originalElem, Element *
     originalElem->edges[ndIdx_orig] = exteriorEdge2;
     adjElem->edges[oppIdx_adj] = exteriorEdge2;
 
-    std::cout << "NonBoundary " << where << std::endl;
-    std::cout << "originalElem" << std::endl;
     originalElem->InitializePersistentVariables();
-    std::cout << "insertedFace" << std::endl;
     insertedFace->InitializePersistentVariables();
-    std::cout << "adjElem" << std::endl;
     adjElem->InitializePersistentVariables();
-    std::cout << "insertedFace_adj" << std::endl;
     insertedFace_adj->InitializePersistentVariables();
-    std::cout << "done-nb\n" << std::endl;
 
     if(originalElem->normal_initial.z() < 0) throw std::runtime_error("NonBoundaryElem: normal inconsistent in originalElem");
     if(insertedFace->normal_initial.z() < 0) throw std::runtime_error("NonBoundaryElem: normal inconsistent in insertedFace");
@@ -519,17 +482,8 @@ void icy::Geometry::CarefulSplitBoundaryElem(Element *originalElem, Node *nd,
     exteriorEdge2.AddElement(originalElem, ndIdx);
     originalElem->edges[ndIdx] = exteriorEdge2;
 
-    std::cout << "Boundary " << where << std::endl;
-    std::cout << "ndIdx " << ndIdx << "; nd0idx " << nd0Idx << " ; nd1idx " << nd1Idx << std::endl;
-    std::cout << "nd " << nd->locId << " (" << nd->x_initial.x() << ", " << nd->x_initial.y() << ")\n";
-    std::cout << "nd0 " << nd0->locId << " (" << nd0->x_initial.x() << ", " << nd0->x_initial.y() << ")\n";
-    std::cout << "nd1 " << nd1->locId << " (" << nd1->x_initial.x() << ", " << nd1->x_initial.y() << ")\n";
-    std::cout << "split " << split->locId << " (" << split->x_initial.x() << ", " << split->x_initial.y() << ")\n";
-    std::cout << "originalElem" << std::endl;
     originalElem->InitializePersistentVariables();
-    std::cout << "insertedFace" << std::endl;
     insertedFace->InitializePersistentVariables();
-    std::cout << "done-b\n" << std::endl;
 
     if(originalElem->normal_initial.z() < 0) throw std::runtime_error("CarefulSplitBoundaryElem: normal inconsistent in originalElem");
     if(insertedFace->normal_initial.z() < 0) throw std::runtime_error("CarefulSplitBoundaryElem: normal inconsistent in insertedFace");
@@ -582,8 +536,6 @@ void icy::Geometry::UpdateEdges()
         }
         expanded_set_elems2.insert(elem);
     }
-
-
 
     std::unordered_map<uint64_t, Edge> edges_map;
 
@@ -680,23 +632,7 @@ void icy::Geometry::UpdateEdges()
     }
 
 
-    for(Element *elem : expanded_set_elems2) {
-        elem->AssertEdges();
-    }
-
-//    try {
-//    std::cout << "UpdateEdges invoking PrepareFan2: ";
-    for(Node *nd : affected_nodes_during_split)
-    {
-//        std::cout << nd->locId << ", ";
-        nd->PrepareFan2();
-    }
-//    } catch(std::runtime_error &e)
-//    {
-//        qDebug() << "reverting to createedges";
-//        CreateEdges2();
-//    }
-//    std::cout << '\n' <<  std::endl;
-
+//    for(Element *elem : expanded_set_elems2) elem->AssertEdges();
+    for(Node *nd : affected_nodes_during_split) nd->PrepareFan2();
 
 }

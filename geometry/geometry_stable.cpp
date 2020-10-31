@@ -583,7 +583,7 @@ long icy::Geometry::IdentifyDisconnectedRegions()
 //    for(std::tuple<unsigned, double, unsigned> &r : regions)
 //        std::cout << std::get<0>(r) << ": " << std::get<1>(r) << "; " << std::get<2>(r) <<  std::endl;
 //    std::cout << "============= \n";
-    std::cout << "Regions " << regions.size() << std::endl;
+//    std::cout << "Regions " << regions.size() << std::endl;
 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();

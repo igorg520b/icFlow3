@@ -32,7 +32,7 @@ class icy::Model : public QObject
 
 public:    
     // visualization options
-    enum LoadOpt { stretch_x, stretch_xy, indentation, waterfall, waves_x, waves_xy, waves_wind};
+    enum LoadOpt { stretch_x, stretch_xy, indentation, waterfall, waves_x, waves_xy, waves_diag, waves_wind};
     Q_ENUM(LoadOpt)
 
     void Reset();   // erases all geometry
