@@ -155,6 +155,7 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
     icy::Node* nd = maxNode;
     std::cout << "verify1 " << std::endl;
     nd->VerifyFan();
+    nd->timeLoadedAboveThreshold = 0;
     for(Element *e : nd->adjacent_elems) affected_elements_during_split.insert(e);
 
     // subsequent calculations are based on the fracture direction where the traction is maximal
@@ -336,6 +337,7 @@ void icy::Geometry::EstablishSplittingEdge(Edge &splitEdge, Node* nd,
         std::cout << "about to create a generate element; nd " << nd->locId << std::endl;
         std::cout << "wheretosplit " << whereToSplit << std::endl;
         throw std::runtime_error("degenerate element 1");
+        //TODO: just don't split anything if this happens
     }
 
     if(whereToSplit < fracture_epsilon && !e1.isBoundary)
