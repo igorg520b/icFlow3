@@ -24,6 +24,9 @@ void icy::Element::InitializePersistentVariables()
     if(area_initial<1e-8) {
         qDebug() << "element " << nds[0]->locId << ", " << nds[1]->locId << ", " << nds[2]->locId;
         qDebug() << "area" << area_initial;
+        qDebug() << "nd0 " << nds[0]->x_initial.x() << ", " << nds[0]->x_initial.y();
+        qDebug() << "nd1 " << nds[1]->x_initial.x() << ", " << nds[1]->x_initial.y();
+        qDebug() << "nd2 " << nds[2]->x_initial.x() << ", " << nds[2]->x_initial.y();
         throw std::runtime_error("degenerate element created");
     }
     normal_initial.normalize();

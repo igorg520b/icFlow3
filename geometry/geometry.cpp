@@ -98,7 +98,6 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
 
     }
 
-
     if(breakable_range.size() > 0)
     {
         // take out maximal node from breakable_range
@@ -125,11 +124,8 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
 #endif
             breakable_range.erase(it_nd);
 
-            std::cout << "maxNode->VerifyFan()"<<std::endl;
             maxNode->VerifyFan();
-            std::cout << "maxNode->VerifySSR()"<<std::endl;
             maxNode->VerifySSR();
-            std::cout << "VerifySSR passed"<<std::endl;
         }
     }
 
@@ -153,8 +149,6 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
     affected_elements_during_split.clear();
 
     icy::Node* nd = maxNode;
-    std::cout << "verify1 " << std::endl;
-    nd->VerifyFan();
     nd->timeLoadedAboveThreshold = 0;
     for(Element *e : nd->adjacent_elems) affected_elements_during_split.insert(e);
 
@@ -298,15 +292,15 @@ void icy::Geometry::Fix_X_Topology(Node *nd)
         Node::Sector &s = nd->fan[i];
         if(s.e[0].toSplit || s.e[0].isBoundary) replacing=!replacing;
         if(replacing) {
-            if(split==nullptr) split=AddNode();
+            if(split==nullptr) {
+                split=AddNode();
+                split->InitializeFromAnother(nd);
+            }
             s.face->ReplaceNode(nd, split);
         }
     }
 
-    if(split!=nullptr) split->InitializeFromAnother(nd);
-    else {
-        qDebug()<<"nothing to split! " << nd->locId;
-    }
+    if(split==nullptr) qDebug()<<"nothing to split! " << nd->locId;
 
     for(Node::Sector &s : nd->fan) affected_elements_during_split.insert(s.face);
 //    std::cout << "Fix X\n";
@@ -450,10 +444,16 @@ void icy::Geometry::CarefulSplitNonBoundaryElem(Element *originalElem, Element *
     originalElem->edges[ndIdx_orig] = exteriorEdge2;
     adjElem->edges[oppIdx_adj] = exteriorEdge2;
 
+    std::cout << "NonBoundary " << where << std::endl;
+    std::cout << "originalElem" << std::endl;
     originalElem->InitializePersistentVariables();
+    std::cout << "insertedFace" << std::endl;
     insertedFace->InitializePersistentVariables();
+    std::cout << "adjElem" << std::endl;
     adjElem->InitializePersistentVariables();
+    std::cout << "insertedFace_adj" << std::endl;
     insertedFace_adj->InitializePersistentVariables();
+    std::cout << "done-nb\n" << std::endl;
 
     if(originalElem->normal_initial.z() < 0) throw std::runtime_error("NonBoundaryElem: normal inconsistent in originalElem");
     if(insertedFace->normal_initial.z() < 0) throw std::runtime_error("NonBoundaryElem: normal inconsistent in insertedFace");
@@ -519,8 +519,17 @@ void icy::Geometry::CarefulSplitBoundaryElem(Element *originalElem, Node *nd,
     exteriorEdge2.AddElement(originalElem, ndIdx);
     originalElem->edges[ndIdx] = exteriorEdge2;
 
+    std::cout << "Boundary " << where << std::endl;
+    std::cout << "ndIdx " << ndIdx << "; nd0idx " << nd0Idx << " ; nd1idx " << nd1Idx << std::endl;
+    std::cout << "nd " << nd->locId << " (" << nd->x_initial.x() << ", " << nd->x_initial.y() << ")\n";
+    std::cout << "nd0 " << nd0->locId << " (" << nd0->x_initial.x() << ", " << nd0->x_initial.y() << ")\n";
+    std::cout << "nd1 " << nd1->locId << " (" << nd1->x_initial.x() << ", " << nd1->x_initial.y() << ")\n";
+    std::cout << "split " << split->locId << " (" << split->x_initial.x() << ", " << split->x_initial.y() << ")\n";
+    std::cout << "originalElem" << std::endl;
     originalElem->InitializePersistentVariables();
+    std::cout << "insertedFace" << std::endl;
     insertedFace->InitializePersistentVariables();
+    std::cout << "done-b\n" << std::endl;
 
     if(originalElem->normal_initial.z() < 0) throw std::runtime_error("CarefulSplitBoundaryElem: normal inconsistent in originalElem");
     if(insertedFace->normal_initial.z() < 0) throw std::runtime_error("CarefulSplitBoundaryElem: normal inconsistent in insertedFace");
