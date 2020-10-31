@@ -7,7 +7,7 @@ icy::FloeVisualization::FloeVisualization()
     selectedPointId = -1;
 
     ugrid->SetPoints(points);
-//    ugrid_vertices->SetPoints(points);
+    ugrid_vertices->SetPoints(points);
     ugrid_boundary->SetPoints(points);
     ugrid_selection->SetPoints(points);
 
@@ -44,7 +44,7 @@ icy::FloeVisualization::FloeVisualization()
     edgeNumbers->SetName("edgeNumbers");
 
     // arrows
-    /*
+
     arrowCoords->SetNumberOfComponents(3);
     arrowCoords->SetName("arrowCoords");
     ugrid_vertices->GetPointData()->AddArray(arrowCoords);
@@ -59,11 +59,12 @@ icy::FloeVisualization::FloeVisualization()
     glyph3D->OrientOn();
     glyph3D->ScalingOn();
     glyph3D->SetScaleModeToScaleByVector();
-    glyph3D->SetScaleFactor(0.1);
+    glyph3D->SetScaleFactor(0.025);
     mapper_arrows->SetInputConnection(glyph3D->GetOutputPort());
     actor_arrows->SetMapper(mapper_arrows);
     actor_arrows->GetProperty()->SetColor(colors->GetColor3d("Black").GetData());
-*/
+    actor_arrows->PickableOff();
+
     actor_labels->VisibilityOff();
 
     // water level
@@ -74,6 +75,7 @@ icy::FloeVisualization::FloeVisualization()
     actor_water->SetMapper(mapper_water);
     actor_water->GetProperty()->SetRepresentationToWireframe();
     actor_water->GetProperty()->SetColor(colors->GetColor3d("Black").GetData());
+    actor_water->PickableOff();
 
     // indenter
     sphereSource->SetCenter(0.0, 0.0, 0.0);
@@ -201,8 +203,8 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
         for(icy::Node* nd : *nodes) {
             double value;
             if(nd->crack_tip) value = 3;
-            //else if(nd->core_node) value = 2;
             else if(nd->support_node) value = 2;
+            else if(nd->reset_timing) value = 1;
             else value = 0;
             visualized_values->SetValue(nd->locId, value);
         }
@@ -389,6 +391,7 @@ void icy::FloeVisualization::UnsafeUpdateSelection(std::vector<icy::Node*> *node
         ugrid_selection->Reset();
         ugrid_selection->SetPoints(points);
         icy::Node *nd = (*nodes)[selectedPoint];
+        nd->PrintoutFan();
 
         vtkIdType pts2[3];
         std::size_t nFan = nd->fan.size();
@@ -424,7 +427,6 @@ void icy::FloeVisualization::UnsafeUpdateSelection(std::vector<icy::Node*> *node
 
 void icy::FloeVisualization::UnsafeUpdateArrows(std::vector<icy::Node*> *nodes)
 {
-    /*
     actor_arrows->SetVisibility(update_arrows);
     if(!update_arrows)
     {
@@ -437,10 +439,14 @@ void icy::FloeVisualization::UnsafeUpdateArrows(std::vector<icy::Node*> *nodes)
     // vertices (for arrows)
     cellArray_vertices->Reset();
     vtkIdType pt;
+    double pts[3];
     for(std::size_t i=0;i<nNodes;i++)
     {
         icy::Node *nd = (*nodes)[i];
-        arrowCoords->SetTuple(i, nd->dir.data());
+        pts[0]=nd->dir.x();
+        pts[1]=nd->dir.y();
+        pts[2]=0;
+        arrowCoords->SetTuple(i, pts);
         pt=nd->locId;
         cellArray_vertices->InsertNextCell(1, &pt);
     }
@@ -448,6 +454,21 @@ void icy::FloeVisualization::UnsafeUpdateArrows(std::vector<icy::Node*> *nodes)
 
     ugrid_vertices->GetPointData()->AddArray(arrowCoords);
     ugrid_vertices->GetPointData()->SetActiveVectors("arrowCoords");
+
+
+    ugrid_vertices->Modified();
+
+//    glyph3D->OrientOn();
+//    glyph3D->ScalingOn();
+    glyph3D->SetScaleModeToScaleByVector();
+//    glyph3D->SetScaleFactor(0.03);
+    glyph3D->Modified();
+    actor_arrows->GetProperty()->SetColor(colors->GetColor3d("Black").GetData());
+
+/*
+    glyph3D->SetInputData(ugrid_vertices);
+    mapper_arrows->SetInputConnection(glyph3D->GetOutputPort());
+    actor_arrows->SetMapper(mapper_arrows);
 */
 }
 

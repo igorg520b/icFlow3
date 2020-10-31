@@ -63,7 +63,7 @@ public:
     // helper functions for fracture
     icy::Node* getOppositeNode(Edge edge);    // return the node across from a given edge
     icy::Node* getOppositeNode(Node *nd0, Node* nd1);
-    std::pair<int,int> getOppositeEdge(Node *nd);
+//    std::pair<int,int> getOppositeEdge(Node *nd);
     Eigen::Vector3d getCenter();
 
     void getIdxs(Node*nd, short &thisIdx, short &CWIdx, short &CCWIdx);
@@ -71,11 +71,13 @@ public:
     Element* getAdjacentElementOppositeToNode(Node *nd);
     short getNodeIdx(Node *nd);
 
+
     bool ContainsNode(Node *nd){return (nds[0]==nd || nds[1]==nd || nds[2]==nd);}
     void ReplaceNode(Node *replaceWhat, Node *replaceWith);
-    void Initialize(Node* nd0, Node* nd1, Node* nd2, bool orientation);
-    bool Orientation(const Node* nd0, const Node* nd1);
+//    void Initialize(Node* nd0, Node* nd1, Node* nd2, bool orientation);
+//    bool Orientation(const Node* nd0, const Node* nd1);
     void ComputeNormal();
+    void AssertEdges();
 
 private:
     static double N[3][3];

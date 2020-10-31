@@ -10,9 +10,9 @@ icy::Edge::Edge(icy::Node* nd0, icy::Node* nd1)
     nds[1] = nd1;
     elems[0] = elems[1] = nullptr;
 
-    Eigen::Vector3d u = (nds[1]->x_initial - nds[0]->x_initial).block(0,0,3,1);
-    angle0_initial = atan2(u.y(), u.x());
-    angle1_initial = (angle0_initial > 0) ? angle0_initial - M_PI : angle0_initial + M_PI;
+//    Eigen::Vector3d u = (nds[1]->x_initial - nds[0]->x_initial).block(0,0,3,1);
+//    angle0_initial = atan2(u.y(), u.x());
+//    angle1_initial = (angle0_initial > 0) ? angle0_initial - M_PI : angle0_initial + M_PI;
 }
 
 void icy::Edge::AddElement(icy::Element* elem, short idx)
@@ -47,13 +47,14 @@ bool icy::Edge::ElementBoundaryFollowsEdge(icy::Element* elem, icy::Node* &oppos
     throw std::runtime_error("element does not contain the edge");
 }
 
-
+/*
 double icy::Edge::getAngle(icy::Node *center_node) const
 {
     if(center_node == nds[0]) return angle0_initial;
     else if(center_node == nds[1]) return angle1_initial;
     else throw std::runtime_error("node does not belong to the edge");
 }
+*/
 
 icy::Element* icy::Edge::get_CCW_Element(icy::Node *center_node) const
 {
@@ -117,3 +118,7 @@ bool icy::Edge::sameAs(Edge other)
     return (nds[0]==other.nds[0] && nds[1]==other.nds[1]);
 }
 
+bool icy::Edge::containsNode(Node *nd)
+{
+    return (nd==nds[0] || nd==nds[1]);
+}

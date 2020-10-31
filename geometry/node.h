@@ -31,7 +31,7 @@ public:
     bool prescribed = false;    // motion of prescribed nodes is known up front
     bool isBoundary;
     double area;        // mass that the node "represents", for applying various forces
-    double vertical_force; // for testing
+    float vertical_force; // for testing
 
     struct Sector
     {
@@ -49,6 +49,8 @@ public:
     tbb::concurrent_vector<icy::Element*> adjacent_elems;
     std::vector<icy::Node::Sector> fan;
     void PrintoutFan(); // for testing
+    void VerifyFan();
+    void VerifySSR();
 
     // initial configuration
     Eigen::Matrix<double,DOFS,1> x_initial;
@@ -68,7 +70,7 @@ public:
     Eigen::Vector3d normal_n;   // averaged normal of the surrounding elements
 
     // set the size and initialize with adjacent elements
-    void PrepareFan2(bool assert = true);  // performed when topology changes
+    void PrepareFan2();  // performed when topology changes
     void InitializeFan(); // performed when tentative displacements and stress distribution change
     float fan_angle_span;  // assigned in InitializeFan();
 
@@ -95,7 +97,7 @@ public:
     float max_normal_traction;
 
     // additional fracture parameters
-    bool crack_tip, core_node, support_node, potentially_can_fracture;
+    bool crack_tip, reset_timing, support_node, potentially_can_fracture;
     double timeLoadedAboveThreshold;
 
     static double Smoothstep(double edge0, double edge1, double x);

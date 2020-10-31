@@ -87,7 +87,7 @@ public:
     vtkNew<vtkActor> actor_boundary;
 
     // arrows
-    /*
+
     vtkNew<vtkCellArray> cellArray_vertices;
     vtkNew<vtkUnstructuredGrid> ugrid_vertices;
     vtkNew<vtkDoubleArray> arrowCoords;
@@ -95,7 +95,6 @@ public:
     vtkNew<vtkGlyph3D> glyph3D;
     vtkNew<vtkPolyDataMapper> mapper_arrows;
     vtkNew<vtkActor> actor_arrows;
-*/
 
     // surface
     static constexpr unsigned gridSizeX = 100;

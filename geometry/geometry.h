@@ -100,11 +100,11 @@ private:
     icy::Element* AddElement(); // makes a new element
 
     std::unordered_set<Element*> affected_elements_during_split; // a list of elements that were affected by SplitNode
-    void UpdateEdges(bool final = false);
+    void UpdateEdges();
 
     void EstablishSplittingEdge(Edge &splitEdge, Node* nd,
                                 const float phi, const float theta, const float fracture_epsilon,
-                                const Edge e0, const Edge e1, const Edge e_opposite, Element *elem, SimParams &prms);
+                                const Edge e0, const Edge e1, Element *elem, SimParams &prms);
     void Fix_X_Topology(Node *nd);
     // preserve boundaries and orientation
     void CarefulSplitBoundaryElem(Element *originalElem, Node *nd, Node *nd0, Node *nd1, float where, Edge &insertedEdge, SimParams &prms);

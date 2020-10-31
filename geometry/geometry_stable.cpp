@@ -86,6 +86,8 @@ icy::Node* icy::Geometry::AddNode(icy::Node *otherNd)
     result->locId = nodes->size();
     nodes->push_back(result);
     if(otherNd!=nullptr) result->InitializeFromAnother(otherNd);
+//    std::cout << "adding node " << result->locId << std::endl;
+
     return result;
 }
 
@@ -219,6 +221,13 @@ void icy::Geometry::MeshingStepTwo(double CharacteristicLengthMax)
         icy::Element *elem = (*elems)[i];
         for(int j=0;j<3;j++) elem->nds[j] = (*nodes)[mtags[nodeTagsInTris[i*3+j]]];
         elem->InitializePersistentVariables();
+        if(elem->normal_initial.z()<0)
+        {
+            for(int j=0;j<3;j++) elem->nds[j] = (*nodes)[mtags[nodeTagsInTris[i*3+(2-j)]]];
+            elem->InitializePersistentVariables();
+        }
+        else if(elem->normal_initial.z() < 0) throw std::runtime_error("normals inconsistent");
+
         area += elem->area_initial;
         for(int j=0;j<3;j++) elem->nds[j]->normal_n+=elem->normal_initial;
     }
@@ -339,6 +348,13 @@ void icy::Geometry::CreateEdges2()
     }
 
     edges_map2.clear();
+
+#pragma omp parallel for
+    for(std::size_t k=0;k<nElems;k++)
+    {
+        icy::Element *elem = (*elems)[k];
+        elem->AssertEdges();
+    }
 }
 
 
@@ -452,6 +468,12 @@ void icy::Geometry::RestoreFromSerializationBuffers()
         icy::Element *elem = (*elems)[i];
         for(int j=0;j<3;j++) elem->nds[j] = (*nodes)[elems_buffer[i*3+j]];
         elem->InitializePersistentVariables();
+        if(elem->normal_initial.z()<0)
+        {
+            for(int j=0;j<3;j++) elem->nds[j] = (*nodes)[elems_buffer[i*3+(2-j)]];
+            elem->InitializePersistentVariables();
+        }
+        else if(elem->normal_initial.z() <0 ) throw std::runtime_error("RestoreFromSerializationBuffers: negative normals ");
         elem->ComputeNormal();
     }
 
@@ -518,4 +540,182 @@ void icy::Geometry::EvaluateAllNormalTractions(SimParams &prms)
 {
 #pragma omp parallel for
     for(std::size_t i=0;i<nodes->size();i++) (*nodes)[i]->ComputeFanVariablesAlt(prms);
+}
+
+long icy::Geometry::IdentifyDisconnectedRegions()
+{
+    auto t1 = std::chrono::high_resolution_clock::now();
+    regions.clear();
+    for(icy::Element *e : *elems) e->traversal = 0;  // set to not-traversed
+
+    unsigned short current_region = 0;
+    wave.clear();
+    wave.reserve(elems->size());
+    area = 0;
+    for(icy::Element *e : *elems)
+    {
+        if(e->traversal != 0) continue;
+
+        wave.push_back(e);
+        unsigned count_elems = 0;
+        double region_area = 0;
+        while(wave.size() > 0)
+        {
+            icy::Element *elem = wave.back();
+            wave.pop_back();
+            count_elems++;
+            region_area += elem->area_initial;
+            elem->traversal = 1;
+            elem->region = current_region;
+            for(int i=0;i<3;i++)
+            {
+                icy::Element *adj_e = elem->adj_elems[i];
+                if(adj_e!= nullptr && adj_e->traversal==0) wave.push_back(adj_e);
+            }
+        }
+        regions.push_back(std::make_tuple(current_region, region_area, count_elems));
+        current_region++;
+        area+=region_area;
+    }
+
+    // for testing
+//    std::cout << "printing regions:\n";
+//    for(std::tuple<unsigned, double, unsigned> &r : regions)
+//        std::cout << std::get<0>(r) << ": " << std::get<1>(r) << "; " << std::get<2>(r) <<  std::endl;
+//    std::cout << "============= \n";
+    std::cout << "Regions " << regions.size() << std::endl;
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
+}
+/*
+long icy::Geometry::RemoveDegenerateFragments()
+{
+    auto t1 = std::chrono::high_resolution_clock::now();
+    double avg_elem_area = area/elems->size();
+    bool region_was_removed;
+    do
+    {
+        region_was_removed = false;
+        auto iter = std::min_element(regions.begin(), regions.end(),
+                                      [](std::tuple<unsigned, double, unsigned> r1,
+                                      std::tuple<unsigned, double, unsigned> r2)
+        {return std::get<2>(r1) < std::get<2>(r2);});
+        if(std::get<2>(*iter) <= 2)
+        {
+            unsigned idx = std::get<0>(*iter);
+            RemoveRegion(idx);
+            regions.erase(iter);
+            region_was_removed = true;
+        }
+
+        iter = std::min_element(regions.begin(), regions.end(),
+                                [](std::tuple<unsigned, double, unsigned> r1,
+                                std::tuple<unsigned, double, unsigned> r2)
+        {return std::get<1>(r1) < std::get<1>(r2);});
+
+        if(std::get<1>(*iter) < avg_elem_area*1.5)
+        {
+            unsigned idx = std::get<0>(*iter);
+            RemoveRegion(idx);
+            regions.erase(iter);
+            region_was_removed = true;
+        }
+
+    } while(region_was_removed && regions.size() > 0);
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
+}
+
+void icy::Geometry::RemoveRegion(unsigned idx)
+{
+    std::unordered_set<icy::Node*>nds;
+    for(icy::Element *elem : *elems)
+    {
+        if(elem->region == idx) {
+            for(int k=0;k<3;k++) nds.insert(elem->nds[k]);
+            pool_elems.free(elem);
+        }
+    }
+
+    elems->erase(std::remove_if(elems->begin(), elems->end(),
+                                [idx](icy::Element *elem){return elem->region==idx;}), elems->end());
+
+    for(icy::Node *nd : nds) pool_nodes.destroy(nd);
+
+    nodes->erase(std::remove_if(nodes->begin(), nodes->end(),
+                                [nds](icy::Node *nd){return nds.find(nd)!=nds.end();}), nodes->end());
+
+    for(std::size_t i=0;i<nodes->size();i++) (*nodes)[i]->locId=i;
+
+    CreateEdges2();
+}
+*/
+long icy::Geometry::InferLocalSupport(SimParams &prms)
+{
+    auto t1 = std::chrono::high_resolution_clock::now();
+    if(maxNode==nullptr) throw std::runtime_error("CreateSupportRange nullptr");
+    local_elems.clear();
+    std::copy(maxNode->adjacent_elems.begin(),maxNode->adjacent_elems.end(),std::back_inserter(local_elems));
+    CreateSupportRange(prms.substep_radius, local_elems);
+
+    std::unordered_set<Node*> local_support_set;
+    for(Element *elem : local_elems) for(int k=0;k<3;k++) local_support_set.insert(elem->nds[k]);
+    local_support.clear();
+    std::copy(local_support_set.begin(), local_support_set.end(),std::back_inserter(local_support));
+
+    // reset the loading timer in the vicinity of the crack
+    local_elems2.clear();
+    std::copy(maxNode->adjacent_elems.begin(),maxNode->adjacent_elems.end(),std::back_inserter(local_elems2));
+    CreateSupportRange(prms.substep_radius2, local_elems2);
+    for(icy::Node *nd : *nodes) nd->reset_timing = nd->support_node = false;
+    for(Element *e : local_elems2) for(int k=0;k<3;k++)
+    {
+        e->nds[k]->timeLoadedAboveThreshold=0;
+        e->nds[k]->reset_timing=true;
+    }
+
+    // for visualization - mark support range (stored in breakable_range)
+    for(icy::Node *nd : local_support) nd->support_node = true; // for visualization
+
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
+}
+
+
+void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Element*> &initial_set)
+{
+#pragma omp parallel for
+    for(unsigned i=0;i<elems->size();i++) (*elems)[i]->traversal=0;
+
+    std::queue<Element*> q_wave;
+    for(Element *e : initial_set)
+    {
+        e->traversal=1;
+        q_wave.push(e);
+    }
+    initial_set.clear();
+
+    while(q_wave.size() > 0)
+    {
+        icy::Element *elem = q_wave.front();
+        q_wave.pop();
+        initial_set.push_back(elem);
+
+        unsigned short level = elem->traversal;
+        if(level < neighborLevel)
+        {
+            for(int i=0;i<3;i++)
+            {
+                icy::Element *adj_e = elem->adj_elems[i];
+                if(adj_e!= nullptr && adj_e->traversal==0)
+                {
+                    adj_e->traversal=level+1;
+                    q_wave.push(adj_e);
+                }
+            }
+        }
+    }
 }

@@ -189,18 +189,13 @@ void icy::Model::FractureStep(SimParams &prms, double timeStep, double totalTime
     if(floes.maxNode == nullptr) throw std::runtime_error("FractureStep");
 
     mutex.lock();
-    try{
-        b_split += floes.SplitNodeAlt(prms);
-    } catch(std::runtime_error e)
-    {
-        floes.maxNode->PrintoutFan();
-        throw e;
-    }
+    b_split += floes.SplitNodeAlt(prms);
     mutex.unlock();
     topologyInvalid = true;
     b_support += floes.InferLocalSupport(prms);
 
     b_substep += LocalSubstep(prms, timeStep, totalTime);
+
     b_compute_fracture_directions += floes.ComputeFractureDirections(prms);
 
 //    mutex.lock();

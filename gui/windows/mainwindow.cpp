@@ -86,6 +86,7 @@ MainWindow::MainWindow(QWidget *parent)
     renderer->AddActor(controller.model.floes_vtk.actor_labels);
     renderer->AddActor(controller.model.floes_vtk.actor_water);
     renderer->AddActor(controller.model.floes_vtk.actor_sphere);
+    renderer->AddActor(controller.model.floes_vtk.actor_arrows);
 
     renderer->AddActor(axes);
     renderer->AddActor(scalarBar);
@@ -624,6 +625,8 @@ void MainWindow::on_actionMohr_s_triggered()
     double ymin = DBL_MAX, ymax = -DBL_MAX;
     double xmin = DBL_MAX, xmax = -DBL_MAX;
     icy::Node *nd = (*controller.model.floes.nodes)[idx];
+    nd->InitializeFan();
+
     std::cout << std::endl << "{";
     const unsigned nPoints = 500;
     for(unsigned i=0;i<nPoints;i++)
@@ -635,6 +638,8 @@ void MainWindow::on_actionMohr_s_triggered()
 
         double val_x = tmpSsr.trac_normal_top;
         double val_y = tmpSsr.trac_tangential_top;
+        if(std::isnan(val_x)) qDebug() << "trac_normal_top is NaN";
+        if(std::isnan(val_y)) qDebug() << "trac_tangential_top is NaN";
         xmin = std::min(xmin, val_x);
         xmax = std::max(xmax, val_x);
         ymin = std::min(ymin, val_y);
@@ -828,4 +833,3 @@ void MainWindow::on_action_Screenshot_triggered()
     writer->SetFileName(outputPath.toUtf8().constData());
     writer->Write();
 }
-

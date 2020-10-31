@@ -23,6 +23,10 @@ void icy::Element::InitializePersistentVariables()
 //    Eigen::Vector3d r1 = p1.normalized();
     normal_initial = p1.cross(p2);
     area_initial=normal_initial.norm()/2;
+    if(area_initial<1e-8) {
+        qDebug() << "element " << nds[0]->locId << ", " << nds[1]->locId << ", " << nds[2]->locId;
+        throw std::runtime_error("degenerate element created");
+    }
     normal_initial.normalize();
 
 //    rotationMatrix(p1, p2, R0, area_initial, normal_initial);
@@ -319,7 +323,7 @@ icy::Node* icy::Element::getOppositeNode(Node *nd0, Node* nd1)
     throw std::runtime_error("opposite node not found 2");
 }
 
-
+/*
 std::pair<int,int> icy::Element::getOppositeEdge(icy::Node *nd)
 {
     int nd_idx;
@@ -333,7 +337,7 @@ std::pair<int,int> icy::Element::getOppositeEdge(icy::Node *nd)
     if(edge_idx0<edge_idx1) return std::make_pair(edge_idx0, edge_idx1);
     else return std::make_pair(edge_idx1, edge_idx0);
 }
-
+*/
 void icy::Element::ReplaceNode(icy::Node *replaceWhat, icy::Node *replaceWith)
 {
     if(nds[0] == replaceWhat) nds[0] = replaceWith;
@@ -341,34 +345,6 @@ void icy::Element::ReplaceNode(icy::Node *replaceWhat, icy::Node *replaceWith)
     else if(nds[2] == replaceWhat) nds[2] = replaceWith;
     else throw std::runtime_error("replaceWhat is not in nds[]");
     InitializePersistentVariables();
-}
-
-void icy::Element::Initialize(Node* nd0, Node* nd1, Node* nd2, bool orientation)
-{
-    nds[0] = nd0;
-    if(orientation) {
-        nds[1] = nd1;
-        nds[2] = nd2;
-    } else {
-        nds[2] = nd1;
-        nds[1] = nd2;
-    }
-    InitializePersistentVariables();
-    for(int i=0;i<3;i++) edges[i] = Edge(nds[(i+1)%3],nds[(i+2)%3]);
-}
-
-bool icy::Element::Orientation(const icy::Node* nd0, const icy::Node* nd1)
-{
-    if(nds[0] == nd0 && nds[1] == nd1) return true;
-    if(nds[1] == nd0 && nds[0] == nd1) return false;
-
-    if(nds[1] == nd0 && nds[2] == nd1) return true;
-    if(nds[2] == nd0 && nds[1] == nd1) return false;
-
-    if(nds[2] == nd0 && nds[0] == nd1) return true;
-    if(nds[0] == nd0 && nds[2] == nd1) return false;
-
-    throw std::runtime_error("nodes do not belong to this element");
 }
 
 Eigen::Vector3d icy::Element::getCenter()
@@ -382,18 +358,13 @@ void icy::Element::getIdxs(icy::Node*nd, short &thisIdx, short &CWIdx, short &CC
     if(nd==nds[0]) thisIdx=0;
     else if(nd==nds[1]) thisIdx=1;
     else if(nd==nds[2]) thisIdx=2;
-    else throw std::runtime_error("getIdxs; node does not belong to the element");
+    else {
+        std::cout << "getIdxs; node does not belong to the element" << std::endl;
+        throw std::runtime_error("getIdxs; node does not belong to the element");
+    }
 
-    if(initial_normal_up)
-    {
-        CWIdx = (thisIdx+1)%3;
-        CCWIdx = (thisIdx+2)%3;
-    }
-    else
-    {
-        CWIdx = (thisIdx+2)%3;
-        CCWIdx = (thisIdx+1)%3;
-    }
+    CWIdx = (thisIdx+1)%3;
+    CCWIdx = (thisIdx+2)%3;
 }
 
 icy::Edge icy::Element::getEdgeOppositeToNode(icy::Node *nd)
@@ -413,6 +384,7 @@ short icy::Element::getNodeIdx(Node *nd)
     else if(nds[2]==nd) return 2;
     else
     {
+        nd->PrintoutFan();
         std::cout << "trying to find the index of the node " << nd->locId << "\n";
         std::cout << "in the element: " << nds[0]->locId << ", " << nds[1]->locId << ", " << nds[2]->locId << std::endl;
         throw std::runtime_error("getNodeIdx");
@@ -421,5 +393,18 @@ short icy::Element::getNodeIdx(Node *nd)
 
 icy::Element* icy::Element::getAdjacentElementOppositeToNode(Node *nd)
 {
+    if(!ContainsNode(nd)) throw std::runtime_error("getAdjacentElementOppositeToNode");
     return adj_elems[getNodeIdx(nd)];
 }
+
+void icy::Element::AssertEdges()
+{
+    // verify that edes are correctly initialized
+
+    for(int i=0;i<3;i++)
+    {
+        if(!ContainsNode(edges[i].nds[0])) throw std::runtime_error("AssertEdges");
+        if(!ContainsNode(edges[i].nds[1])) throw std::runtime_error("AssertEdges");
+    }
+}
+
