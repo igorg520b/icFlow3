@@ -81,7 +81,7 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
         // remove the nodes that were affected by the crack on the previous step
         breakable_range.erase(std::remove_if(breakable_range.begin(), breakable_range.end(),
                                           [temporal_attenuation](Node *nd)
-                              {return nd->timeLoadedAboveThreshold < temporal_attenuation && !nd->crack_tip;}),
+                {return nd->max_normal_traction==0 || (nd->timeLoadedAboveThreshold < temporal_attenuation && !nd->crack_tip);}),
                 breakable_range.end());
 
         // update Sector in case if topology changed around this node
@@ -104,6 +104,7 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
         // take out maximal node from breakable_range
         auto it_nd = std::max_element(breakable_range.begin(), breakable_range.end(),
                                       [](Node *nd1, Node *nd2) {
+                if(nd2->crack_tip && nd2->max_normal_traction>0 && !nd1->crack_tip) return true;
                 return nd1->max_normal_traction < nd2->max_normal_traction; });
 
         if((*it_nd)->max_normal_traction > 0)
@@ -329,6 +330,13 @@ void icy::Geometry::EstablishSplittingEdge(Edge &splitEdge, Node* nd,
     float factor0 = sin(phi)*(nd0_vec-nd_vec).norm();
     float factor1 = sin(theta)*(nd1_vec-nd_vec).norm();
     float whereToSplit = factor1/(factor0+factor1);  // ~1 means the split is near nd0, ~0 means it is near nd1
+
+    if((whereToSplit < 1e-5 && e1.isBoundary) || (whereToSplit > 1-1e-5 && e0.isBoundary))
+    {
+        std::cout << "about to create a generate element; nd " << nd->locId << std::endl;
+        std::cout << "wheretosplit " << whereToSplit << std::endl;
+        throw std::runtime_error("degenerate element 1");
+    }
 
     if(whereToSplit < fracture_epsilon && !e1.isBoundary)
     {

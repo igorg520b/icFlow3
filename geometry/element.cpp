@@ -14,28 +14,22 @@ double icy::Element::N[3][3] = {
 
 void icy::Element::InitializePersistentVariables()
 {
-    // x_initial << nds[0]->x_initial, nds[1]->x_initial, nds[2]->x_initial;
     // translate the element
     Eigen::Vector3d p1, p2;
     p1 = nds[1]->x_initial.block(0,0,3,1) - nds[0]->x_initial.block(0,0,3,1);
     p2 = nds[2]->x_initial.block(0,0,3,1) - nds[0]->x_initial.block(0,0,3,1);
 
-//    Eigen::Vector3d r1 = p1.normalized();
     normal_initial = p1.cross(p2);
     area_initial=normal_initial.norm()/2;
     if(area_initial<1e-8) {
         qDebug() << "element " << nds[0]->locId << ", " << nds[1]->locId << ", " << nds[2]->locId;
+        qDebug() << "area" << area_initial;
         throw std::runtime_error("degenerate element created");
     }
     normal_initial.normalize();
 
-//    rotationMatrix(p1, p2, R0, area_initial, normal_initial);
     initial_normal_up = normal_initial.z() > 0;
     for(int j=0;j<3;j++) nds[j]->area += area_initial/3; // distribute area to adjacent nodes
-
-//    R0t = R0.transpose();
-//    pr1_initial = p1;
-//    pr2_initial = p2;
 
     // (use 1-based indices, yij = yi-yj)
     double x1 = 0;
