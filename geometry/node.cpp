@@ -131,30 +131,31 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
     }
     else if(prms.loadType == icy::Model::LoadOpt::waves_wind)
     {
-        // add wind
-        double attenuation10 = totalTime < 10 ? totalTime/10 : 1;
-        double spring2 = 0.1*spring;
-        spring2*=attenuation10;
+        if(totalTime>5) {
+            // add wind
+            double attenuation10 = (totalTime-5) < 5 ? (totalTime-5)/5 : 1;
+            double spring2 = 0.01*spring*attenuation10;
 
-        Eigen::Vector2d vec(x_initial.x(), x_initial.y());
-        vec.x()+=vec.x()*0.3*attenuation10*((x_initial.y()+50)/50)*((x_initial.y()+50)/50)*(1+abs(vec.x()/50));
-        vec.y()+=((vec.y()+50)*(vec.y()+50)/2500)*50*attenuation10*0.5;
+            Eigen::Vector2d vec(x_initial.x(), x_initial.y());
+            vec.x()+=vec.x()*0.3*attenuation10*((x_initial.y()+50)/50)*((x_initial.y()+50)/50)*(1+abs(vec.x()/50));
+            vec.y()+=((vec.y()+50)*(vec.y()+50)/2500)*50*attenuation10*0.5;
 
-        Eigen::Vector2d disp_t = xt.block(0,0,2,1)-vec;
-        Eigen::Vector2d disp_n = xn.block(0,0,2,1)-vec;
+            Eigen::Vector2d disp_t = xt.block(0,0,2,1)-vec;
+            Eigen::Vector2d disp_n = xn.block(0,0,2,1)-vec;
 
-        F(0) += disp_t.x()*spring2*(1-alpha);
-        F(0) += disp_n.x()*spring2*alpha;
-        F(1) += disp_t.y()*spring2*(1-alpha);
-        F(1) += disp_n.y()*spring2*alpha;
+            F(0) += disp_t.x()*spring2*(1-alpha);
+            F(0) += disp_n.x()*spring2*alpha;
+            F(1) += disp_t.y()*spring2*(1-alpha);
+            F(1) += disp_n.y()*spring2*alpha;
 
-        dF(0,0) += spring2*(1-alpha);
-        dF(1,1) += spring2*(1-alpha);
+            dF(0,0) += spring2*(1-alpha);
+            dF(1,1) += spring2*(1-alpha);
 
-        F(0) += prms.Damping*mass*(vt.x())/timeStep;
-        dF(0,0) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
-        F(1) += prms.Damping*mass*(vt.y())/timeStep;
-        dF(1,1) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
+            F(0) += prms.Damping*mass*(vt.x())/timeStep;
+            dF(0,0) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
+            F(1) += prms.Damping*mass*(vt.y())/timeStep;
+            dF(1,1) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
+        }
     }
 
 #ifdef QT_DEBUG
