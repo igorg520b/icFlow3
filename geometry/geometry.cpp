@@ -194,7 +194,7 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
             new_crack_tips.push_back(split1);
             split1->weakening_direction = Eigen::Vector2f(split1->xt.x()-nd->xt.x(), split1->xt.y()-nd->xt.y());
             split1->weakening_direction.normalize();
-            std::cout << "split1 done" << std::endl;
+//            std::cout << "split1 done" << std::endl;
             for(Element *e : split1->adjacent_elems) affected_elements_during_split.insert(e);
         }
     }

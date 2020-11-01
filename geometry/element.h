@@ -30,8 +30,6 @@ public:
     double area_initial;
     Eigen::Vector3d normal_initial, normal_n;
     bool initial_normal_up; // normal_initial.z() > 0
-//    Eigen::Vector3d pr1_initial, pr2_initial;
-//    Eigen::Matrix<double,DOFS*3,1> x_initial;
 
     // strain-displacement for bending, shear and membrane
     Eigen::Matrix<double,3,DOFS*3> bmat_b;
@@ -63,7 +61,6 @@ public:
     // helper functions for fracture
     icy::Node* getOppositeNode(Edge edge);    // return the node across from a given edge
     icy::Node* getOppositeNode(Node *nd0, Node* nd1);
-//    std::pair<int,int> getOppositeEdge(Node *nd);
     Eigen::Vector3d getCenter();
 
     void getIdxs(Node*nd, short &thisIdx, short &CWIdx, short &CCWIdx);
@@ -71,11 +68,8 @@ public:
     Element* getAdjacentElementOppositeToNode(Node *nd);
     short getNodeIdx(Node *nd);
 
-
     bool ContainsNode(Node *nd){return (nds[0]==nd || nds[1]==nd || nds[2]==nd);}
     void ReplaceNode(Node *replaceWhat, Node *replaceWith);
-//    void Initialize(Node* nd0, Node* nd1, Node* nd2, bool orientation);
-//    bool Orientation(const Node* nd0, const Node* nd1);
     void ComputeNormal();
     void AssertEdges();
 

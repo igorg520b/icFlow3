@@ -7,7 +7,6 @@ icy::FloeVisualization::FloeVisualization()
     selectedPointId = -1;
 
     ugrid->SetPoints(points);
-    ugrid_vertices->SetPoints(points);
     ugrid_boundary->SetPoints(points);
     ugrid_selection->SetPoints(points);
 
@@ -39,8 +38,8 @@ icy::FloeVisualization::FloeVisualization()
     actor_boundary->SetMapper(dataSetMapper_boundary);
     actor_boundary->GetProperty()->SetColor(colors->GetColor3d("Black").GetData());
     actor_boundary->GetProperty()->EdgeVisibilityOn();
-//    actor_boundary->GetProperty()->SetLineWidth(4);
-    actor_boundary->GetProperty()->SetLineWidth(1.7);
+    actor_boundary->GetProperty()->SetLineWidth(4);
+//    actor_boundary->GetProperty()->SetLineWidth(1.9);
 
     visualized_values->SetName("visualized_values");
 
@@ -48,6 +47,8 @@ icy::FloeVisualization::FloeVisualization()
     edgeNumbers->SetName("edgeNumbers");
 
     // arrows
+/*
+    ugrid_vertices->SetPoints(points);
 
     arrowCoords->SetNumberOfComponents(3);
     arrowCoords->SetName("arrowCoords");
@@ -68,7 +69,7 @@ icy::FloeVisualization::FloeVisualization()
     actor_arrows->SetMapper(mapper_arrows);
     actor_arrows->GetProperty()->SetColor(colors->GetColor3d("Black").GetData());
     actor_arrows->PickableOff();
-
+*/
     actor_labels->VisibilityOff();
 
     // water level
@@ -431,6 +432,7 @@ void icy::FloeVisualization::UnsafeUpdateSelection(std::vector<icy::Node*> *node
 
 void icy::FloeVisualization::UnsafeUpdateArrows(std::vector<icy::Node*> *nodes)
 {
+    /*
     actor_arrows->SetVisibility(update_arrows);
     if(!update_arrows)
     {
@@ -469,10 +471,6 @@ void icy::FloeVisualization::UnsafeUpdateArrows(std::vector<icy::Node*> *nodes)
     glyph3D->Modified();
     actor_arrows->GetProperty()->SetColor(colors->GetColor3d("Black").GetData());
 
-/*
-    glyph3D->SetInputData(ugrid_vertices);
-    mapper_arrows->SetInputConnection(glyph3D->GetOutputPort());
-    actor_arrows->SetMapper(mapper_arrows);
 */
 }
 

@@ -11,7 +11,7 @@ icy::Node::Node()
 {
     Reset();
     //adjacent_nodes.reserve(10);
-    fan.reserve(10);
+    //fan.reserve(10);
 }
 
 void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double timeStep, double totalTime)

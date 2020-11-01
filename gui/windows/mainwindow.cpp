@@ -86,7 +86,7 @@ MainWindow::MainWindow(QWidget *parent)
     renderer->AddActor(controller.model.floes_vtk.actor_labels);
     renderer->AddActor(controller.model.floes_vtk.actor_water);
     renderer->AddActor(controller.model.floes_vtk.actor_sphere);
-    renderer->AddActor(controller.model.floes_vtk.actor_arrows);
+    //renderer->AddActor(controller.model.floes_vtk.actor_arrows);
 
     renderer->AddActor(axes);
     renderer->AddActor(scalarBar);
