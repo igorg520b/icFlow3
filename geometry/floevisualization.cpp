@@ -24,7 +24,10 @@ icy::FloeVisualization::FloeVisualization()
     dataSetMapper->UseLookupTableScalarRangeOn();
     dataSetMapper->SetLookupTable(hueLut);
     actor_mesh->SetMapper(dataSetMapper);
-    actor_mesh->GetProperty()->SetColor(218/255.0,228/255.0,242/255.0);
+//    actor_mesh->GetProperty()->SetColor(218/255.0,228/255.0,242/255.0);
+    actor_mesh->GetProperty()->SetColor(0.54938, 0.772213, 0.848103);
+
+
 //    actor_mesh->GetProperty()->SetEdgeColor(161.0/255.0, 176.0/255.0, 215.0/255.0);
     actor_mesh->GetProperty()->SetEdgeColor(91.0/255.0, 116.0/255.0, 145.0/255.0);
     actor_mesh->GetProperty()->SetLineWidth(1.5);
@@ -36,7 +39,8 @@ icy::FloeVisualization::FloeVisualization()
     actor_boundary->SetMapper(dataSetMapper_boundary);
     actor_boundary->GetProperty()->SetColor(colors->GetColor3d("Black").GetData());
     actor_boundary->GetProperty()->EdgeVisibilityOn();
-    actor_boundary->GetProperty()->SetLineWidth(4);
+//    actor_boundary->GetProperty()->SetLineWidth(4);
+    actor_boundary->GetProperty()->SetLineWidth(1.7);
 
     visualized_values->SetName("visualized_values");
 

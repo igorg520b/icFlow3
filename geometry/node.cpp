@@ -79,7 +79,9 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
     }
     else if(prms.loadType == icy::Model::LoadOpt::stretch_xy)
     {
-        spring*=10;
+
+        if(totalTime < 3) spring+=200*spring;
+//        else if(totalTime < 10) spring+=200*spring*((10-totalTime)/5);
         // radial stretch in all directions
         double attenuation10 = totalTime < 20 ? totalTime/20 : 1;
         Eigen::Vector2d vec(x_initial.x(), x_initial.y());
@@ -122,10 +124,37 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
                 F(2) += disp_n*spring2*alpha;
 //                dF(2,2) += spring2*(1-alpha);
                 dF(2,2) += spring*(1+disp_t*200)*(1-alpha);
-                vertical_force = (disp_t)*spring2*(1-alpha) + (xn(2)-indented_position)*spring2*alpha;
+                vertical_force += (disp_t)*spring2*(1-alpha) + (xn(2)-indented_position)*spring2*alpha;
                 }
             }
         }
+    }
+    else if(prms.loadType == icy::Model::LoadOpt::waves_wind)
+    {
+        // add wind
+        double attenuation10 = totalTime < 10 ? totalTime/10 : 1;
+        double spring2 = 0.1*spring;
+        spring2*=attenuation10;
+
+        Eigen::Vector2d vec(x_initial.x(), x_initial.y());
+        vec.x()+=vec.x()*0.3*attenuation10*((x_initial.y()+50)/50)*((x_initial.y()+50)/50)*(1+abs(vec.x()/50));
+        vec.y()+=((vec.y()+50)*(vec.y()+50)/2500)*50*attenuation10*0.5;
+
+        Eigen::Vector2d disp_t = xt.block(0,0,2,1)-vec;
+        Eigen::Vector2d disp_n = xn.block(0,0,2,1)-vec;
+
+        F(0) += disp_t.x()*spring2*(1-alpha);
+        F(0) += disp_n.x()*spring2*alpha;
+        F(1) += disp_t.y()*spring2*(1-alpha);
+        F(1) += disp_n.y()*spring2*alpha;
+
+        dF(0,0) += spring2*(1-alpha);
+        dF(1,1) += spring2*(1-alpha);
+
+        F(0) += prms.Damping*mass*(vt.x())/timeStep;
+        dF(0,0) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
+        F(1) += prms.Damping*mass*(vt.y())/timeStep;
+        dF(1,1) += prms.Damping*mass*prms.NewmarkGamma/(prms.NewmarkBeta*timeStep*timeStep);
     }
 
 #ifdef QT_DEBUG
@@ -176,6 +205,29 @@ double icy::Node::WaterLine(double x, double y, double t, SimParams &prms)
         if(t < 6) wave3 *= t/6;
         return wave1+wave2+wave3;
     }
+    else if(prms.loadType == icy::Model::LoadOpt::waves_diag ||
+            prms.loadType == icy::Model::LoadOpt::waves_wind)
+    {
+        Eigen::Vector2d dir1(1,1);
+        Eigen::Vector2d dir2(1,-1);
+        dir1.normalize();
+        dir2.normalize();
+        Eigen::Vector2d dir(x,y);
+        double wavelength1=4;
+        double wavelength2=6;
+        double velocity1 = 1;
+        double velocity2 = 1.3;
+        double A = prms.wave_height;
+        double wave1 = A*sin(M_PI*2*(dir1.dot(dir)-t*velocity1)/wavelength1);
+        double wave2 = A*sin(M_PI*2*(dir2.dot(dir)-t*velocity2)/wavelength2);
+        if(t < 2) wave1 *= t/2;
+        if(t < 4) wave2 *= t/4;
+        double total=wave1+wave2;
+        double coeff = (y+50)*(y+50)/(50*50);
+        if(coeff>1) coeff=1;
+        total*=exp(-t/10)*coeff;
+        return total;
+    }
     else return 0;
 }
 
@@ -200,6 +252,29 @@ double icy::Node::WaterLineDt(double x, double y, double t, SimParams &prms)
         if(t < 4) wave2 *= t/4;
         if(t < 6) wave3 *= t/6;
         return wave1+wave2+wave3;
+    }
+    else if(prms.loadType == icy::Model::LoadOpt::waves_diag ||
+            prms.loadType == icy::Model::LoadOpt::waves_wind)
+    {
+        Eigen::Vector2d dir1(1,1);
+        Eigen::Vector2d dir2(1,-1);
+        dir1.normalize();
+        dir2.normalize();
+        Eigen::Vector2d dir(x,y);
+        double wavelength1=4;
+        double wavelength2=6;
+        double velocity1 = 1;
+        double velocity2 = 1.3;
+        double A = prms.wave_height;
+        double wave1 = A*cos(M_PI*2*(dir1.dot(dir)-t*velocity1)/wavelength1)*M_PI*2*(-velocity1)/wavelength1;
+        double wave2 = A*cos(M_PI*2*(dir2.dot(dir)-t*velocity2)/wavelength2)*M_PI*2*(-velocity2)/wavelength2;
+        if(t < 2) wave1 *= t/2;
+        if(t < 4) wave2 *= t/4;
+        double total=wave1+wave2;
+        double coeff = (y+50)*(y+50)/(50*50);
+        if(coeff>1) coeff=1;
+        total*=exp(-t/10)*coeff;
+        return total;
     }
     else return 0;
 }

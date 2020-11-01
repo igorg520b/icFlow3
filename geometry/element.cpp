@@ -176,7 +176,7 @@ void icy::Element::EvaluateStresses(icy::SimParams &prms,
     str_b_top = str_b = elasticityMatrix*bmat_b*u;
     str_b*= (thickness*thickness*thickness/12.0);
     str_b_top *= (-thickness/2);
-    str_m = -elasticityMatrix*bmat_m*u*thickness;
+    str_m = elasticityMatrix*bmat_m*u*thickness;
     for(int i=0;i<3;i++) str_s[i] = D_mats*bmat_s[i]*u*(thickness/3.0);
 
     // stress on top/bottom of the plate and corresponding principal stresses
@@ -320,21 +320,7 @@ icy::Node* icy::Element::getOppositeNode(Node *nd0, Node* nd1)
     throw std::runtime_error("opposite node not found 2");
 }
 
-/*
-std::pair<int,int> icy::Element::getOppositeEdge(icy::Node *nd)
-{
-    int nd_idx;
-    if(nd == nds[0]) nd_idx = 0;
-    else if(nd == nds[1]) nd_idx = 1;
-    else if(nd == nds[2]) nd_idx = 2;
-    else throw std::runtime_error("node not found");
 
-    int edge_idx0 = nds[(nd_idx+1)%3]->locId;
-    int edge_idx1 = nds[(nd_idx+2)%3]->locId;
-    if(edge_idx0<edge_idx1) return std::make_pair(edge_idx0, edge_idx1);
-    else return std::make_pair(edge_idx1, edge_idx0);
-}
-*/
 void icy::Element::ReplaceNode(icy::Node *replaceWhat, icy::Node *replaceWith)
 {
     if(nds[0] == replaceWhat) nds[0] = replaceWith;

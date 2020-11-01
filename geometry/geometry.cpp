@@ -68,13 +68,14 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
         // insert the recently created crack tips into the breakable range
         for(Node *nct : new_crack_tips)
         {
+            nct->PrepareFan2();
             nct->ComputeFanVariablesAlt(prms);
+            nct->timeLoadedAboveThreshold = temporal_attenuation;
             auto find_result = std::find(breakable_range.begin(), breakable_range.end(),nct);
             bool already_contains = find_result!=breakable_range.end();
 
-            if(nct->max_normal_traction > threashold && !already_contains)
+            if(/*nct->max_normal_traction > threashold &&*/ !already_contains)
                 breakable_range.push_back(nct);
-            nct->timeLoadedAboveThreshold = temporal_attenuation;
         }
         new_crack_tips.clear();
 
@@ -209,7 +210,6 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
         new_crack_tips.push_back(split0);
         split0->weakening_direction = Eigen::Vector2f(split0->xt.x()-nd->xt.x(), split0->xt.y()-nd->xt.y());
         split0->weakening_direction.normalize();
-        std::cout << "split0 done" << std::endl;
         for(Element *e : split0->adjacent_elems) affected_elements_during_split.insert(e);
     }
 
