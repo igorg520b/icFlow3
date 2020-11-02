@@ -160,6 +160,7 @@ MainWindow::MainWindow(QWidget *parent)
     labelStepCount = new QLabel();
     ui->toolBar->addWidget(labelStepCount);
 
+    slider->setTracking(false);
     connect(slider, SIGNAL(valueChanged(int)), this, SLOT(sliderValueChanged(int)));
 
     // statusbar

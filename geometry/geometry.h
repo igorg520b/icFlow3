@@ -82,8 +82,7 @@ public:
     //std::unordered_set<Element*> local_elems_set; // for computing local_elems
     icy::Node *maxNode = nullptr;
 
-    Edge getEdgeByNodalIdx(int idx1, int idx2);
-    tbb::concurrent_unordered_map<uint64_t, Edge> edges_map2;
+//    Edge getEdgeByNodalIdx(int idx1, int idx2);
     std::vector<Edge> allEdges;
     std::vector<Edge> boundaryEdges;
 

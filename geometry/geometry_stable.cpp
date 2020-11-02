@@ -254,7 +254,9 @@ void icy::Geometry::CreateEdges2()
     }
 
     // edges_map will hold all edges and their connected elements
-    edges_map2.clear();
+    tbb::concurrent_unordered_map<uint64_t, Edge> edges_map2;
+
+//    edges_map2.clear();
     area = 0;
 
     // associate edges with one or two adjacent elements
@@ -357,14 +359,14 @@ void icy::Geometry::CreateEdges2()
     }
 }
 
-
+/*
 icy::Edge icy::Geometry::getEdgeByNodalIdx(int idx1, int idx2)
 {
     if(idx1 > idx2) std::swap(idx1, idx2);
     uint64_t edgeIdx = ((uint64_t)idx1 << 32) | idx2;
     return edges_map2.at(edgeIdx);
 }
-
+*/
 
 void icy::Geometry::AssignLsIds()
 {
@@ -583,7 +585,7 @@ long icy::Geometry::IdentifyDisconnectedRegions()
 //    for(std::tuple<unsigned, double, unsigned> &r : regions)
 //        std::cout << std::get<0>(r) << ": " << std::get<1>(r) << "; " << std::get<2>(r) <<  std::endl;
 //    std::cout << "============= \n";
-//    std::cout << "Regions " << regions.size() << std::endl;
+    std::cout << "Regions " << regions.size() << std::endl;
 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
