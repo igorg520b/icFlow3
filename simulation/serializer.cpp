@@ -118,7 +118,7 @@ void icy::Serializer::SaveParams(void *data, unsigned length)
     H5Dwrite(ds_params_handle, H5T_NATIVE_CHAR, mem_space_id, H5S_ALL, H5P_DEFAULT,(void*)data);
     H5Sclose(mem_space_id);
 }
-
+/*
 void icy::Serializer::Write(std::vector<double> &node_buffer,
                             std::vector<int> &elems_buffer,
                             unsigned offset_nodes, unsigned offset_elems)
@@ -196,6 +196,7 @@ void icy::Serializer::Read(std::vector<double> &node_buffer,
     H5Sclose(file_space_id2);
     H5Sclose(mem_space_id2);
 }
+*/
 
 void icy::Serializer::Trim(unsigned steps_extent, unsigned nodes_extent, unsigned elems_extent)
 {
@@ -249,6 +250,7 @@ void icy::Serializer::ReadSteps(std::vector<icy::FrameInfo> &stepStats)
     H5Dread(ds_steps_handle, H5T_NATIVE_CHAR, H5S_ALL, H5S_ALL, H5P_DEFAULT, ptr);
 }
 
+/*
 void icy::Serializer::WriteAll(std::vector<double> &node_buffer,
                                std::vector<int> &elems_buffer,
               unsigned offset_nodes, unsigned offset_elems,
@@ -258,3 +260,4 @@ void icy::Serializer::WriteAll(std::vector<double> &node_buffer,
     Write(node_buffer, elems_buffer, offset_nodes, offset_elems);
     WriteSteps(steps_extent, f);
 }
+*/

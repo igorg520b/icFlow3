@@ -401,7 +401,7 @@ void icy::Geometry::RecomputeElasticityMatrix(SimParams &prms)
     D_mats = Eigen::Matrix2d::Identity();
     D_mats *= ((5.0/6.0)*prms.YoungsModulus/((1+prms.PoissonsRatio)*2.0));
 }
-
+/*
 void icy::Geometry::WriteToSerializationBuffers()
 {
     std::size_t nNodes = nodes->size();
@@ -510,7 +510,169 @@ void icy::Geometry::RestoreFromSerializationBuffers()
     CreateEdges2();
     IdentifyDisconnectedRegions();
 }
+*/
 
+void icy::Geometry::WriteToHD5(unsigned offset_nodes, unsigned offset_elems,
+                hid_t ds_nodes_handle, hid_t ds_elems_handle)
+{
+
+    std::size_t nNodes = nodes->size();
+
+    unsigned long nodes_extent = offset_nodes+nNodes;
+
+    // set extent
+    hsize_t nodes_dims[2] = {nodes_extent,icy::Node::NumberOfSerializedFields};
+    H5Dset_extent(ds_nodes_handle, nodes_dims);
+
+    // write
+    hsize_t mem_dims[2] = {1,icy::Node::NumberOfSerializedFields};
+    hid_t mem_space_id = H5Screate_simple(2, mem_dims, mem_dims);
+
+    hsize_t count[2] = {1,icy::Node::NumberOfSerializedFields};
+    hid_t file_space_id = H5Dget_space(ds_nodes_handle);
+    double node_buffer[icy::Node::NumberOfSerializedFields];
+    for(unsigned i=0;i<nNodes;i++)
+    {
+        icy::Node *nd = (*nodes)[i];
+        node_buffer[0] = nd->prescribed ? 1.0 : 0.0;
+        node_buffer[1] = nd->x_initial.x();
+        node_buffer[2] = nd->x_initial.y();
+        node_buffer[3] = nd->timeLoadedAboveThreshold;
+
+        for(int j=0;j<5;j++)
+        {
+            node_buffer[4+j] = nd->un[j];
+            node_buffer[4+5+j] = nd->vn[j];
+            node_buffer[4+10+j] = nd->an[j];
+        }
+
+        hsize_t offset_nds[2] = {offset_nodes+i,0};
+        H5Sselect_hyperslab(file_space_id, H5S_SELECT_SET, offset_nds, NULL, count, NULL);
+        H5Dwrite(ds_nodes_handle, H5T_NATIVE_DOUBLE, mem_space_id, file_space_id, H5P_DEFAULT,(void*)node_buffer);
+    }
+    H5Sclose(mem_space_id);
+    H5Sclose(file_space_id);
+
+    std::size_t nElems = elems->size();
+    unsigned long elems_extent = offset_elems+nElems;
+
+    // set extent
+    hsize_t elems_dims[2] = {elems_extent,3};
+    H5Dset_extent(ds_elems_handle, elems_dims);
+
+    // write
+    hsize_t mem_dims2[2] = {1,3};
+    hid_t mem_space_id2 = H5Screate_simple(2, mem_dims2, mem_dims2);
+    hid_t file_space_id2 = H5Dget_space(ds_elems_handle);
+    int elems_buffer[3];
+    for(unsigned i=0;i<nElems;i++)
+    {
+        for(int j=0;j<3;j++) elems_buffer[j] = (*elems)[i]->nds[j]->locId;
+        hsize_t offset_e[2] = {offset_elems+i,0};
+        H5Sselect_hyperslab(file_space_id2, H5S_SELECT_SET, offset_e, NULL, mem_dims2, NULL);
+        H5Dwrite(ds_elems_handle, H5T_NATIVE_INT, mem_space_id2, file_space_id2, H5P_DEFAULT,(void*)elems_buffer);
+    }
+
+    H5Sclose(mem_space_id2);
+    H5Sclose(file_space_id2);
+}
+
+void icy::Geometry::RestoreFromHD5(unsigned offset_nodes, unsigned offset_elems,
+                    unsigned nNodes, unsigned nElems,
+                    hid_t ds_nodes_handle, hid_t ds_elems_handle)
+{
+    ResizeNodes(nNodes);
+    ResizeElems(nElems);
+
+    hid_t file_space_id = H5Dget_space(ds_nodes_handle);
+    hsize_t count[2] = {1, icy::Node::NumberOfSerializedFields};
+    hid_t mem_space_id = H5Screate_simple(2, count, NULL);
+
+    double node_buffer[icy::Node::NumberOfSerializedFields];
+    for(unsigned i=0;i<nNodes;i++)
+    {
+        hsize_t offset[2] = {offset_nodes+i,0};
+        H5Sselect_hyperslab(file_space_id, H5S_SELECT_SET, offset, NULL, count, NULL);
+        H5Dread(ds_nodes_handle, H5T_NATIVE_DOUBLE, mem_space_id, file_space_id, H5P_DEFAULT, (void*)node_buffer);
+
+        icy::Node *nd = (*nodes)[i];
+        nd->Reset();
+
+        nd->prescribed = node_buffer[0]==0 ? false : true;
+        nd->x_initial << node_buffer[1], node_buffer[2], 0, 0, 0;
+        nd->timeLoadedAboveThreshold = node_buffer[3];
+
+        for(int j=0;j<5;j++)
+        {
+            nd->un(j)=node_buffer[4+j];
+            nd->vn(j)=node_buffer[4+5+j];
+            nd->an(j)=node_buffer[4+10+j];
+        }
+        nd->xt = nd->xn = nd->x_initial + nd->un;
+        nd->ut = nd->un;
+        nd->vt = nd->vn;
+        nd->at = nd->an;
+    }
+    H5Sclose(file_space_id);
+    H5Sclose(mem_space_id);
+
+
+    int elems_buffer[3];
+
+    hid_t file_space_id2 = H5Dget_space(ds_elems_handle);
+    hsize_t count2[2] = {1,3};
+    hid_t mem_space_id2 = H5Screate_simple(2, count2, NULL);
+
+    for(unsigned i=0;i<nElems;i++)
+    {
+        hsize_t offset2[2] = {offset_elems+i,0};
+        H5Sselect_hyperslab(file_space_id2, H5S_SELECT_SET, offset2, NULL, count2, NULL);
+        H5Dread(ds_elems_handle, H5T_NATIVE_INT, mem_space_id2,
+                file_space_id2, H5P_DEFAULT, (void*)elems_buffer);
+
+        icy::Element *elem = (*elems)[i];
+        for(int j=0;j<3;j++) elem->nds[j] = (*nodes)[elems_buffer[j]];
+
+        elem->InitializePersistentVariables();
+        if(elem->normal_initial.z() <0 ) {
+            qDebug() << "negative elem normal";
+            throw std::runtime_error("RestoreFromHD5: negative normals ");
+        }
+        elem->ComputeNormal();
+    }
+
+    H5Sclose(file_space_id2);
+    H5Sclose(mem_space_id2);
+
+    // -
+    for(std::size_t i=0;i<nElems;i++)
+    {
+        icy::Element *elem = (*elems)[i];
+        for(int j=0;j<3;j++) elem->nds[j]->normal_n+=elem->normal_n;
+    }
+
+#pragma omp parallel for
+    for(unsigned i=0;i<nodes->size();i++)
+        (*nodes)[i]->normal_n.normalize();
+
+    double xmax, xmin, ymax, ymin;
+    xmax = ymax = -DBL_MAX;
+    xmin = ymin = DBL_MAX;
+    for(unsigned i=0;i<nodes->size();i++) {
+        icy::Node *nd = (*nodes)[i];
+        double x = nd->x_initial.x();
+        double y = nd->x_initial.y();
+        if(xmax < x) xmax = x;
+        if(ymax < y) ymax = y;
+        if(xmin > x) xmin = x;
+        if(ymin > y) ymin = y;
+    }
+    length = xmax-xmin;
+    width = ymax-ymin;
+
+    CreateEdges2();
+    IdentifyDisconnectedRegions();
+}
 
 //===========================================================
 
@@ -551,7 +713,7 @@ long icy::Geometry::IdentifyDisconnectedRegions()
     for(icy::Element *e : *elems) e->traversal = 0;  // set to not-traversed
 
     unsigned short current_region = 0;
-    wave.clear();
+    std::vector<Element*> wave;
     wave.reserve(elems->size());
     area = 0;
     for(icy::Element *e : *elems)
@@ -577,6 +739,7 @@ long icy::Geometry::IdentifyDisconnectedRegions()
         }
         regions.push_back(std::make_tuple(current_region, region_area, count_elems));
         current_region++;
+
         area+=region_area;
     }
 

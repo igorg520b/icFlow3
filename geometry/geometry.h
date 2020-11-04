@@ -16,6 +16,7 @@
 #include <chrono>
 #include <tuple>
 #include <queue>
+#include <set>
 
 #include <QObject>
 #include <QString>
@@ -26,7 +27,8 @@
 #include "edge.h"
 #include "SimpleObjectPool.h"
 
-#include <set>
+#include <hdf5.h>
+
 #include <concurrent_unordered_map.h>
 
 namespace icy { class Geometry; class Node; class Element; class Edge;}
@@ -69,10 +71,18 @@ public:
     std::vector<Node*> new_crack_tips; // populated by SplitNodeAlt
 
     // save/load
-    void WriteToSerializationBuffers();
+/*    void WriteToSerializationBuffers();
     void RestoreFromSerializationBuffers();
     std::vector<double> node_buffer;
     std::vector<int> elems_buffer;
+    */
+
+    //hid_t file_handle, ds_nodes_handle, ds_elems_handle
+    void WriteToHD5(unsigned offset_nodes, unsigned offset_elems,
+                    hid_t ds_nodes_handle, hid_t ds_elems_handle);
+    void RestoreFromHD5(unsigned offset_nodes, unsigned offset_elems,
+                        unsigned nNodes, unsigned nElems,
+                        hid_t ds_nodes_handle, hid_t ds_elems_handle);
 
     // fracture
     tbb::concurrent_vector<Node*> breakable_range_concurrent;
@@ -117,7 +127,6 @@ private:
 
     void CreateSupportRange(int neighborLevel, std::vector<Element*> &initial_set);
     std::vector<Element*>local_elems2;
-    std::vector<Element*> wave; // used by IdentifyDisconnectedRegions()
 
 //    void RemoveRegion(unsigned idx);
 

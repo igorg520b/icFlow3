@@ -22,8 +22,9 @@ void icy::ModelController::SaveAs(QString fileName)
     serializer.CloseFile();
     serializer.CreateFile(fileName.toLocal8Bit().data(), SimParams::buffer_size);
     serializer.SaveParams(prms.serialization_buffer, SimParams::buffer_size);   // save to the new file
-    model.floes.WriteToSerializationBuffers();
-    serializer.Write(model.floes.node_buffer, model.floes.elems_buffer, 0, 0);
+//    model.floes.WriteToSerializationBuffers();
+//    serializer.Write(model.floes.node_buffer, model.floes.elems_buffer, 0, 0);
+    model.floes.WriteToHD5(0,0, serializer.ds_nodes_handle, serializer.ds_elems_handle);
 
     stepStats.clear();
     ts.Reset();
@@ -85,8 +86,10 @@ void icy::ModelController::GoToStep(int step)
             // qDebug() << "loading from file step " << step;
             current_step = step;
             ts = stepStats[step];
-            serializer.Read(model.floes.node_buffer, model.floes.elems_buffer,
-                            ts.nodeOffset, ts.elemOffset, ts.nNodes, ts.nElems);
+            model.floes.RestoreFromHD5(ts.nodeOffset, ts.elemOffset, ts.nNodes, ts.nElems,
+                                       serializer.ds_nodes_handle, serializer.ds_elems_handle);
+//            serializer.Read(model.floes.node_buffer, model.floes.elems_buffer,
+//                            ts.nodeOffset, ts.elemOffset, ts.nNodes, ts.nElems);
             model.RestoreFromSerializationBuffers(prms);
         }
     }
@@ -206,9 +209,14 @@ void icy::ModelController::Step()
 
 void icy::ModelController::_Write()
 {
-    model.floes.WriteToSerializationBuffers();
-    serializer.WriteAll(model.floes.node_buffer, model.floes.elems_buffer,
-                        ts.nodeOffset, ts.elemOffset, stepStats.size(), &stepStats.back());
+    if(!serializer.fileIsOpen) return;
+    serializer.WriteSteps(stepStats.size(), &stepStats.back());
+    model.floes.WriteToHD5(ts.nodeOffset, ts.elemOffset, serializer.ds_nodes_handle, serializer.ds_elems_handle);
+
+
+//    model.floes.WriteToSerializationBuffers();
+//    serializer.WriteAll(model.floes.node_buffer, model.floes.elems_buffer,
+//                        ts.nodeOffset, ts.elemOffset, stepStats.size(), &stepStats.back());
 }
 
 void icy::ModelController::RequestAbort()

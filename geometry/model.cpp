@@ -235,7 +235,7 @@ void icy::Model::UnsafeUpdateGeometry(double simulationTime, SimParams &prms)
 void icy::Model::RestoreFromSerializationBuffers(SimParams &prms)
 {
     mutex.lock();
-    floes.RestoreFromSerializationBuffers();
+    //floes.RestoreFromSerializationBuffers();
     floes.PrecomputePersistentVariables(prms);
     floes.EvaluateStresses(prms, *floes.elems);
     floes.DistributeStresses();

@@ -26,7 +26,7 @@ public:
     void CloseFile();
     void SaveParams(void *data, unsigned length);
     void LoadParams(void *data, unsigned max_length);
-
+/*
     void Write(std::vector<double> &node_buffer,
                std::vector<int> &elems_buffer,
                unsigned offset_nodes, unsigned offset_elems);
@@ -36,13 +36,14 @@ public:
              unsigned offset_nodes, unsigned offset_elems,
              unsigned nNodes, unsigned nElems);
 
-    void WriteSteps(unsigned steps_extent, FrameInfo *f);
-    void ReadSteps(std::vector<icy::FrameInfo> &stepStats);
-
     void WriteAll(std::vector<double> &node_buffer,
                   std::vector<int> &elems_buffer,
                   unsigned offset_nodes, unsigned offset_elems,
                   unsigned steps_extent, FrameInfo *f);
+
+*/
+    void WriteSteps(unsigned steps_extent, FrameInfo *f);
+    void ReadSteps(std::vector<icy::FrameInfo> &stepStats);
 
     void Trim(unsigned steps_extent, unsigned nodes_extent, unsigned elems_extent);
 };
