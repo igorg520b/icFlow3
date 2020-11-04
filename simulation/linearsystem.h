@@ -40,11 +40,10 @@ public:
 
 private:
     // concurrent set allows combining the computation of forces with creation of structure
-    std::vector<tbb::concurrent_vector<int>> rows_Neighbors;
-//    std::vector<std::vector<int>> rows_Neighbors_sorted;
+    std::vector<tbb::concurrent_vector<int>*> rows_Neighbors;
     int dx_length = 0;      // number of currently allocated elements for dx and rhs
     int vals_length = 0;    // currently allocated vals
-    std::vector<std::vector<std::pair<int,int>>> rows_pcsr;   // per row mappings between columns and offset in "values"
+    std::vector<std::vector<std::pair<int,int>>*> rows_pcsr;   // per row mappings between columns and offset in "values"
     int csr_rows_size = 0;
     int csr_cols_size = 0;
     int dvalsSize() { return nnz*DOFS*DOFS; }

@@ -13,12 +13,8 @@
 icy::LinearSystem::LinearSystem()
 {
     // typical values for medium-sized FEM geometry
-    int initial_size = 10000;
-    int reserve = 50000;
+    int reserve = 700000;
     rows_Neighbors.reserve(reserve);
-    rows_Neighbors.resize(initial_size);
-//    rows_Neighbors_sorted.reserve(reserve);
-//    rows_Neighbors_sorted.resize(initial_size);
     rows_pcsr.reserve(reserve);
 }
 
@@ -28,24 +24,28 @@ long icy::LinearSystem::ClearAndResize(std::size_t N_)
 
     // clear the list of non-zero element indices
     this->N = (int)N_;
-    if((int)rows_Neighbors.size() < N) rows_Neighbors.resize(N);
-    if((int)rows_pcsr.size() < N) rows_pcsr.resize(N);
-//    if((int)rows_Neighbors_sorted.size() < N) rows_Neighbors_sorted.resize(N);
+    if((int)rows_Neighbors.size() < N)
+    {
+        while((int)rows_Neighbors.size()<N*1.2)
+        rows_Neighbors.push_back(new tbb::concurrent_vector<int>(10));
+    }
+
+    if((int)rows_pcsr.size() < N)
+    {
+        while((int)rows_pcsr.size()<N*1.2)
+        rows_pcsr.push_back(new std::vector<std::pair<int,int>>(10));
+    }
 
 #pragma omp parallel for
-    for(int i=0;i<N;i++) {
-        rows_Neighbors[i].clear();
-        rows_Neighbors[i].push_back(i);    // diagonal elements must be non-zero
-        rows_pcsr[i].clear(); // clear the mapping of (i,j)->offset
+    for(int i=0;i<N;i++)
+    {
+        rows_Neighbors[i]->clear();
+        rows_Neighbors[i]->push_back(i);    // diagonal elements must be non-zero
+        rows_pcsr[i]->clear(); // clear the mapping of (i,j)->offset
     }
 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-}
-
-void icy::LinearSystem::ResizeRows()
-{
-//    if((int)rows_Neighbors.size() < N)
 }
 
 
@@ -55,11 +55,11 @@ void icy::LinearSystem::AddElementToStructure(int row, int column)
     // since we are creatigng upper-triangular matrix, row<=column always
     if(row<=column) {
         if (row >= N) throw std::runtime_error("trying to insert element beyond matrix size");
-        rows_Neighbors[row].push_back(column);
+        rows_Neighbors[row]->push_back(column);
     } else
     {
         if (column >= N) throw std::runtime_error("trying to insert element beyond matrix size");
-        rows_Neighbors[column].push_back(row);
+        rows_Neighbors[column]->push_back(row);
     }
 }
 
@@ -72,21 +72,16 @@ long icy::LinearSystem::CreateStructure()
 #pragma omp parallel for
     for(int i=0;i<N;i++)
     {
-//        std::vector<int> &vec = rows_Neighbors_sorted[i];
-        tbb::concurrent_vector<int> &rn = rows_Neighbors[i];
-//        vec.resize(rn.size());
-//        std::copy(rn.begin(),rn.end(),vec.begin());
+        tbb::concurrent_vector<int> &rn = *rows_Neighbors[i];
         std::sort(rn.begin(),rn.end());
         auto unique_res = std::unique(rn.begin(), rn.end());
         unsigned newSize = std::distance(rn.begin(),unique_res);
         rn.resize(newSize);
-//        rn.erase( unique( vec.begin(), vec.end() ), vec.end() );
     }
 
     // count non-zero entries
     nnz = 0;
-//    for(int i=0;i<N;i++) nnz+=rows_Neighbors_sorted[i].size();
-    for(int i=0;i<N;i++) nnz+=rows_Neighbors[i].size();
+    for(int i=0;i<N;i++) nnz+=rows_Neighbors[i]->size();
 
     // allocate structure arrays
     if(csr_rows_size < N+1) {
@@ -112,14 +107,13 @@ long icy::LinearSystem::CreateStructure()
     for(int i=0;i<N;i++)
     {
         csr_rows[i] = count;
-        if(rows_Neighbors[i].size() == 0) throw std::runtime_error("matrix row contains no entries");
-        tbb::concurrent_vector<int> &sorted_vec = rows_Neighbors[i];
-//        std::vector<int> &sorted_vec = rows_Neighbors_sorted[i];
+        if(rows_Neighbors[i]->size() == 0) throw std::runtime_error("matrix row contains no entries");
+        tbb::concurrent_vector<int> &sorted_vec = *rows_Neighbors[i];
 
         int column_for_assertion = -1;
         for(int const &local_column : sorted_vec)
         {
-            rows_pcsr[i].push_back(std::make_pair(local_column,count));
+            rows_pcsr[i]->push_back(std::make_pair(local_column,count));
 
             csr_cols[count] = local_column;
             count++;
@@ -182,7 +176,7 @@ void icy::LinearSystem::AddLHS(const int row, const int column, const Eigen::Mat
 #endif
 
     int offset;
-    std::vector<std::pair<int,int>> &entry = rows_pcsr[row];
+    std::vector<std::pair<int,int>> &entry = *rows_pcsr[row];
     for(std::pair<int,int> &p : entry) if(p.first == column) {offset=p.second; break;}
 
 #ifdef QT_DEBUG
