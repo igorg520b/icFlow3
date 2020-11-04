@@ -17,8 +17,6 @@ icy::LinearSystem::LinearSystem()
     int reserve = 50000;
     rows_Neighbors.reserve(reserve);
     rows_Neighbors.resize(initial_size);
-//    rows_Neighbors_sorted.reserve(reserve);
-//    rows_Neighbors_sorted.resize(initial_size);
     rows_pcsr.reserve(reserve);
 }
 
@@ -30,7 +28,6 @@ long icy::LinearSystem::ClearAndResize(std::size_t N_)
     this->N = (int)N_;
     if((int)rows_Neighbors.size() < N) rows_Neighbors.resize(N);
     if((int)rows_pcsr.size() < N) rows_pcsr.resize(N);
-//    if((int)rows_Neighbors_sorted.size() < N) rows_Neighbors_sorted.resize(N);
 
 #pragma omp parallel for
     for(int i=0;i<N;i++) {
@@ -72,20 +69,15 @@ long icy::LinearSystem::CreateStructure()
 #pragma omp parallel for
     for(int i=0;i<N;i++)
     {
-//        std::vector<int> &vec = rows_Neighbors_sorted[i];
         tbb::concurrent_vector<int> &rn = rows_Neighbors[i];
-//        vec.resize(rn.size());
-//        std::copy(rn.begin(),rn.end(),vec.begin());
         std::sort(rn.begin(),rn.end());
         auto unique_res = std::unique(rn.begin(), rn.end());
         unsigned newSize = std::distance(rn.begin(),unique_res);
         rn.resize(newSize);
-//        rn.erase( unique( vec.begin(), vec.end() ), vec.end() );
     }
 
     // count non-zero entries
     nnz = 0;
-//    for(int i=0;i<N;i++) nnz+=rows_Neighbors_sorted[i].size();
     for(int i=0;i<N;i++) nnz+=rows_Neighbors[i].size();
 
     // allocate structure arrays
