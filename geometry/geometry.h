@@ -49,7 +49,7 @@ public:
     void ImportFloePatch(QString fileName, double CharacteristicLengthMax);
     void Remesh(double CharacteristicLengthMax);
 
-    void PrecomputePersistentVariables(SimParams &prms);
+    void RecomputeElasticityMatrix(SimParams &prms);
     void AssignLsIds();
     void CreateEdges2();     // from the list of elements, infer inner edges and boundary
     long IdentifyDisconnectedRegions(); // used to deal with small fragments
@@ -71,13 +71,6 @@ public:
     std::vector<Node*> new_crack_tips; // populated by SplitNodeAlt
 
     // save/load
-/*    void WriteToSerializationBuffers();
-    void RestoreFromSerializationBuffers();
-    std::vector<double> node_buffer;
-    std::vector<int> elems_buffer;
-    */
-
-    //hid_t file_handle, ds_nodes_handle, ds_elems_handle
     void WriteToHD5(unsigned offset_nodes, unsigned offset_elems,
                     hid_t ds_nodes_handle, hid_t ds_elems_handle);
     void RestoreFromHD5(unsigned offset_nodes, unsigned offset_elems,
@@ -92,16 +85,14 @@ public:
     //std::unordered_set<Element*> local_elems_set; // for computing local_elems
     icy::Node *maxNode = nullptr;
 
-//    Edge getEdgeByNodalIdx(int idx1, int idx2);
     std::vector<Edge> allEdges;
     std::vector<Edge> boundaryEdges;
 
-private:
-    void RecomputeElasticityMatrix(SimParams &prms);
     // matrices for elements, recomputed when rho/Y/nu change
     Eigen::Matrix3d elasticityMatrix;        // this has to be pre-computed whenever Y and nu change
     Eigen::Matrix2d D_mats;
 
+private:
     void ResizeNodes(std::size_t newSize);
     void ResizeElems(std::size_t newSize);
 

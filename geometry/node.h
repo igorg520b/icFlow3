@@ -45,7 +45,6 @@ public:
         Eigen::Vector2f t0_top, t1_top, t0_bottom, t1_bottom;
     };
 
-//    tbb::concurrent_vector<icy::Node*> adjacent_nodes;
     tbb::concurrent_vector<icy::Element*> adjacent_elems;
     std::vector<icy::Node::Sector> fan;
     void PrintoutFan(); // for testing

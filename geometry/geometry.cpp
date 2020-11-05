@@ -413,20 +413,15 @@ void icy::Geometry::CarefulSplitNonBoundaryElem(Element *originalElem, Element *
     originalElem->edges[ndIdx_orig] = exteriorEdge2;
     adjElem->edges[oppIdx_adj] = exteriorEdge2;
 
-    originalElem->InitializePersistentVariables();
-    insertedFace->InitializePersistentVariables();
-    adjElem->InitializePersistentVariables();
-    insertedFace_adj->InitializePersistentVariables();
+    originalElem->ComputeInitialNormal();
+    insertedFace->ComputeInitialNormal();
+    adjElem->ComputeInitialNormal();
+    insertedFace_adj->ComputeInitialNormal();
 
     if(originalElem->normal_initial.z() < 0) throw std::runtime_error("NonBoundaryElem: normal inconsistent in originalElem");
     if(insertedFace->normal_initial.z() < 0) throw std::runtime_error("NonBoundaryElem: normal inconsistent in insertedFace");
     if(adjElem->normal_initial.z() < 0) throw std::runtime_error("NonBoundaryElem: normal inconsistent in adjElem");
     if(insertedFace_adj->normal_initial.z() < 0) throw std::runtime_error("NonBoundaryElem: normal inconsistent in insertedFace_adj");
-
-    originalElem->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
-    insertedFace->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
-    adjElem->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
-    insertedFace_adj->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
 
     affected_elements_during_split.insert(originalElem);
     affected_elements_during_split.insert(insertedFace);
@@ -482,14 +477,11 @@ void icy::Geometry::CarefulSplitBoundaryElem(Element *originalElem, Node *nd,
     exteriorEdge2.AddElement(originalElem, ndIdx);
     originalElem->edges[ndIdx] = exteriorEdge2;
 
-    originalElem->InitializePersistentVariables();
-    insertedFace->InitializePersistentVariables();
+    originalElem->ComputeInitialNormal();
+    insertedFace->ComputeInitialNormal();
 
     if(originalElem->normal_initial.z() < 0) throw std::runtime_error("CarefulSplitBoundaryElem: normal inconsistent in originalElem");
     if(insertedFace->normal_initial.z() < 0) throw std::runtime_error("CarefulSplitBoundaryElem: normal inconsistent in insertedFace");
-
-    originalElem->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
-    insertedFace->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
 
     affected_elements_during_split.insert(originalElem);
     affected_elements_during_split.insert(insertedFace);
@@ -497,7 +489,6 @@ void icy::Geometry::CarefulSplitBoundaryElem(Element *originalElem, Node *nd,
 //    std::cout << "BoundaryElem replaced with:\n";
 //    std::cout << originalElem->nds[0]->locId << " - " << originalElem->nds[1]->locId << " - "<< originalElem->nds[2]->locId << '\n';
 //    std::cout << insertedFace->nds[0]->locId << " - " << insertedFace->nds[1]->locId << " - "<< insertedFace->nds[2]->locId << '\n';
-
 }
 
 void icy::Geometry::UpdateEdges()

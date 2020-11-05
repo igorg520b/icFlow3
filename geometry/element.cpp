@@ -12,7 +12,7 @@ double icy::Element::N[3][3] = {
        {1.0/6.0, 2.0/3.0, 1.0/6.0},
        {1.0/6.0, 1.0/6.0, 2.0/3.0}};
 
-void icy::Element::InitializePersistentVariables()
+void icy::Element::ComputeInitialNormal()
 {
     // translate the element
     Eigen::Vector3d p1, p2;
@@ -30,81 +30,8 @@ void icy::Element::InitializePersistentVariables()
         throw std::runtime_error("degenerate element created");
     }
     normal_initial.normalize();
-
-    initial_normal_up = normal_initial.z() > 0;
-    for(int j=0;j<3;j++) nds[j]->area += area_initial/3; // distribute area to adjacent nodes
-
-    // (use 1-based indices, yij = yi-yj)
-    double x1 = 0;
-    double x2 = p1.x();
-    double x3 = p2.x();
-    double y1 = 0;
-    double y2 = p1.y();
-    double y3 = p2.y();
-
-    double A2 = 2*area_initial;
-    double y23, y31, y12, x32, x13, x21;
-    y23 = y2-y3;
-    y31 = y3-y1;
-    y12 = y1-y2;
-    x32 = x3-x2;
-    x13 = x1-x3;
-    x21 = x2-x1;
-
-    // derivatives of shape functions
-    double dN1dx = y23/A2;
-    double dN2dx = y31/A2;
-    double dN3dx = y12/A2;
-    double dN1dy = x32/A2;
-    double dN2dy = x13/A2;
-    double dN3dy = x21/A2;
-
-    // bending strain-displacement matrix
-    bmat_b <<
-         0,0,0,dN1dx,0,       0,0,0,dN2dx,0,        0,0,0,dN3dx,0,
-         0,0,0,0,dN1dy,       0,0,0,0,dN2dy,        0,0,0,0,dN3dy,
-         0,0,0,dN1dy,dN1dx,  0,0,0,dN2dy,dN2dx,   0,0,0,dN3dy,dN3dx;
-
-    // membrane strain-displacement matrix
-    bmat_m <<
-         dN1dx,0,0,0,0,       dN2dx,0,0,0,0,      dN3dx,0,0,0,0,
-         0,dN1dy,0,0,0,       0,dN2dy,0,0,0,      0,dN3dy,0,0,0,
-         dN1dy,dN1dx,0,0,0,   dN2dy,dN2dx,0,0,0,  dN3dy,dN3dx,0,0,0;
-
-    // shear
-    for(int i=0;i<3;i++) {
-        bmat_s[i] <<
-           0,0,dN1dx,-N[i][0],0,   0,0,dN2dx,-N[i][1],0,     0,0,dN3dx,-N[i][2], 0,
-           0,0,dN1dy,0,-N[i][0],   0,0,dN2dy,0,-N[i][1],     0,0,dN3dy,0,-N[i][2];
-    }
 }
 
-void icy::Element::PrecomputeStiffnessMatrix(icy::SimParams &prms,
-                                             Eigen::Matrix3d &elasticityMatrix,
-                                             Eigen::Matrix2d &D_mats)
-{
-    double thickness = prms.Thickness;
-    // K and M depend on rho, Young's modulus and Poisson's ratio,
-    // therefore they are computed after these parameters are set
-
-    Eigen::Matrix<double,DOFS*3,DOFS*3> K_b, K_m, K_s;
-    K = Eigen::Matrix<double,DOFS*3,DOFS*3>::Zero();
-    K += bmat_m.transpose()*elasticityMatrix*bmat_m*(area_initial*thickness);
-
-    double coeff = area_initial*thickness*thickness*thickness/12.0;
-    K += bmat_b.transpose()*elasticityMatrix*bmat_b*coeff;
-
-    for(int i=0;i<3;i++) K += bmat_s[i].transpose()*D_mats*bmat_s[i]*(thickness*area_initial/3.0);
-}
-
-void icy::Element::FdF(
-        Eigen::Matrix<double,DOFS*3,1> &u,
-        Eigen::Matrix<double,DOFS*3,1> &Fo,
-        Eigen::Matrix<double,DOFS*3,DOFS*3> *dFo)
-{
-    Fo = K*u;
-    if(dFo != nullptr) *dFo = K;
-}
 
 void icy::Element::UpdateSparseSystemEntries(LinearSystem &ls)
 {
@@ -117,95 +44,6 @@ void icy::Element::UpdateSparseSystemEntries(LinearSystem &ls)
 }
 
 
-void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &prms, double)
-{
-    if(nds[0]->lsId < 0 && nds[1]->lsId < 0 && nds[2]->lsId < 0) return;
-
-    Eigen::Matrix<double,DOFS*3,1> un;
-    Eigen::Matrix<double,DOFS*3,1> ut;
-    un << nds[0]->un, nds[1]->un, nds[2]->un;
-    ut << nds[0]->ut, nds[1]->ut, nds[2]->ut;
-
-    // calculate elastic forces and Hessian at step n+1
-
-    // absolute position is not important, the origin is set at node 0
-    Eigen::Matrix<double,DOFS*3,1> Fn, Fnp1;     // internal force at steps n and n+1
-    Eigen::Matrix<double,DOFS*3,DOFS*3> dFnp1;   // Hessian of the force function
-
-    FdF(un, Fn, nullptr);
-    FdF(ut, Fnp1, &dFnp1);
-
-    // combine the results into a linearized equation of motion with HHT-alpha integration scheme
-    double alpha = prms.HHTalpha;
-    Eigen::Matrix<double,DOFS*3,1> F;      // right-hand side of the equation is equal to -F
-    Eigen::Matrix<double,DOFS*3,DOFS*3> dF;
-
-    F = Fn*alpha + Fnp1*(1-alpha);
-    dF= dFnp1*(1-alpha);
-
-#ifdef QT_DEBUG
-    // assert
-    for(int i=0;i<DOFS*3;i++)
-        for(int j=0;j<DOFS*3;j++)
-            if(std::isnan(dF(i,j)))
-                throw std::runtime_error("elem.ComputeElasticForce: dF contains NaN");
-#endif
-
-    // assemble
-    for(int i=0;i<3;i++) {
-        int row = nds[i]->lsId;
-        Eigen::Matrix<double,DOFS,1> locF = F.block(i*DOFS,0,DOFS,1);
-        ls.SubtractRHS(row, locF);
-        for(int j=0;j<3;j++) {
-            int col = nds[j]->lsId;
-            Eigen::Matrix<double,DOFS,DOFS> loc_dF = dF.block(i*DOFS,j*DOFS,DOFS,DOFS);
-            ls.AddLHS(row, col, loc_dF);
-        }
-    }
-}
-
-
-void icy::Element::EvaluateStresses(icy::SimParams &prms,
-                                    Eigen::Matrix3d &elasticityMatrix,
-                                    Eigen::Matrix2d &D_mats)
-{
-    Eigen::Matrix<double,DOFS*3,1> u;
-    u << nds[0]->ut, nds[1]->ut, nds[2]->ut;
-
-    double thickness = prms.Thickness;
-    str_b_top = str_b = elasticityMatrix*bmat_b*u;
-    str_b*= (thickness*thickness*thickness/12.0);
-    str_b_top *= (-thickness/2);
-    str_m = elasticityMatrix*bmat_m*u*thickness;
-    for(int i=0;i<3;i++) str_s[i] = D_mats*bmat_s[i]*u*(thickness/3.0);
-
-    // stress on top/bottom of the plate and corresponding principal stresses
-
-    float sx = str_b_top.coeff(0) + str_m.coeff(0);
-    float sy = str_b_top.coeff(1) + str_m.coeff(1);
-    float txy = str_b_top.coeff(2) + str_m.coeff(2);
-    str_top << sx, txy, txy, sy;
-
-    float coeff1 = sqrt((sx-sy)*(sx-sy)+txy*txy*4.0);
-    float s1 = 0.5*(sx+sy+coeff1);
-    float s2 = 0.5*(sx+sy-coeff1);
-    float max_principal_top = std::max(s1,s2);
-
-    sx = -str_b_top.coeff(0) + str_m.coeff(0);
-    sy = -str_b_top.coeff(1) + str_m.coeff(1);
-    txy = -str_b_top.coeff(2) + str_m.coeff(2);
-    str_bottom << sx, txy, txy, sy;
-
-    coeff1 = sqrt((sx-sy)*(sx-sy)+txy*txy*4.0);
-    s1 = 0.5*(sx+sy+coeff1);
-    s2 = 0.5*(sx+sy-coeff1);
-    float max_principal_bottom = std::max(s1,s2);
-
-    principal_stress_exceeds_threshold =
-            std::max(max_principal_top, max_principal_bottom) > prms.normal_traction_threshold*prms.cutoff_coefficient;
-
-    ComputeNormal();
-}
 
 void icy::Element::DistributeStresses()
 {
@@ -218,19 +56,19 @@ void icy::Element::DistributeStresses()
         for(int j=0;j<3;j++)
         {
 #pragma omp atomic
-            nd->str_b[j] += str_b.coeff(j)*coeff1;
+            nd->str_b[j] += a_str_b[j]*coeff1;
 #pragma omp atomic
-            nd->str_m[j] += str_m.coeff(j)*coeff1;
+            nd->str_m[j] += a_str_m[j]*coeff1;
 #pragma omp atomic
-            nd->str_b_top[j] += str_b_top.coeff(j)*coeff1;
+            nd->str_b_top[j] += a_str_b_top[j]*coeff1;
 #pragma omp atomic
-            nd->str_b_bottom[j] -= str_b_top.coeff(j)*coeff1;
+            nd->str_b_bottom[j] -= a_str_b_top[j]*coeff1;
         }
 
         float str_s_combined[2] = {};
         for(int j=0;j<3;j++) {
-            str_s_combined[0] += str_s[j].coeff(0)*coeff2*N[i][j];
-            str_s_combined[1] += str_s[j].coeff(1)*coeff2*N[i][j];
+            str_s_combined[0] += a_str_s[j][0]*coeff2*N[i][j];
+            str_s_combined[1] += a_str_s[j][1]*coeff2*N[i][j];
         }
 #pragma omp atomic
             nd->str_s[0] += str_s_combined[0];
@@ -243,7 +81,7 @@ void icy::Element::DistributeStresses()
     if(principal_stress_exceeds_threshold)
         for(int k=0;k<3;k++) nds[k]->potentially_can_fracture=true;
 }
-
+/*
 void icy::Element::rotationMatrix(Eigen::Vector3d &p1, Eigen::Vector3d &p2, Eigen::Matrix3d &result,
                                    double &area, Eigen::Vector3d &normal)
 {
@@ -281,7 +119,7 @@ void icy::Element::rotationMatrix_alt(Eigen::Vector3d &p12, Eigen::Vector3d &p13
     Eigen::Vector3d r2 = normal.cross(r1).normalized();
     result << r1, r2, normal;
 }
-
+*/
 
 void icy::Element::ComputeNormal()
 {
@@ -327,7 +165,7 @@ void icy::Element::ReplaceNode(icy::Node *replaceWhat, icy::Node *replaceWith)
     else if(nds[1] == replaceWhat) nds[1] = replaceWith;
     else if(nds[2] == replaceWhat) nds[2] = replaceWith;
     else throw std::runtime_error("replaceWhat is not in nds[]");
-    InitializePersistentVariables();
+    ComputeInitialNormal();
 }
 
 Eigen::Vector3d icy::Element::getCenter()
@@ -391,3 +229,206 @@ void icy::Element::AssertEdges()
     }
 }
 
+
+//=================
+
+void icy::Element::ComputeMatrices(SimParams &prms,
+                     Eigen::Matrix3d &elasticityMatrix,
+                     Eigen::Matrix2d &D_mats,
+                     Eigen::Matrix<double,3,DOFS*3> &bmat_b,
+                     Eigen::Matrix<double,2,DOFS*3> (&bmat_s)[3],
+                     Eigen::Matrix<double,3,DOFS*3> &bmat_m,
+                     Eigen::Matrix<double,DOFS*3,DOFS*3> &K)
+{
+    // translate the element
+    Eigen::Vector3d p1, p2;
+    p1 = nds[1]->x_initial.block(0,0,3,1) - nds[0]->x_initial.block(0,0,3,1);
+    p2 = nds[2]->x_initial.block(0,0,3,1) - nds[0]->x_initial.block(0,0,3,1);
+
+    normal_initial = p1.cross(p2);
+    area_initial=normal_initial.norm()/2;
+    if(area_initial<1e-8) {
+        qDebug() << "element " << nds[0]->locId << ", " << nds[1]->locId << ", " << nds[2]->locId;
+        qDebug() << "area" << area_initial;
+        qDebug() << "nd0 " << nds[0]->x_initial.x() << ", " << nds[0]->x_initial.y();
+        qDebug() << "nd1 " << nds[1]->x_initial.x() << ", " << nds[1]->x_initial.y();
+        qDebug() << "nd2 " << nds[2]->x_initial.x() << ", " << nds[2]->x_initial.y();
+        throw std::runtime_error("degenerate element created");
+    }
+    normal_initial.normalize();
+
+    // (use 1-based indices, yij = yi-yj)
+    double x1 = 0;
+    double x2 = p1.x();
+    double x3 = p2.x();
+    double y1 = 0;
+    double y2 = p1.y();
+    double y3 = p2.y();
+
+    double A2 = 2*area_initial;
+    double y23, y31, y12, x32, x13, x21;
+    y23 = y2-y3;
+    y31 = y3-y1;
+    y12 = y1-y2;
+    x32 = x3-x2;
+    x13 = x1-x3;
+    x21 = x2-x1;
+
+    // derivatives of shape functions
+    double dN1dx = y23/A2;
+    double dN2dx = y31/A2;
+    double dN3dx = y12/A2;
+    double dN1dy = x32/A2;
+    double dN2dy = x13/A2;
+    double dN3dy = x21/A2;
+
+    // bending strain-displacement matrix
+    bmat_b <<
+         0,0,0,dN1dx,0,       0,0,0,dN2dx,0,        0,0,0,dN3dx,0,
+         0,0,0,0,dN1dy,       0,0,0,0,dN2dy,        0,0,0,0,dN3dy,
+         0,0,0,dN1dy,dN1dx,  0,0,0,dN2dy,dN2dx,   0,0,0,dN3dy,dN3dx;
+
+    // membrane strain-displacement matrix
+    bmat_m <<
+         dN1dx,0,0,0,0,       dN2dx,0,0,0,0,      dN3dx,0,0,0,0,
+         0,dN1dy,0,0,0,       0,dN2dy,0,0,0,      0,dN3dy,0,0,0,
+         dN1dy,dN1dx,0,0,0,   dN2dy,dN2dx,0,0,0,  dN3dy,dN3dx,0,0,0;
+
+    // shear
+    for(int i=0;i<3;i++)
+        bmat_s[i] <<
+           0,0,dN1dx,-N[i][0],0,   0,0,dN2dx,-N[i][1],0,     0,0,dN3dx,-N[i][2], 0,
+           0,0,dN1dy,0,-N[i][0],   0,0,dN2dy,0,-N[i][1],     0,0,dN3dy,0,-N[i][2];
+
+    double thickness = prms.Thickness;
+    // K and M depend on rho, Young's modulus and Poisson's ratio,
+    // therefore they are computed after these parameters are set
+
+//    Eigen::Matrix<double,DOFS*3,DOFS*3> K_b, K_m, K_s;
+//    K = Eigen::Matrix<double,DOFS*3,DOFS*3>::Zero();
+    K = bmat_m.transpose()*elasticityMatrix*bmat_m*(area_initial*thickness);
+
+    double coeff = area_initial*thickness*thickness*thickness/12.0;
+    K += bmat_b.transpose()*elasticityMatrix*bmat_b*coeff;
+
+    for(int i=0;i<3;i++) K += bmat_s[i].transpose()*D_mats*bmat_s[i]*(thickness*area_initial/3.0);
+}
+
+void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &prms, double,
+                                       Eigen::Matrix3d &elasticityMatrix,
+                                       Eigen::Matrix2d &D_mats)
+{
+    if(nds[0]->lsId < 0 && nds[1]->lsId < 0 && nds[2]->lsId < 0) return;
+
+    Eigen::Matrix<double,3,DOFS*3> bmat_b;
+    Eigen::Matrix<double,2,DOFS*3> bmat_s[3];   // 3 gauss points
+    Eigen::Matrix<double,3,DOFS*3> bmat_m;
+    Eigen::Matrix<double,DOFS*3,DOFS*3> K;    // element stiffness matrix (3 gauss points)
+    ComputeMatrices(prms, elasticityMatrix, D_mats, bmat_b, bmat_s, bmat_m, K);
+
+    Eigen::Matrix<double,DOFS*3,1> un;
+    Eigen::Matrix<double,DOFS*3,1> ut;
+    un << nds[0]->un, nds[1]->un, nds[2]->un;
+    ut << nds[0]->ut, nds[1]->ut, nds[2]->ut;
+
+    // calculate elastic forces and Hessian at step n+1
+
+    // absolute position is not important, the origin is set at node 0
+    Eigen::Matrix<double,DOFS*3,1> Fn, Fnp1;     // internal force at steps n and n+1
+    Eigen::Matrix<double,DOFS*3,DOFS*3> &dFnp1=K;
+
+//    FdF(un, Fn, nullptr);
+//    FdF(ut, Fnp1, &dFnp1);
+    Fn = K*un;
+    Fnp1 = K*ut;
+
+    // combine the results into a linearized equation of motion with HHT-alpha integration scheme
+    double alpha = prms.HHTalpha;
+    Eigen::Matrix<double,DOFS*3,1> F;      // right-hand side of the equation is equal to -F
+    Eigen::Matrix<double,DOFS*3,DOFS*3> dF;
+
+    F = Fn*alpha + Fnp1*(1-alpha);
+    dF= dFnp1*(1-alpha);
+
+#ifdef QT_DEBUG
+    // assert
+    for(int i=0;i<DOFS*3;i++)
+        for(int j=0;j<DOFS*3;j++)
+            if(std::isnan(dF(i,j)))
+                throw std::runtime_error("elem.ComputeElasticForce: dF contains NaN");
+#endif
+
+    // assemble
+    for(int i=0;i<3;i++) {
+        int row = nds[i]->lsId;
+        Eigen::Matrix<double,DOFS,1> locF = F.block(i*DOFS,0,DOFS,1);
+        ls.SubtractRHS(row, locF);
+        for(int j=0;j<3;j++) {
+            int col = nds[j]->lsId;
+            Eigen::Matrix<double,DOFS,DOFS> loc_dF = dF.block(i*DOFS,j*DOFS,DOFS,DOFS);
+            ls.AddLHS(row, col, loc_dF);
+        }
+    }
+}
+
+
+void icy::Element::EvaluateStresses(icy::SimParams &prms,
+                                    Eigen::Matrix3d &elasticityMatrix,
+                                    Eigen::Matrix2d &D_mats)
+{
+    Eigen::Matrix<double,DOFS*3,1> u;
+    u << nds[0]->ut, nds[1]->ut, nds[2]->ut;
+
+    Eigen::Matrix<double,3,DOFS*3> bmat_b;
+    Eigen::Matrix<double,2,DOFS*3> bmat_s[3];   // 3 gauss points
+    Eigen::Matrix<double,3,DOFS*3> bmat_m;
+    Eigen::Matrix<double,DOFS*3,DOFS*3> K;    // element stiffness matrix (3 gauss points)
+    ComputeMatrices(prms, elasticityMatrix, D_mats, bmat_b, bmat_s, bmat_m, K);
+
+    Eigen::Vector3d str_b, str_m, str_b_top;
+    Eigen::Vector2d str_s[3];
+
+    double thickness = prms.Thickness;
+    str_b_top = str_b = elasticityMatrix*bmat_b*u;
+    str_b*= (thickness*thickness*thickness/12.0); // !!! this is bening moment, not stress
+    str_b_top *= (-thickness/2);
+    str_m = elasticityMatrix*bmat_m*u*thickness;
+    for(int i=0;i<3;i++) str_s[i] = D_mats*bmat_s[i]*u*(thickness/3.0);
+
+    // transfer to arrays
+    for(int i=0;i<3;i++)
+    {
+        a_str_b[i] = (float)str_b.coeff(i);
+        a_str_m[i] = (float)str_m.coeff(i);
+        a_str_b_top[i] = (float)str_b_top.coeff(i);
+        a_str_s[i][0] = (float)str_s[i].coeff(0);
+        a_str_s[i][1] = (float)str_s[i].coeff(1);
+    }
+
+    // stress on top/bottom of the plate and corresponding principal stresses
+
+    float sx = str_b_top.coeff(0) + str_m.coeff(0);
+    float sy = str_b_top.coeff(1) + str_m.coeff(1);
+    float txy = str_b_top.coeff(2) + str_m.coeff(2);
+    str_top << sx, txy, txy, sy;
+
+    float coeff1 = sqrt((sx-sy)*(sx-sy)+txy*txy*4.0);
+    float s1 = 0.5*(sx+sy+coeff1);
+    float s2 = 0.5*(sx+sy-coeff1);
+    float max_principal_top = std::max(s1,s2);
+
+    sx = -str_b_top.coeff(0) + str_m.coeff(0);
+    sy = -str_b_top.coeff(1) + str_m.coeff(1);
+    txy = -str_b_top.coeff(2) + str_m.coeff(2);
+    str_bottom << sx, txy, txy, sy;
+
+    coeff1 = sqrt((sx-sy)*(sx-sy)+txy*txy*4.0);
+    s1 = 0.5*(sx+sy+coeff1);
+    s2 = 0.5*(sx+sy-coeff1);
+    float max_principal_bottom = std::max(s1,s2);
+
+    principal_stress_exceeds_threshold =
+            std::max(max_principal_top, max_principal_bottom) > prms.normal_traction_threshold*prms.cutoff_coefficient;
+
+    ComputeNormal();
+}

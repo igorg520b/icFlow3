@@ -82,7 +82,7 @@ long icy::Model::ComputeElasticForcesAndAssemble(SimParams &prms, double timeSte
     auto t1 = std::chrono::high_resolution_clock::now();
 #pragma omp parallel for
     for(std::size_t i=0;i<nElems;i++)
-        (*floes.elems)[i]->ComputeElasticForce(ls, prms, timeStep);
+        (*floes.elems)[i]->ComputeElasticForce(ls, prms, timeStep, floes.elasticityMatrix, floes.D_mats);
 
 #pragma omp parallel for
     for(std::size_t i=0;i<nNodes;i++)
@@ -167,7 +167,7 @@ long icy::Model::LocalSubstep(SimParams &prms, double timeStep, double totalTime
 
 #pragma omp parallel for
         for(std::size_t i=0;i<nElemsLocal;i++)
-            floes.local_elems[i]->ComputeElasticForce(ls, prms, timeStep);
+            floes.local_elems[i]->ComputeElasticForce(ls, prms, timeStep, floes.elasticityMatrix, floes.D_mats);
 
 #pragma omp parallel for
         for(std::size_t i=0;i<nNodesLocal;i++)
@@ -235,8 +235,7 @@ void icy::Model::UnsafeUpdateGeometry(double simulationTime, SimParams &prms)
 void icy::Model::RestoreFromSerializationBuffers(SimParams &prms)
 {
     mutex.lock();
-    //floes.RestoreFromSerializationBuffers();
-    floes.PrecomputePersistentVariables(prms);
+    floes.RecomputeElasticityMatrix(prms);
     floes.EvaluateStresses(prms, *floes.elems);
     floes.DistributeStresses();
     floes.EvaluateAllNormalTractions(prms);

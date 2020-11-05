@@ -233,17 +233,17 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
 
     case VisOpt::Mx_e:
         visualized_values->SetNumberOfValues(elems->size());
-        for(std::size_t i=0;i<elems->size();i++) visualized_values->SetValue(i, (*elems)[i]->str_b[0]);
+        for(std::size_t i=0;i<elems->size();i++) visualized_values->SetValue(i, (*elems)[i]->a_str_b[0]);
         break;
 
     case VisOpt::My_e:
         visualized_values->SetNumberOfValues(elems->size());
-        for(std::size_t i=0;i<elems->size();i++) visualized_values->SetValue(i, (*elems)[i]->str_b[1]);
+        for(std::size_t i=0;i<elems->size();i++) visualized_values->SetValue(i, (*elems)[i]->a_str_b[1]);
         break;
 
     case VisOpt::Mxy_e:
         visualized_values->SetNumberOfValues(elems->size());
-        for(std::size_t i=0;i<elems->size();i++) visualized_values->SetValue(i, (*elems)[i]->str_b[2]);
+        for(std::size_t i=0;i<elems->size();i++) visualized_values->SetValue(i, (*elems)[i]->a_str_b[2]);
         break;
 
     case VisOpt::Tx:
@@ -292,7 +292,7 @@ void icy::FloeVisualization::UnsafeUpdateValues(std::vector<Node*> *nodes,
 
     case VisOpt::stx_e:
         visualized_values->SetNumberOfValues(elems->size());
-        for(std::size_t i=0;i<elems->size();i++) visualized_values->SetValue(i, (*elems)[i]->str_b_top[0]);
+        for(std::size_t i=0;i<elems->size();i++) visualized_values->SetValue(i, (*elems)[i]->a_str_b_top[0]);
         break;
 
     default:

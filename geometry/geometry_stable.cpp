@@ -220,11 +220,11 @@ void icy::Geometry::MeshingStepTwo(double CharacteristicLengthMax)
     {
         icy::Element *elem = (*elems)[i];
         for(int j=0;j<3;j++) elem->nds[j] = (*nodes)[mtags[nodeTagsInTris[i*3+j]]];
-        elem->InitializePersistentVariables();
+        elem->ComputeInitialNormal();
         if(elem->normal_initial.z()<0)
         {
             for(int j=0;j<3;j++) elem->nds[j] = (*nodes)[mtags[nodeTagsInTris[i*3+(2-j)]]];
-            elem->InitializePersistentVariables();
+            elem->ComputeInitialNormal();
         }
         else if(elem->normal_initial.z() < 0) throw std::runtime_error("normals inconsistent");
 
@@ -250,13 +250,11 @@ void icy::Geometry::CreateEdges2()
         //nd->adjacent_nodes.clear();
         nd->adjacent_elems.clear();
         nd->isBoundary = false;
-        nd->area = 0;
     }
 
     // edges_map will hold all edges and their connected elements
     tbb::concurrent_unordered_map<uint64_t, Edge> edges_map2;
 
-//    edges_map2.clear();
     area = 0;
 
     // associate edges with one or two adjacent elements
@@ -343,30 +341,8 @@ void icy::Geometry::CreateEdges2()
     }
 
 #pragma omp parallel for
-    for(std::size_t i=0;i<nodes->size();i++)
-    {
-        Node *nd = (*nodes)[i];
-        nd->PrepareFan2();
-    }
-
-    edges_map2.clear();
-
-#pragma omp parallel for
-    for(std::size_t k=0;k<nElems;k++)
-    {
-        icy::Element *elem = (*elems)[k];
-        elem->AssertEdges();
-    }
+    for(std::size_t i=0;i<nodes->size();i++) (*nodes)[i]->PrepareFan2();
 }
-
-/*
-icy::Edge icy::Geometry::getEdgeByNodalIdx(int idx1, int idx2)
-{
-    if(idx1 > idx2) std::swap(idx1, idx2);
-    uint64_t edgeIdx = ((uint64_t)idx1 << 32) | idx2;
-    return edges_map2.at(edgeIdx);
-}
-*/
 
 void icy::Geometry::AssignLsIds()
 {
@@ -380,17 +356,6 @@ void icy::Geometry::AssignLsIds()
     }
 }
 
-
-void icy::Geometry::PrecomputePersistentVariables(SimParams &prms)
-{
-    // compute elasticityMatrix and D_mats
-    RecomputeElasticityMatrix(prms);
-    std::size_t nElems = elems->size();
-#pragma omp parallel for
-    for(std::size_t i=0;i<nElems;i++)
-        (*elems)[i]->PrecomputeStiffnessMatrix(prms, elasticityMatrix, D_mats);
-}
-
 void icy::Geometry::RecomputeElasticityMatrix(SimParams &prms)
 {
     elasticityMatrix = Eigen::Matrix3d::Zero();
@@ -401,116 +366,6 @@ void icy::Geometry::RecomputeElasticityMatrix(SimParams &prms)
     D_mats = Eigen::Matrix2d::Identity();
     D_mats *= ((5.0/6.0)*prms.YoungsModulus/((1+prms.PoissonsRatio)*2.0));
 }
-/*
-void icy::Geometry::WriteToSerializationBuffers()
-{
-    std::size_t nNodes = nodes->size();
-    std::size_t nElems = elems->size();
-
-    node_buffer.resize(nNodes*icy::Node::NumberOfSerializedFields);
-    elems_buffer.resize(nElems*3);
-
-#pragma omp parallel for
-    for(std::size_t i=0;i<nNodes;i++)
-    {
-        icy::Node *nd = (*nodes)[i];
-        std::size_t idx = i*icy::Node::NumberOfSerializedFields;
-        node_buffer[idx+0] = nd->prescribed ? 1.0 : 0.0;
-        node_buffer[idx+1] = nd->x_initial.x();
-        node_buffer[idx+2] = nd->x_initial.y();
-        node_buffer[idx+3] = nd->timeLoadedAboveThreshold;
-
-        for(int j=0;j<5;j++)
-        {
-            node_buffer[idx+4+j] = nd->un[j];
-            node_buffer[idx+4+5+j] = nd->vn[j];
-            node_buffer[idx+4+10+j] = nd->an[j];
-        }
-    }
-
-#pragma omp parallel for
-    for(std::size_t i=0;i<nElems;i++)
-        for(int j=0;j<3;j++) elems_buffer[i*3+j] = (*elems)[i]->nds[j]->locId;
-}
-
-void icy::Geometry::RestoreFromSerializationBuffers()
-{
-    std::size_t nNodes = node_buffer.size()/icy::Node::NumberOfSerializedFields;
-    std::size_t nElems = elems_buffer.size()/3;
-
-    ResizeNodes(nNodes);
-    ResizeElems(nElems);
-
-#pragma omp parallel for
-    for(std::size_t i=0;i<nNodes;i++)
-    {
-        icy::Node *nd = (*nodes)[i];
-        nd->Reset();
-        std::size_t idx = i*icy::Node::NumberOfSerializedFields;
-
-        nd->prescribed = node_buffer[idx+0]==0 ? false : true;
-        nd->x_initial << node_buffer[idx+1], node_buffer[idx+2], 0, 0, 0;
-        nd->timeLoadedAboveThreshold = node_buffer[idx+3];
-
-        for(int j=0;j<5;j++)
-        {
-            nd->un(j)=node_buffer[idx+4+j];
-            nd->vn(j)=node_buffer[idx+4+5+j];
-            nd->an(j)=node_buffer[idx+4+10+j];
-        }
-        nd->xt = nd->xn = nd->x_initial + nd->un;
-        nd->ut = nd->un;
-        nd->vt = nd->vn;
-        nd->at = nd->an;
-    }
-
-#pragma omp parallel for
-    for(std::size_t i=0;i<nElems;i++)
-    {
-        icy::Element *elem = (*elems)[i];
-        for(int j=0;j<3;j++) elem->nds[j] = (*nodes)[elems_buffer[i*3+j]];
-        elem->InitializePersistentVariables();
-        if(elem->normal_initial.z()<0)
-        {
-            for(int j=0;j<3;j++) elem->nds[j] = (*nodes)[elems_buffer[i*3+(2-j)]];
-            elem->InitializePersistentVariables();
-        }
-        else if(elem->normal_initial.z() <0 ) throw std::runtime_error("RestoreFromSerializationBuffers: negative normals ");
-        elem->ComputeNormal();
-    }
-
-    area=0;
-    for(std::size_t i=0;i<nElems;i++)
-    {
-        icy::Element *elem = (*elems)[i];
-        for(int j=0;j<3;j++) elem->nds[j]->normal_n+=elem->normal_n;
-        area+= elem->area_initial;
-    }
-
-#pragma omp parallel for
-    for(unsigned i=0;i<nodes->size();i++)
-        (*nodes)[i]->normal_n.normalize();
-
-
-    double xmax, xmin, ymax, ymin;
-    xmax = ymax = -DBL_MAX;
-    xmin = ymin = DBL_MAX;
-    for(unsigned i=0;i<nodes->size();i++) {
-        icy::Node *nd = (*nodes)[i];
-        double x = nd->x_initial.x();
-        double y = nd->x_initial.y();
-        if(xmax < x) xmax = x;
-        if(ymax < y) ymax = y;
-        if(xmin > x) xmin = x;
-        if(ymin > y) ymin = y;
-    }
-    length = xmax-xmin;
-    width = ymax-ymin;
-
-    CreateEdges2();
-    IdentifyDisconnectedRegions();
-}
-*/
 
 void icy::Geometry::WriteToHD5(unsigned offset_nodes, unsigned offset_elems,
                 hid_t ds_nodes_handle, hid_t ds_elems_handle)
@@ -525,32 +380,45 @@ void icy::Geometry::WriteToHD5(unsigned offset_nodes, unsigned offset_elems,
     H5Dset_extent(ds_nodes_handle, nodes_dims);
 
     // write
-    hsize_t mem_dims[2] = {1,icy::Node::NumberOfSerializedFields};
-    hid_t mem_space_id = H5Screate_simple(2, mem_dims, mem_dims);
 
-    hsize_t count[2] = {1,icy::Node::NumberOfSerializedFields};
     hid_t file_space_id = H5Dget_space(ds_nodes_handle);
-    double node_buffer[icy::Node::NumberOfSerializedFields];
-    for(unsigned i=0;i<nNodes;i++)
+    constexpr unsigned long buffer_rows = 100;
+
+    // write in blocks sized buffer_rows
+    unsigned long written_node_count = 0;
+    do
     {
-        icy::Node *nd = (*nodes)[i];
-        node_buffer[0] = nd->prescribed ? 1.0 : 0.0;
-        node_buffer[1] = nd->x_initial.x();
-        node_buffer[2] = nd->x_initial.y();
-        node_buffer[3] = nd->timeLoadedAboveThreshold;
+        double node_buffer[buffer_rows][icy::Node::NumberOfSerializedFields];
+        unsigned long writing_now = std::min(buffer_rows, nNodes-written_node_count);
+        hsize_t mem_dims[2] = {writing_now,icy::Node::NumberOfSerializedFields};
+        hid_t mem_space_id = H5Screate_simple(2, mem_dims, mem_dims);
 
-        for(int j=0;j<5;j++)
+
+        for(unsigned k=0;k<writing_now;k++)
         {
-            node_buffer[4+j] = nd->un[j];
-            node_buffer[4+5+j] = nd->vn[j];
-            node_buffer[4+10+j] = nd->an[j];
-        }
+            unsigned idx = written_node_count+k;
+            icy::Node *nd = (*nodes)[idx];
+            node_buffer[k][0] = nd->prescribed ? 1.0 : 0.0;
+            node_buffer[k][1] = nd->x_initial.x();
+            node_buffer[k][2] = nd->x_initial.y();
+            node_buffer[k][3] = nd->timeLoadedAboveThreshold;
 
-        hsize_t offset_nds[2] = {offset_nodes+i,0};
+            for(int j=0;j<5;j++)
+            {
+                node_buffer[k][4+j] = nd->un[j];
+                node_buffer[k][4+5+j] = nd->vn[j];
+                node_buffer[k][4+10+j] = nd->an[j];
+            }
+        }
+        hsize_t offset_nds[2] = {offset_nodes+written_node_count,0};
+        hsize_t count[2] = {writing_now, icy::Node::NumberOfSerializedFields};
         H5Sselect_hyperslab(file_space_id, H5S_SELECT_SET, offset_nds, NULL, count, NULL);
         H5Dwrite(ds_nodes_handle, H5T_NATIVE_DOUBLE, mem_space_id, file_space_id, H5P_DEFAULT,(void*)node_buffer);
-    }
-    H5Sclose(mem_space_id);
+        H5Sclose(mem_space_id);
+
+        written_node_count+=writing_now;
+    }while(written_node_count < nNodes);
+
     H5Sclose(file_space_id);
 
     std::size_t nElems = elems->size();
@@ -633,7 +501,7 @@ void icy::Geometry::RestoreFromHD5(unsigned offset_nodes, unsigned offset_elems,
         icy::Element *elem = (*elems)[i];
         for(int j=0;j<3;j++) elem->nds[j] = (*nodes)[elems_buffer[j]];
 
-        elem->InitializePersistentVariables();
+        elem->ComputeInitialNormal();
         if(elem->normal_initial.z() <0 ) {
             qDebug() << "negative elem normal";
             throw std::runtime_error("RestoreFromHD5: negative normals ");

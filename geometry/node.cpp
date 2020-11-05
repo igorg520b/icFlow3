@@ -10,8 +10,6 @@
 icy::Node::Node()
 {
     Reset();
-    //adjacent_nodes.reserve(10);
-    //fan.reserve(10);
 }
 
 void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double timeStep, double totalTime)
@@ -306,7 +304,10 @@ void icy::Node::Reset()
     normal_n = Eigen::Vector3d::Zero();
     prescribed = false;
     area = 0;
+    adjacent_elems.reserve(7);
     adjacent_elems.clear();
+    fan.reserve(7);
+    fan.clear();
     crack_tip = support_node = reset_timing = false;
     timeLoadedAboveThreshold = 0;
     max_normal_traction = 0;
@@ -586,6 +587,7 @@ void icy::Node::PrepareFan2()
         throw std::runtime_error("disconnected node");
     }
     fan.clear();
+    area = 0;
     for(unsigned k=0;k<nElems;k++)
     {
         icy::Element *elem = adjacent_elems[k];

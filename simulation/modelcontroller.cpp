@@ -107,7 +107,7 @@ void icy::ModelController::Trim()
 
 void icy::ModelController::Prepare()
 {
-    model.floes.PrecomputePersistentVariables(prms);
+    model.floes.RecomputeElasticityMatrix(prms);
 
     // add frame zero to the list
     if(stepStats.size() == 0) {
