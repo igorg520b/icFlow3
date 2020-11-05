@@ -28,7 +28,6 @@ public:
 
     int lsId = -1;      // squential number in the system of equations (-1 if prescribed)
     int locId;          // sequential number in a given floe
-    bool prescribed = false;    // motion of prescribed nodes is known up front
     bool isBoundary;
     double area;        // mass that the node "represents", for applying various forces
     float vertical_force; // for testing
@@ -39,8 +38,7 @@ public:
         icy::Element *face;
         float centerAngle; // angle from the node to the center of the adjacent element
         icy::Node* nd[2];
-        icy::Edge e[3]; // [0] CW boundary; [1] CCW boundary; [2] across from the center node
-        float angle0, angle1, angle_span;
+        float angle0, angle1;
         Eigen::Vector2f u_normalized, v_normalized, u_p, v_p;
         Eigen::Vector2f t0_top, t1_top, t0_bottom, t1_bottom;
     };
@@ -48,11 +46,9 @@ public:
     tbb::concurrent_vector<icy::Element*> adjacent_elems;
     std::vector<icy::Node::Sector> fan;
     void PrintoutFan(); // for testing
-    void VerifyFan();
-    void VerifySSR();
 
     // initial configuration
-    Eigen::Matrix<double,DOFS,1> x_initial;
+    Eigen::Matrix<double,3,1> x_initial;
 
     // at step n: displacement, position, velocity, acceleration
     Eigen::Matrix<double,DOFS,1> un, xn, vn, an;

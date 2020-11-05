@@ -64,10 +64,14 @@ public:
     icy::Node* getOppositeNode(Node *nd0, Node* nd1);
     Eigen::Vector3d getCenter();
 
-    void getIdxs(Node*nd, short &thisIdx, short &CWIdx, short &CCWIdx);
+    void getIdxs(const Node*nd, short &thisIdx, short &CWIdx, short &CCWIdx) const;
     Edge getEdgeOppositeToNode(Node *nd);
     Element* getAdjacentElementOppositeToNode(Node *nd);
     short getNodeIdx(Node *nd);
+
+    Edge CWEdge(const Node* nd) const;
+    Edge CCWEdge(const Node* nd) const;
+    Edge OppositeEdge(const Node* nd) const;
 
     bool ContainsNode(Node *nd){return (nds[0]==nd || nds[1]==nd || nds[2]==nd);}
     void ReplaceNode(Node *replaceWhat, Node *replaceWith);

@@ -29,14 +29,13 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
 #pragma omp parallel for
         for(std::size_t i=0;i<nNodes;i++)
         {
-            icy::Node *nd = (*nodes)[i];
+            icy::Node *nd = nodes->at(i);
             if(nd->potentially_can_fracture)
             {
                 if(nd->timeLoadedAboveThreshold >= temporal_attenuation)
                 {
                     nd->PrepareFan2();
                     nd->ComputeFanVariablesAlt(prms);
-                    nd->VerifySSR();
                     if(nd->max_normal_traction > threashold) breakable_range_concurrent.push_back(nd);
                     else nd->timeLoadedAboveThreshold = 0;
                 }
@@ -90,7 +89,6 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
         {
             nd->PrepareFan2();
             nd->ComputeFanVariablesAlt(prms);
-//            if(nd->max_normal_traction>0) { nd->VerifyFan(); nd->VerifySSR(); }
         }
 
     }
@@ -121,8 +119,6 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
 #endif
             breakable_range.erase(it_nd);
 
-            maxNode->VerifyFan();
-            maxNode->VerifySSR();
         }
     }
 
@@ -157,11 +153,9 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
 
     icy::Edge splitEdge_fw;
     if(!ssr.faces[0]->ContainsNode(nd)) throw std::runtime_error("SplitNode: mesh toplogy error 0");
-    nd->VerifyFan();
-    nd->VerifySSR();
     EstablishSplittingEdge(splitEdge_fw, nd,
                                 ssr.phi[0], ssr.theta[0], prms.fracture_epsilon,
-                                ssr.e[0], ssr.e[1], ssr.faces[0],prms);
+                                ssr.e[0], ssr.e[1], ssr.faces[0]);
 
     Node *split0=nullptr,*split1=nullptr;
     split0=splitEdge_fw.getOtherNode(nd);
@@ -173,7 +167,7 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
         if(!ssr.faces[1]->ContainsNode(nd)) throw std::runtime_error("SplitNode: mesh toplogy error 1");
         EstablishSplittingEdge(splitEdge_bw, nd,
                                     ssr.phi[1], ssr.theta[1], prms.fracture_epsilon,
-                                    ssr.e[2], ssr.e[3], ssr.faces[1],prms);
+                                    ssr.e[2], ssr.e[3], ssr.faces[1]);
 
         split1=splitEdge_bw.getOtherNode(nd);
     }
@@ -226,8 +220,6 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
 
 void icy::Geometry::Fix_X_Topology(Node *nd)
 {
-    Eigen::Vector3d nd_vec = nd->x_initial.block(0,0,3,1);
-
     nd->fan.clear();
     for(unsigned k=0;k<nd->adjacent_elems.size();k++)
     {
@@ -235,7 +227,7 @@ void icy::Geometry::Fix_X_Topology(Node *nd)
 
         Node::Sector s;
         s.face = elem;
-        Eigen::Vector3d tcv = elem->getCenter() - nd_vec;
+        Eigen::Vector3d tcv = elem->getCenter() - nd->x_initial;
         s.centerAngle = atan2(tcv.y(), tcv.x());
 
         short thisIdx, CWIdx, CCWIdx;
@@ -244,10 +236,6 @@ void icy::Geometry::Fix_X_Topology(Node *nd)
         s.nd[0] = elem->nds[CWIdx];
         s.nd[1] = elem->nds[CCWIdx];
 
-        // note that the indices are swapped
-        s.e[0] = elem->edges[CCWIdx];
-        s.e[1] = elem->edges[CWIdx];
-        s.e[2] = elem->edges[thisIdx];
         nd->fan.push_back(s);
     }
 
@@ -256,7 +244,8 @@ void icy::Geometry::Fix_X_Topology(Node *nd)
     {return f0.centerAngle < f1.centerAngle; });
 
 
-    auto cw_boundary = std::find_if(nd->fan.begin(), nd->fan.end(), [](const Node::Sector &f){return f.e[0].isBoundary;});
+    auto cw_boundary = std::find_if(nd->fan.begin(), nd->fan.end(),
+                                    [nd](const Node::Sector &f){return f.face->CWEdge(nd).isBoundary;});
     if(cw_boundary != nd->fan.end()) std::rotate(nd->fan.begin(), cw_boundary, nd->fan.end());
 
     Node *split=nullptr;
@@ -264,7 +253,7 @@ void icy::Geometry::Fix_X_Topology(Node *nd)
     for(unsigned i=1;i<nd->fan.size();i++)
     {
         Node::Sector &s = nd->fan[i];
-        if(s.e[0].toSplit || s.e[0].isBoundary) replacing=!replacing;
+        if(s.face->CWEdge(nd).toSplit || s.face->CWEdge(nd).isBoundary) replacing=!replacing;
         if(replacing) {
             if(split==nullptr) {
                 split=AddNode();
@@ -282,7 +271,7 @@ void icy::Geometry::Fix_X_Topology(Node *nd)
 
 void icy::Geometry::EstablishSplittingEdge(Edge &splitEdge, Node* nd,
                             const float phi, const float theta, const float fracture_epsilon,
-                            const Edge e0, const Edge e1, Element *elem, SimParams &prms)
+                            const Edge e0, const Edge e1, Element *elem)
 {
 //    std::cout << "Establsh SplittingEdge" << std::endl;
     icy::Node *nd0, *nd1;
@@ -318,11 +307,11 @@ void icy::Geometry::EstablishSplittingEdge(Edge &splitEdge, Node* nd,
         icy::Element *elem_adj = elem->getAdjacentElementOppositeToNode(nd);
         if(elem_adj==nullptr)
         {
-            CarefulSplitBoundaryElem(elem, nd, nd0, nd1, whereToSplit, splitEdge,prms);
+            CarefulSplitBoundaryElem(elem, nd, nd0, nd1, whereToSplit, splitEdge);
         }
         else
         {
-            CarefulSplitNonBoundaryElem(elem, elem_adj, nd, nd0, nd1, whereToSplit, splitEdge,prms);
+            CarefulSplitNonBoundaryElem(elem, elem_adj, nd, nd0, nd1, whereToSplit, splitEdge);
         }
     }
     splitEdge.toSplit = true;
@@ -331,7 +320,7 @@ void icy::Geometry::EstablishSplittingEdge(Edge &splitEdge, Node* nd,
 }
 
 void icy::Geometry::CarefulSplitNonBoundaryElem(Element *originalElem, Element *adjElem,
-                                 Node *nd, Node *nd0, Node *nd1, float where, Edge &insertedEdge, SimParams &prms)
+                                 Node *nd, Node *nd0, Node *nd1, float where, Edge &insertedEdge)
 {
 //    std::cout << "NonBoundaryElem; nd " << nd->locId << "; nd0 " << nd0->locId << "; nd1 " << nd1->locId << '\n';
 //    std::cout << "originalElem: " << originalElem->nds[0]->locId << ", "<< originalElem->nds[1]->locId;
@@ -432,7 +421,7 @@ void icy::Geometry::CarefulSplitNonBoundaryElem(Element *originalElem, Element *
 
 
 void icy::Geometry::CarefulSplitBoundaryElem(Element *originalElem, Node *nd,
-                                             Node *nd0, Node *nd1, float where, Edge &insertedEdge,SimParams &prms)
+                                             Node *nd0, Node *nd1, float where, Edge &insertedEdge)
 {
 //    std::cout << "BoundaryElem; nd " << nd->locId << "; nd0 " << nd0->locId << "; nd1 " << nd1->locId << '\n';
 //    std::cout << originalElem->nds[0]->locId << " - " << originalElem->nds[1]->locId << " - "<< originalElem->nds[2]->locId << '\n';
@@ -546,8 +535,8 @@ void icy::Geometry::UpdateEdges()
             if(nd0idx > nd1idx) std::swap(nd0idx, nd1idx);
             uint64_t key = ((uint64_t)nd0idx << 32) | nd1idx;
 
-            icy::Node *nd0 = (*nodes)[nd0idx];
-            icy::Node *nd1 = (*nodes)[nd1idx];
+            icy::Node *nd0 = nodes->at(nd0idx);
+            icy::Node *nd1 = nodes->at(nd1idx);
 
             Edge edge(nd0, nd1);
 

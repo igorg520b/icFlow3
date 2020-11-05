@@ -29,17 +29,15 @@ void icy::Model::InitialGuessTentativeVals(double timeStep, double beta, double 
 #pragma omp parallel for
     for(std::size_t i=0;i<nNodes;i++) {
         icy::Node *nd = (*floes.nodes)[i];
-        if(nd->prescribed) {
-            nd->ut = nd->un;
-            nd->xt = nd->xn = nd->x_initial + nd->ut;
-        } else {
-            nd->ut = nd->un + nd->vn*h + nd->an*(hsq/2);
-            nd->xt = nd->x_initial + nd->ut;
-            // per free node, calculate velocity and acceleration at step n+1 from given xt
-            Eigen::Matrix<double,DOFS,1> xt_xn = nd->ut - nd->un;
-            nd->at = nd->an*c1 - nd->vn*c2 + xt_xn*c3;
-            nd->vt = nd->an*c4 + nd->vn*c5 + xt_xn*c6;
-        }
+        nd->ut = nd->un + nd->vn*h + nd->an*(hsq/2);
+        nd->xt = nd->ut;
+        nd->xt.x() += nd->x_initial.x();
+        nd->xt.y() += nd->x_initial.y();
+
+        // per free node, calculate velocity and acceleration at step n+1 from given xt
+        Eigen::Matrix<double,DOFS,1> xt_xn = nd->ut - nd->un;
+        nd->at = nd->an*c1 - nd->vn*c2 + xt_xn*c3;
+        nd->vt = nd->an*c4 + nd->vn*c5 + xt_xn*c6;
     }
 }
 
@@ -64,7 +62,9 @@ long icy::Model::PullFromLinearSystem(double timeStep, double beta, double gamma
         icy::Node *nd = (*floes.nodes)[i];
         if(nd->lsId < 0) continue;
         ls.AdjustCurrentGuess(nd->lsId, nd->ut);
-        nd->xt = nd->x_initial + nd->ut;
+        nd->xt = nd->ut;
+        nd->xt.x() += nd->x_initial.x();
+        nd->xt.y() += nd->x_initial.y();
         // per free node, calculate velocity and acceleration at step n+1 from given xt
         Eigen::Matrix<double,DOFS,1> xt_xn = nd->ut - nd->un;
         nd->at = nd->an*c1 - nd->vn*c2 + xt_xn*c3;

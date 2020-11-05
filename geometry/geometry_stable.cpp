@@ -203,8 +203,9 @@ void icy::Geometry::MeshingStepTwo(double CharacteristicLengthMax)
 
         icy::Node* nd = (*nodes)[count];
         nd->Reset();
-        nd->x_initial << x, y, 0, 0, 0;
-        nd->xt = nd->xn = nd->x_initial;
+        nd->x_initial << x, y, 0;
+        nd->xn << x, y, 0, 0, 0;
+        nd->xt = nd->xn;
         nd->locId = count;
         mtags[tag] = count;
         count++;
@@ -301,7 +302,7 @@ void icy::Geometry::CreateEdges2()
         }
     }
 
-    allEdges.clear();
+    std::vector<Edge> allEdges;
     allEdges.resize(edges_map2.size());
     boundaryEdges.clear();
 
@@ -351,8 +352,8 @@ void icy::Geometry::AssignLsIds()
     for(std::size_t i=0;i<nNodes;i++)
     {
         icy::Node *nd = (*nodes)[i];
-        if(nd->prescribed) nd->lsId = -1;
-        else nd->lsId = count++;
+        //if(nd->prescribed) nd->lsId = -1;
+        nd->lsId = count++;
     }
 }
 
@@ -398,7 +399,7 @@ void icy::Geometry::WriteToHD5(unsigned offset_nodes, unsigned offset_elems,
         {
             unsigned idx = written_node_count+k;
             icy::Node *nd = (*nodes)[idx];
-            node_buffer[k][0] = nd->prescribed ? 1.0 : 0.0;
+            //node_buffer[k][0] = nd->prescribed ? 1.0 : 0.0;
             node_buffer[k][1] = nd->x_initial.x();
             node_buffer[k][2] = nd->x_initial.y();
             node_buffer[k][3] = nd->timeLoadedAboveThreshold;
@@ -466,8 +467,8 @@ void icy::Geometry::RestoreFromHD5(unsigned offset_nodes, unsigned offset_elems,
         icy::Node *nd = (*nodes)[i];
         nd->Reset();
 
-        nd->prescribed = node_buffer[0]==0 ? false : true;
-        nd->x_initial << node_buffer[1], node_buffer[2], 0, 0, 0;
+        //nd->prescribed = node_buffer[0]==0 ? false : true;
+        nd->x_initial << node_buffer[1], node_buffer[2], 0;
         nd->timeLoadedAboveThreshold = node_buffer[3];
 
         for(int j=0;j<5;j++)
@@ -476,7 +477,11 @@ void icy::Geometry::RestoreFromHD5(unsigned offset_nodes, unsigned offset_elems,
             nd->vn(j)=node_buffer[4+5+j];
             nd->an(j)=node_buffer[4+10+j];
         }
-        nd->xt = nd->xn = nd->x_initial + nd->un;
+        nd->xn = nd->un;
+        nd->xn.x()+=nd->x_initial.x();
+        nd->xn.y()+=nd->x_initial.y();
+
+        nd->xt = nd->xn;
         nd->ut = nd->un;
         nd->vt = nd->vn;
         nd->at = nd->an;

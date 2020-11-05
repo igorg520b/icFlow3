@@ -58,8 +58,8 @@ public:
 
     unsigned getElemCount() {return elems->size();}
     unsigned getNodeCount() {return nodes->size();}
-    unsigned getFreeNodeCount() {
-        return std::count_if(nodes->begin(), nodes->end(), [](Node* &nd){return !nd->prescribed;}); }
+    unsigned getFreeNodeCount() { return nodes->size(); }
+//        return std::count_if(nodes->begin(), nodes->end(), [](Node* &nd){return !nd->prescribed;}); }
 
     void EvaluateStresses(SimParams &prms, std::vector<Element*> &elems_range);     // needed for ComputeFractureDirections
     void DistributeStresses();                  // needed for visualization
@@ -85,7 +85,6 @@ public:
     //std::unordered_set<Element*> local_elems_set; // for computing local_elems
     icy::Node *maxNode = nullptr;
 
-    std::vector<Edge> allEdges;
     std::vector<Edge> boundaryEdges;
 
     // matrices for elements, recomputed when rho/Y/nu change
@@ -104,12 +103,12 @@ private:
 
     void EstablishSplittingEdge(Edge &splitEdge, Node* nd,
                                 const float phi, const float theta, const float fracture_epsilon,
-                                const Edge e0, const Edge e1, Element *elem, SimParams &prms);
+                                const Edge e0, const Edge e1, Element *elem);
     void Fix_X_Topology(Node *nd);
     // preserve boundaries and orientation
-    void CarefulSplitBoundaryElem(Element *originalElem, Node *nd, Node *nd0, Node *nd1, float where, Edge &insertedEdge, SimParams &prms);
+    void CarefulSplitBoundaryElem(Element *originalElem, Node *nd, Node *nd0, Node *nd1, float where, Edge &insertedEdge);
     void CarefulSplitNonBoundaryElem(Element *originalElem, Element *adjElem, Node *nd,
-                                     Node *nd0, Node *nd1, float where, Edge &insertedEdge, SimParams &prms);
+                                     Node *nd0, Node *nd1, float where, Edge &insertedEdge);
 
     void MeshingStepTwo(double CharacteristicLengthMax);
 

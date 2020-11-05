@@ -13,7 +13,7 @@
 icy::LinearSystem::LinearSystem()
 {
     // typical values for medium-sized FEM geometry
-    int reserve = 700000;
+    int reserve = 1300000;
     rows_Neighbors.reserve(reserve);
     rows_pcsr.reserve(reserve);
 }
@@ -33,7 +33,8 @@ long icy::LinearSystem::ClearAndResize(std::size_t N_)
     if((int)rows_pcsr.size() < N)
     {
         while((int)rows_pcsr.size()<N*1.2)
-        rows_pcsr.push_back(new std::vector<std::pair<int,int>>(10));
+            rows_pcsr.push_back(new std::vector<int>(10));
+//        rows_pcsr.push_back(new std::vector<std::pair<int,int>>(10));
     }
 
 #pragma omp parallel for
@@ -85,14 +86,14 @@ long icy::LinearSystem::CreateStructure()
 
     // allocate structure arrays
     if(csr_rows_size < N+1) {
-        csr_rows_size = 2*N;
+        csr_rows_size = N*1.3;
         delete csr_rows;
         csr_rows = new int[csr_rows_size];
         if(csr_rows == nullptr) throw std::runtime_error("csr_rows allocation error");
     }
 
     if(csr_cols_size < nnz) {
-        csr_cols_size = nnz*2;
+        csr_cols_size = nnz*1.5;
         delete csr_cols;
         csr_cols = new int[csr_cols_size];
         if(csr_cols == nullptr) throw std::runtime_error("csr_cols allocation error");
@@ -113,7 +114,8 @@ long icy::LinearSystem::CreateStructure()
         int column_for_assertion = -1;
         for(int const &local_column : sorted_vec)
         {
-            rows_pcsr[i]->push_back(std::make_pair(local_column,count));
+//            rows_pcsr[i]->push_back(std::make_pair(local_column,count));
+            rows_pcsr[i]->push_back(count);
 
             csr_cols[count] = local_column;
             count++;
@@ -133,14 +135,14 @@ long icy::LinearSystem::CreateStructure()
     // allocate value arrays
     if (vals_length < dvalsSize()) {
         delete vals;
-        vals_length = dvalsSize()*2;
+        vals_length = dvalsSize()*1.3;
         vals = new double[vals_length];
     }
 
     if(dx_length < dxSize()) {
         delete rhs;
         delete dx;
-        dx_length = dxSize()*2;
+        dx_length = dxSize()*1.2;
         rhs = new double[dx_length];
         dx = new double[dx_length];
     }
@@ -175,9 +177,15 @@ void icy::LinearSystem::AddLHS(const int row, const int column, const Eigen::Mat
     if(column >= N) throw std::runtime_error("LHS: column out of range");
 #endif
 
-    int offset;
-    std::vector<std::pair<int,int>> &entry = *rows_pcsr[row];
-    for(std::pair<int,int> &p : entry) if(p.first == column) {offset=p.second; break;}
+    int offset=-1;
+//    std::vector<std::pair<int,int>> &entry = *rows_pcsr[row];
+//    for(std::pair<int,int> &p : entry) if(p.first == column) {offset=p.second; break;}
+    tbb::concurrent_vector<int>*vec = rows_Neighbors[row];
+    for(unsigned count = 0;count<vec->size();count++)
+    {
+        if(vec->at(count) == column) {offset = rows_pcsr[row]->at(count); break;}
+    }
+    if(offset<0) throw std::runtime_error("offset < 0");
 
 #ifdef QT_DEBUG
     if(offset >= nnz) throw std::runtime_error("offset >= nnz");

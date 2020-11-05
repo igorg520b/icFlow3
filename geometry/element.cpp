@@ -16,8 +16,8 @@ void icy::Element::ComputeInitialNormal()
 {
     // translate the element
     Eigen::Vector3d p1, p2;
-    p1 = nds[1]->x_initial.block(0,0,3,1) - nds[0]->x_initial.block(0,0,3,1);
-    p2 = nds[2]->x_initial.block(0,0,3,1) - nds[0]->x_initial.block(0,0,3,1);
+    p1 = nds[1]->x_initial - nds[0]->x_initial;
+    p2 = nds[2]->x_initial - nds[0]->x_initial;
 
     normal_initial = p1.cross(p2);
     area_initial=normal_initial.norm()/2;
@@ -170,11 +170,11 @@ void icy::Element::ReplaceNode(icy::Node *replaceWhat, icy::Node *replaceWith)
 
 Eigen::Vector3d icy::Element::getCenter()
 {
-    return (nds[0]->x_initial + nds[1]->x_initial + nds[2]->x_initial).block(0,0,3,1)/3.0;
+    return (nds[0]->x_initial + nds[1]->x_initial + nds[2]->x_initial)/3.0;
 }
 
 
-void icy::Element::getIdxs(icy::Node*nd, short &thisIdx, short &CWIdx, short &CCWIdx)
+void icy::Element::getIdxs(const icy::Node*nd, short &thisIdx, short &CWIdx, short &CCWIdx) const
 {
     if(nd==nds[0]) thisIdx=0;
     else if(nd==nds[1]) thisIdx=1;
@@ -187,6 +187,29 @@ void icy::Element::getIdxs(icy::Node*nd, short &thisIdx, short &CWIdx, short &CC
     CWIdx = (thisIdx+1)%3;
     CCWIdx = (thisIdx+2)%3;
 }
+
+icy::Edge icy::Element::CWEdge(const Node* nd) const
+{
+    short thisIdx, CWIdx, CCWIdx;
+    getIdxs(nd, thisIdx, CWIdx, CCWIdx);
+    return edges[CCWIdx];
+}
+
+icy::Edge icy::Element::CCWEdge(const Node* nd) const
+{
+    short thisIdx, CWIdx, CCWIdx;
+    getIdxs(nd, thisIdx, CWIdx, CCWIdx);
+    return edges[CWIdx];
+
+}
+
+icy::Edge icy::Element::OppositeEdge(const Node* nd) const
+{
+    short thisIdx, CWIdx, CCWIdx;
+    getIdxs(nd, thisIdx, CWIdx, CCWIdx);
+    return edges[thisIdx];
+}
+
 
 icy::Edge icy::Element::getEdgeOppositeToNode(icy::Node *nd)
 {
@@ -242,8 +265,8 @@ void icy::Element::ComputeMatrices(SimParams &prms,
 {
     // translate the element
     Eigen::Vector3d p1, p2;
-    p1 = nds[1]->x_initial.block(0,0,3,1) - nds[0]->x_initial.block(0,0,3,1);
-    p2 = nds[2]->x_initial.block(0,0,3,1) - nds[0]->x_initial.block(0,0,3,1);
+    p1 = nds[1]->x_initial - nds[0]->x_initial;
+    p2 = nds[2]->x_initial - nds[0]->x_initial;
 
     normal_initial = p1.cross(p2);
     area_initial=normal_initial.norm()/2;

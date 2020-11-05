@@ -9,18 +9,14 @@ icy::Edge::Edge(icy::Node* nd0, icy::Node* nd1)
     nds[0] = nd0;
     nds[1] = nd1;
     elems[0] = elems[1] = nullptr;
-
-//    Eigen::Vector3d u = (nds[1]->x_initial - nds[0]->x_initial).block(0,0,3,1);
-//    angle0_initial = atan2(u.y(), u.x());
-//    angle1_initial = (angle0_initial > 0) ? angle0_initial - M_PI : angle0_initial + M_PI;
 }
 
 void icy::Edge::AddElement(icy::Element* elem, short idx)
 {
-    Eigen::Vector3d u = (nds[1]->x_initial - nds[0]->x_initial).block(0,0,3,1);
+    Eigen::Vector3d u = nds[1]->x_initial - nds[0]->x_initial;
     icy::Node *opposite_node;
     ElementBoundaryFollowsEdge(elem, opposite_node);
-    Eigen::Vector3d v1 = (opposite_node->x_initial - nds[0]->x_initial).block(0,0,3,1);
+    Eigen::Vector3d v1 = opposite_node->x_initial - nds[0]->x_initial;
     Eigen::Vector3d res2 = u.cross(v1);
     bool elem1_isCCW = res2.z() > 0;
 

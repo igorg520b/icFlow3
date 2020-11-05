@@ -14,7 +14,7 @@ icy::Node::Node()
 
 void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double timeStep, double totalTime)
 {
-    if(prescribed || lsId < 0) return;
+    if(lsId < 0) return;
     double beta = prms.NewmarkBeta;
     double alpha = prms.HHTalpha;
     double mass = area*prms.Thickness*prms.IceDensity;
@@ -161,8 +161,6 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
 #endif
 
     // assemble
-
-    if(prescribed || lsId < 0) return;
     ls.SubtractRHS(lsId, F);
     ls.AddLHS(lsId, lsId, dF);
 }
@@ -300,14 +298,12 @@ double icy::Node::BellShapedPolynomialDx(double x)
 
 void icy::Node::Reset()
 {
-    x_initial=ut=xt=vt=at=un=xn=vn=an=Eigen::Matrix<double,DOFS,1>::Zero();
+    ut=xt=vt=at=un=xn=vn=an=Eigen::Matrix<double,DOFS,1>::Zero();
+    x_initial=Eigen::Matrix<double,3,1>::Zero();
     normal_n = Eigen::Vector3d::Zero();
-    prescribed = false;
     area = 0;
     adjacent_elems.reserve(7);
     adjacent_elems.clear();
-    fan.reserve(7);
-    fan.clear();
     crack_tip = support_node = reset_timing = false;
     timeLoadedAboveThreshold = 0;
     max_normal_traction = 0;
@@ -319,8 +315,8 @@ void icy::Node::InitializeFromAdjacent(const Node *nd0, const Node *nd1, double 
     x_initial = nd0->x_initial*f + nd1->x_initial*(1-f);
     ut = nd0->ut*f + nd1->ut*(1-f);
     un = nd0->un*f + nd1->un*(1-f);
-    xt = x_initial + ut;
-    xn = x_initial + un;
+    xt = nd0->xt*f + nd1->xt*(1-f);
+    xn = nd0->xn*f + nd1->xn*(1-f);
     vt = nd0->vt*f + nd1->vt*(1-f);
     vn = nd0->vn*f + nd1->vn*(1-f);
     at = nd0->at*f + nd1->at*(1-f);
@@ -332,8 +328,8 @@ void icy::Node::InitializeFromAnother(const Node *nd)
     x_initial = nd->x_initial;
     ut = nd->ut;
     un = nd->un;
-    xt = x_initial + ut;
-    xn = x_initial + un;
+    xt = nd->xt;
+    xn = nd->xn;
     vt = nd->vt;
     vn = nd->vn;
     at = nd->at;
@@ -364,12 +360,14 @@ void icy::Node::InitializeFan()
 
     for(Sector &f : fan)
     {
-        f.u_normalized = f.e[0].getVec(this).normalized();
-        f.v_normalized = f.e[1].getVec(this).normalized();
+//        f.u_normalized = f.e[0].getVec(this).normalized();
+//        f.v_normalized = f.e[1].getVec(this).normalized();
+        // TODO: Simplify this
+        f.u_normalized = f.face->CWEdge(this).getVec(this).normalized();
+        f.v_normalized = f.face->CCWEdge(this).getVec(this).normalized();
 
         f.angle0 = fan_angle_span;
-        f.angle_span = get_angle(f.u_normalized,f.v_normalized);
-        fan_angle_span += f.angle_span;
+        fan_angle_span += get_angle(f.u_normalized,f.v_normalized);
         f.angle1 = fan_angle_span;
 
         f.u_p << -f.u_normalized.y(), f.u_normalized.x();
@@ -408,14 +406,14 @@ void icy::Node::evaluate_tractions(float angle_fwd, SepStressResult &ssr, const 
         if (angle_fwd >= fp.angle0 && angle_fwd < fp.angle1)
         {
             ssr.faces[0] = fp.face;
-            ssr.e[0] = fp.e[0];
-            ssr.e[1] = fp.e[1];
-            ssr.e_opposite[0] = fp.e[2];
+            ssr.e[0] = fp.face->CWEdge(this);
+            ssr.e[1] = fp.face->CCWEdge(this);
+            ssr.e_opposite[0] = fp.face->OppositeEdge(this);
 
             float phi = ssr.phi[0] = angle_fwd - fp.angle0;
             ssr.theta[0] = fp.angle1 - angle_fwd;
 
-            float ratio = phi/fp.angle_span;
+            float ratio = phi/(fp.angle1-fp.angle0);
             ssr.tn = (fp.u_normalized*(1-ratio) + fp.v_normalized*ratio).normalized();
             ssr.tn_p = (fp.u_p*(1-ratio) + fp.v_p*ratio).normalized(); // perpendicular to tn
             //ssr.tn_p = normal_n.cross(ssr.tn).normalized();
@@ -431,14 +429,14 @@ void icy::Node::evaluate_tractions(float angle_fwd, SepStressResult &ssr, const 
         else if (!isBoundary && angle_bwd >= fp.angle0 && angle_bwd < fp.angle1)
         {
             ssr.faces[1] = fp.face;
-            ssr.e[2] = fp.e[0];
-            ssr.e[3] = fp.e[1];
-            ssr.e_opposite[1] = fp.e[2];
+            ssr.e[2] = fp.face->CWEdge(this);
+            ssr.e[3] = fp.face->CCWEdge(this);
+            ssr.e_opposite[1] = fp.face->OppositeEdge(this);
 
             float phi = ssr.phi[1] = angle_bwd - fp.angle0;
             ssr.theta[1] = fp.angle1 - angle_bwd;
 
-            float ratio = phi/fp.angle_span;
+            float ratio = phi/(fp.angle1-fp.angle0);
             Eigen::Vector2f tn_p = (fp.u_p*(1-ratio) + fp.v_p*ratio).normalized(); // perpendicular to tn
 
             Eigen::Vector2f tmult_top = fp.face->str_top * tn_p;
@@ -500,7 +498,6 @@ float icy::Node::normal_traction(float angle_fwd, float weakening_coeff) const
 void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
 {
     InitializeFan();
-    VerifyFan();
     dir=Eigen::Vector2f::Zero();
     max_normal_traction = 0;
     unsigned nFan = fan.size();
@@ -559,7 +556,6 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
     }
 
     evaluate_tractions(fracture_angle, result_with_max_traction, weakening_coeff);
-    VerifySSR();
     if(result_with_max_traction.faces[0]==result_with_max_traction.faces[1])
         throw std::runtime_error("evaluate_tractions: face0==face1");
     if(!result_with_max_traction.faces[0]->ContainsNode(this))
@@ -578,7 +574,7 @@ void icy::Node::ComputeFanVariablesAlt(SimParams &prms)
 
 void icy::Node::PrepareFan2()
 {
-    Eigen::Vector3d nd_vec = x_initial.block(0,0,3,1);
+    Eigen::Vector3d nd_vec = x_initial;
 
     unsigned nElems = adjacent_elems.size();
     if(nElems == 0)
@@ -587,6 +583,7 @@ void icy::Node::PrepareFan2()
         throw std::runtime_error("disconnected node");
     }
     fan.clear();
+    fan.reserve(nElems);
     area = 0;
     for(unsigned k=0;k<nElems;k++)
     {
@@ -606,17 +603,19 @@ void icy::Node::PrepareFan2()
         s.nd[1] = elem->nds[CCWIdx];
 
         // note that the indices are swapped
-        s.e[0] = elem->edges[CCWIdx];
-        s.e[1] = elem->edges[CWIdx];
-        if(!s.e[0].containsNode(this)) throw std::runtime_error("PrepareFan2: mesh topology error 0");
-        if(!s.e[1].containsNode(this)) throw std::runtime_error("PrepareFan2: mesh topology error 1");
-        if(!s.e[0].containsNode(s.nd[0])) throw std::runtime_error("PrepareFan2: mesh topology error 2");
-        if(!s.e[1].containsNode(s.nd[1])) throw std::runtime_error("PrepareFan2: mesh topology error 3");
+        Edge e0 = elem->CWEdge(this);
+        Edge e1 = elem->CCWEdge(this);
+//        s.e[0] = elem->edges[CCWIdx];
+//        s.e[1] = elem->edges[CWIdx];
+//        if(!s.e[0].containsNode(this)) throw std::runtime_error("PrepareFan2: mesh topology error 0");
+//        if(!s.e[1].containsNode(this)) throw std::runtime_error("PrepareFan2: mesh topology error 1");
+//        if(!s.e[0].containsNode(s.nd[0])) throw std::runtime_error("PrepareFan2: mesh topology error 2");
+//        if(!s.e[1].containsNode(s.nd[1])) throw std::runtime_error("PrepareFan2: mesh topology error 3");
 
-        s.e[2] = elem->edges[thisIdx];
+//        s.e[2] = elem->edges[thisIdx];
         fan.push_back(s);
 
-        if(s.e[0].isBoundary || s.e[1].isBoundary) isBoundary = true;
+        if(e0.isBoundary || e1.isBoundary) isBoundary = true;
     }
 
     std::sort(fan.begin(), fan.end(),
@@ -626,7 +625,7 @@ void icy::Node::PrepareFan2()
     if(isBoundary) // assert means that PrepareFan2 is not called from Fix_X
     {
         // find the fan element with the border on the CW direction
-        auto cw_boundary = std::find_if(fan.begin(), fan.end(), [](const Sector &f){return f.e[0].isBoundary;});
+        auto cw_boundary = std::find_if(fan.begin(), fan.end(), [this](const Sector &f){return f.face->CWEdge(this).isBoundary;});
         if(cw_boundary == fan.end())
         {
             PrintoutFan();
@@ -647,10 +646,9 @@ void icy::Node::PrepareFan2()
             PrintoutFan();
             throw std::runtime_error("fan nodes are not contiguous");
         }
-        if(fan[i].e[1].nds[0] != fan[i+1].e[0].nds[0] || fan[i].e[1].nds[1] != fan[i+1].e[0].nds[1])
-            throw std::runtime_error("edges not shared");
+//        if(fan[i].e[1].nds[0] != fan[i+1].e[0].nds[0] || fan[i].e[1].nds[1] != fan[i+1].e[0].nds[1])
+//            throw std::runtime_error("edges not shared");
     }
-    VerifyFan();
 }
 
 void icy::Node::PrintoutFan()
@@ -663,11 +661,11 @@ void icy::Node::PrintoutFan()
     {
         std::cout << s.nd[0]->locId << "-" << s.nd[1]->locId;
         std::cout << " ; " << s.face->nds[0]->locId << "-" << s.face->nds[1]->locId << "-"<< s.face->nds[2]->locId;
-        std::cout << " ; C " << s.e[0].nds[0]->locId << "-" << s.e[0].nds[1]->locId << (s.e[0].isBoundary ? " b " : " nb ");
-        std::cout << (s.e[0].toSplit ? "* " : " ");
+//        std::cout << " ; C " << s.e[0].nds[0]->locId << "-" << s.e[0].nds[1]->locId << (s.e[0].isBoundary ? " b " : " nb ");
+//        std::cout << (s.e[0].toSplit ? "* " : " ");
         //std::cout << s.e[0].elems[0] << " " << s.e[0].elems[1];
-        std::cout << "; CC " << s.e[1].nds[0]->locId << "-" << s.e[1].nds[1]->locId << (s.e[1].isBoundary ? " b " : " nb ");
-        std::cout << (s.e[1].toSplit ? "* " : " ");
+//        std::cout << "; CC " << s.e[1].nds[0]->locId << "-" << s.e[1].nds[1]->locId << (s.e[1].isBoundary ? " b " : " nb ");
+//        std::cout << (s.e[1].toSplit ? "* " : " ");
         //std::cout << s.e[1].elems[0] << " " << s.e[1].elems[1];
         std::cout << std::endl;
     }
@@ -677,51 +675,4 @@ void icy::Node::PrintoutFan()
     std::cout << std::flush;
 }
 
-void icy::Node::VerifyFan()
-{
-    for(Sector &s : fan)
-    {
-        Element *elem = s.face;
-        short thisIdx, CWIdx, CCWIdx;
-        elem->getIdxs(this, thisIdx, CWIdx, CCWIdx);
-
-        // note that the indices are swapped
-        Edge e0 = elem->edges[CCWIdx];
-        Edge e1 = elem->edges[CWIdx];
-        if(s.e[0].nds[0]!=e0.nds[0] || s.e[0].nds[1]!=e0.nds[1]
-                || s.e[1].nds[0]!=e1.nds[0] || s.e[1].nds[1]!=e1.nds[1]
-                || !elem->ContainsNode(e1.nds[0])
-                || !elem->ContainsNode(e1.nds[1])
-                || !elem->ContainsNode(e0.nds[0])
-                || !elem->ContainsNode(e0.nds[1]))
-        {
-            PrintoutFan();
-            throw std::runtime_error("VerifyFan 3");
-        }
-    }
-    // check that each element of the fan matches the recorded edges
-}
-
-void icy::Node::VerifySSR()
-{
-    if (max_normal_traction == 0) return;
-    Element *elem = result_with_max_traction.faces[0];
-    short thisIdx, CWIdx, CCWIdx;
-    elem->getIdxs(this, thisIdx, CWIdx, CCWIdx);
-
-    // note that the indices are swapped
-    Edge e0 = elem->edges[CCWIdx];
-    Edge e1 = elem->edges[CWIdx];
-
-    if((result_with_max_traction.e[0].nds[0]!=e0.nds[0])||
-            (result_with_max_traction.e[0].nds[1]!=e0.nds[1])||
-            (result_with_max_traction.e[1].nds[0]!=e1.nds[0])||
-            (result_with_max_traction.e[1].nds[1]!=e1.nds[1])||
-            !elem->ContainsNode(e1.nds[0]) || !elem->ContainsNode(e1.nds[1])||
-            (!elem->ContainsNode(e0.nds[0]) || !elem->ContainsNode(e0.nds[1])))
-    {
-        std::cout << "issue SSR nd" << locId << std::endl;
-        throw std::runtime_error("fan edges don't match the element");
-    }
-}
 
