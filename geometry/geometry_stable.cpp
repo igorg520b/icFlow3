@@ -86,8 +86,6 @@ icy::Node* icy::Geometry::AddNode(icy::Node *otherNd)
     result->locId = nodes->size();
     nodes->push_back(result);
     if(otherNd!=nullptr) result->InitializeFromAnother(otherNd);
-//    std::cout << "adding node " << result->locId << std::endl;
-
     return result;
 }
 
@@ -334,11 +332,6 @@ void icy::Geometry::CreateEdges2()
             elem_of_edge0->adj_elems[idx0] = elem_of_edge1;
             elem_of_edge1->adj_elems[idx1] = elem_of_edge0;
         }
-
-//        icy::Node *nd0 = existing_edge.nds[0];
-//        icy::Node *nd1 = existing_edge.nds[1];
-//        nd0->adjacent_nodes.push_back(nd1);
-//        nd1->adjacent_nodes.push_back(nd0);
     }
 
 #pragma omp parallel for
@@ -561,7 +554,8 @@ void icy::Geometry::DistributeStresses()
     std::size_t nElems = elems->size();
     std::size_t nNodes = nodes->size();
 #pragma omp parallel for
-    for(std::size_t i=0;i<nNodes;i++) {
+    for(std::size_t i=0;i<nNodes;i++)
+    {
         icy::Node *nd = (*nodes)[i];
         for(int k=0;k<3;k++) nd->str_b[k] = nd->str_m[k] = nd->str_b_top[k] = nd->str_b_bottom[k] = 0;
         nd->str_s[0] = nd->str_s[1] = 0;
@@ -621,7 +615,7 @@ long icy::Geometry::IdentifyDisconnectedRegions()
 //    for(std::tuple<unsigned, double, unsigned> &r : regions)
 //        std::cout << std::get<0>(r) << ": " << std::get<1>(r) << "; " << std::get<2>(r) <<  std::endl;
 //    std::cout << "============= \n";
-    std::cout << "Regions " << regions.size() << std::endl;
+    // std::cout << "Regions " << regions.size() << std::endl;
 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();

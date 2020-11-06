@@ -34,7 +34,6 @@ long icy::LinearSystem::ClearAndResize(std::size_t N_)
     {
         while((int)rows_pcsr.size()<N*1.2)
             rows_pcsr.push_back(new std::vector<int>(10));
-//        rows_pcsr.push_back(new std::vector<std::pair<int,int>>(10));
     }
 
 #pragma omp parallel for
@@ -82,26 +81,26 @@ long icy::LinearSystem::CreateStructure()
 
     // count non-zero entries
     nnz = 0;
+#pragma omp parallel for reduction(+:nnz)
     for(int i=0;i<N;i++) nnz+=rows_Neighbors[i]->size();
 
     // allocate structure arrays
-    if(csr_rows_size < N+1) {
+    if(csr_rows_size < N+1)
+    {
         csr_rows_size = N*1.3;
         delete csr_rows;
         csr_rows = new int[csr_rows_size];
         if(csr_rows == nullptr) throw std::runtime_error("csr_rows allocation error");
     }
 
-    if(csr_cols_size < nnz) {
+    if(csr_cols_size < nnz)
+    {
         csr_cols_size = nnz*1.5;
         delete csr_cols;
         csr_cols = new int[csr_cols_size];
         if(csr_cols == nullptr) throw std::runtime_error("csr_cols allocation error");
     }
-
     csr_rows[N] = nnz;
-
-
 
     // enumerate entries
     int count=0;
@@ -114,9 +113,7 @@ long icy::LinearSystem::CreateStructure()
         int column_for_assertion = -1;
         for(int const &local_column : sorted_vec)
         {
-//            rows_pcsr[i]->push_back(std::make_pair(local_column,count));
             rows_pcsr[i]->push_back(count);
-
             csr_cols[count] = local_column;
             count++;
 
@@ -133,24 +130,24 @@ long icy::LinearSystem::CreateStructure()
 
     // ALLOCATE AND CLEAR VALUE ARRAYS
     // allocate value arrays
-    if (vals_length < dvalsSize()) {
+    if (vals_length < dvalsSize())
+    {
         delete vals;
-        vals_length = dvalsSize()*1.3;
+        vals_length = dvalsSize()*1.5;
         vals = new double[vals_length];
     }
 
-    if(dx_length < dxSize()) {
+    if(dx_length < dxSize())
+    {
         delete rhs;
         delete dx;
-        dx_length = dxSize()*1.2;
+        dx_length = dxSize()*1.3;
         rhs = new double[dx_length];
         dx = new double[dx_length];
     }
     memset(rhs, 0, sizeof(double)*dxSize());
     memset(dx, 0, sizeof(double)*dxSize());
     memset(vals, 0, sizeof(double)*dvalsSize());
-
-    // PrintoutStats();
 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
@@ -301,7 +298,8 @@ double icy::LinearSystem::SqNormOfDx()
 {
     double result = 0;
     int max_count = dxSize();
-    for (int i = 0; i < max_count; i++) result += dx[i] * dx[i];
+#pragma omp parallel for reduction(+:result)
+    for (int i = 0; i < max_count; i++) result += dx[i]*dx[i];
     return result;
 }
 

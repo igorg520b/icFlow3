@@ -389,7 +389,7 @@ void MainWindow::on_action_floe_remesh_triggered()
 
 void MainWindow::treeItemSelected()
 {
-    qDebug() << "tree selection changed";
+//    qDebug() << "tree selection changed";
     QList<QTreeWidgetItem*> sl = tree->selectedItems();
     if(sl.size() == 1) {
         pbrowser->setActiveObject(nullptr);

@@ -611,8 +611,5 @@ void icy::Geometry::UpdateEdges()
         if(existing_edge.isBoundary) boundaryEdges.push_back(existing_edge);
     }
 
-
-//    for(Element *elem : expanded_set_elems2) elem->AssertEdges();
     for(Node *nd : affected_nodes_during_split) nd->PrepareFan2();
-
 }

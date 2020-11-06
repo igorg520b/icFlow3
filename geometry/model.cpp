@@ -98,7 +98,8 @@ void icy::Model::AcceptTentativeValues(SimParams &prms)
     mutex.lock();
     std::size_t nNodes = floes.nodes->size();
 #pragma omp parallel for
-    for(std::size_t i=0;i<nNodes;i++) {
+    for(std::size_t i=0;i<nNodes;i++)
+    {
         icy::Node *nd = (*floes.nodes)[i];
         nd->AcceptTentativeValues();
         nd->normal_n = Eigen::Vector3d::Zero(); // allow to accumulate
@@ -250,9 +251,9 @@ long icy::Model::IdentifyDisconnectedRegions()
     floes.IdentifyDisconnectedRegions();
     topologyInvalid = displacementsInvalid = valuesInvalid = true;
     if(!updateRequested) { updateRequested = true; emit requestGeometryUpdate(); }
-    mutex.lock();
-    floes.CreateEdges2();
-    mutex.unlock();
+    //mutex.lock();
+    //floes.CreateEdges2();
+    //mutex.unlock();
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }

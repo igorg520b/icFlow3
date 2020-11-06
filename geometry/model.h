@@ -26,6 +26,7 @@ class icy::Model : public QObject
 
     Q_PROPERTY(int in_Elems READ getElemCount)
     Q_PROPERTY(int in_Nodes READ getNodeCount)
+    Q_PROPERTY(int in_Regions READ getRegionCount)
     Q_PROPERTY(double in_length READ getLength)
     Q_PROPERTY(double in_width READ getWidth)
     Q_PROPERTY(double in_area READ getArea)
@@ -72,6 +73,7 @@ private:
 
     double getElemCount() { return floes.elems->size(); }
     double getNodeCount() { return floes.nodes->size(); }
+    double getRegionCount() {return floes.regions.size(); }
     double getLength() {return floes.length; }
     double getWidth() {return floes.width; }
     double getArea() {return floes.area; }
