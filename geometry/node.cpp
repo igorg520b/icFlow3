@@ -7,10 +7,7 @@
 #include "element.h"
 #include "boost/math/tools/minima.hpp"
 
-icy::Node::Node()
-{
-    Reset();
-}
+icy::Node::Node() { Reset(); }
 
 void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double timeStep, double totalTime)
 {
@@ -360,9 +357,7 @@ void icy::Node::InitializeFan()
 
     for(Sector &f : fan)
     {
-//        f.u_normalized = f.e[0].getVec(this).normalized();
-//        f.v_normalized = f.e[1].getVec(this).normalized();
-        // TODO: Simplify this
+        // TODO: Simplify these two statements
         f.u_normalized = f.face->CWEdge(this).getVec(this).normalized();
         f.v_normalized = f.face->CCWEdge(this).getVec(this).normalized();
 
@@ -605,14 +600,6 @@ void icy::Node::PrepareFan2()
         // note that the indices are swapped
         Edge e0 = elem->CWEdge(this);
         Edge e1 = elem->CCWEdge(this);
-//        s.e[0] = elem->edges[CCWIdx];
-//        s.e[1] = elem->edges[CWIdx];
-//        if(!s.e[0].containsNode(this)) throw std::runtime_error("PrepareFan2: mesh topology error 0");
-//        if(!s.e[1].containsNode(this)) throw std::runtime_error("PrepareFan2: mesh topology error 1");
-//        if(!s.e[0].containsNode(s.nd[0])) throw std::runtime_error("PrepareFan2: mesh topology error 2");
-//        if(!s.e[1].containsNode(s.nd[1])) throw std::runtime_error("PrepareFan2: mesh topology error 3");
-
-//        s.e[2] = elem->edges[thisIdx];
         fan.push_back(s);
 
         if(e0.isBoundary || e1.isBoundary) isBoundary = true;

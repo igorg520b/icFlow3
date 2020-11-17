@@ -197,12 +197,10 @@ void icy::Model::FractureStep(SimParams &prms, double timeStep, double totalTime
 
     b_substep += LocalSubstep(prms, timeStep, totalTime);
 
+    mutex.lock();
     b_compute_fracture_directions += floes.ComputeFractureDirections(prms);
+    mutex.unlock();
 
-//    mutex.lock();
-    // for visualization per fracture step
-//    floes.DistributeStresses();
-//    mutex.unlock();
     displacementsInvalid = true;
 
     if(!updateRequested) {updateRequested = true; emit requestGeometryUpdate(); }

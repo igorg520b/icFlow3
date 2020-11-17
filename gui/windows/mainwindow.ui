@@ -20,7 +20,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>27</height>
+     <height>28</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -64,6 +64,8 @@
     <addaction name="action_camera_reset"/>
     <addaction name="separator"/>
     <addaction name="action_Screenshot"/>
+    <addaction name="separator"/>
+    <addaction name="actionScreenshot_every_step"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
@@ -128,7 +130,7 @@
   </action>
   <action name="action_scene_open">
    <property name="icon">
-    <iconset resource="../icons.qrc">
+    <iconset>
      <normaloff>:/icons/open.png</normaloff>:/icons/open.png</iconset>
    </property>
    <property name="text">
@@ -140,7 +142,7 @@
   </action>
   <action name="action_scene_save_as">
    <property name="icon">
-    <iconset resource="../icons.qrc">
+    <iconset>
      <normaloff>:/icons/floppy-128.png</normaloff>:/icons/floppy-128.png</iconset>
    </property>
    <property name="text">
@@ -160,7 +162,7 @@
   </action>
   <action name="action_scene_reset">
    <property name="icon">
-    <iconset resource="../icons.qrc">
+    <iconset>
      <normaloff>:/icons/new.png</normaloff>:/icons/new.png</iconset>
    </property>
    <property name="text">
@@ -281,7 +283,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../icons.qrc">
+    <iconset>
      <normaloff>:/icons/realLeaf4.png</normaloff>:/icons/realLeaf4.png</iconset>
    </property>
    <property name="text">
@@ -361,6 +363,14 @@
    </property>
    <property name="text">
     <string>Load Recent on Startup</string>
+   </property>
+  </action>
+  <action name="actionScreenshot_every_step">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Screenshot every step</string>
    </property>
   </action>
  </widget>

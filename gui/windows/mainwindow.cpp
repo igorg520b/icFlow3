@@ -119,6 +119,7 @@ MainWindow::MainWindow(QWidget *parent)
     windowToImageFilter->SetInputBufferTypeToRGBA(); //also record the alpha (transparency) channel
     windowToImageFilter->ReadFrontBufferOn(); // read from the back buffer
     writer->SetInputConnection(windowToImageFilter->GetOutputPort());
+    writer2->SetInputConnection(windowToImageFilter->GetOutputPort());
 
     // right frame
     right_side_container = new QWidget;
@@ -456,6 +457,7 @@ void MainWindow::render_results()
 {
     controller.model.UnsafeUpdateGeometry(controller.ts.SimulationTime, controller.prms);
     renderWindow->Render();
+    if(ui->actionScreenshot_every_step->isChecked()) TakeScreenshotForVideo();
 }
 
 void MainWindow::Reset()
@@ -833,4 +835,29 @@ void MainWindow::on_action_Screenshot_triggered()
     qDebug() << "taking screenshot: " << outputPath;
     writer->SetFileName(outputPath.toUtf8().constData());
     writer->Write();
+}
+
+void MainWindow::on_actionScreenshot_every_step_triggered()
+{
+    screenshot_counter = 0;
+}
+
+void MainWindow::TakeScreenshotForVideo()
+{
+    controller.model.mutex.lock();
+    windowToImageFilter->SetInputBufferTypeToRGB();
+    windowToImageFilter->SetInput(renderWindow);
+    windowToImageFilter->SetScale(1); // image quality
+//    windowToImageFilter->SetInputBufferTypeToRGBA(); //also record the alpha (transparency) channel
+    windowToImageFilter->ReadFrontBufferOn(); // read from the back buffer
+    windowToImageFilter->Update();
+    windowToImageFilter->Modified();
+
+    writer->Modified();
+    QString number = QStringLiteral("%1").arg(screenshot_counter, 5, 10, QLatin1Char('0'));
+    QString outputPath = number + ".png";
+    writer->SetFileName(outputPath.toUtf8().constData());
+    writer->Write();
+    controller.model.mutex.unlock();
+    screenshot_counter++;
 }

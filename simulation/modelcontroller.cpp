@@ -242,7 +242,9 @@ void icy::ModelController::Fracture()
         return;
     }
 
+    model.mutex.lock();
     ts.b_compute_fracture_directions += model.floes.ComputeFractureDirections(prms, ts.TimeStep, true);
+    model.mutex.unlock();
     int count=0;
     model.floes_vtk.update_minmax = false;
 

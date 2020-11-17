@@ -58,6 +58,7 @@
 
 #include <vtkWindowToImageFilter.h>
 #include <vtkPNGWriter.h>
+#include <vtkJPEGWriter.h>
 
 #include <iostream>
 #include <fstream>
@@ -150,6 +151,8 @@ private slots:
 
     void on_action_GotoStep0_triggered();
 
+    void on_actionScreenshot_every_step_triggered();
+
 private:
     PreferencesGUI prefsGUI;
     QDir outputDirectory;
@@ -199,6 +202,7 @@ private:
     vtkNew<vtkPointPicker> pointPicker;
     vtkNew<vtkWindowToImageFilter> windowToImageFilter;
     vtkNew<vtkPNGWriter> writer;
+    vtkNew<vtkJPEGWriter> writer2;
 
     void Reset();
     void OpenSceneFile(QString fileName);
@@ -214,5 +218,7 @@ private:
     const QString wtitle = "icFlow3: Finite Element Simulation of Ice - ";
 
     void save_fan_data_for_testing();
+    unsigned screenshot_counter = 0; // for recording video
+    void TakeScreenshotForVideo();
 };
 #endif // MAINWINDOW_H

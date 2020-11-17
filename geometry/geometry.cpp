@@ -377,8 +377,6 @@ void icy::Geometry::CarefulSplitNonBoundaryElem(Element *originalElem, Element *
     insertedEdge.AddElement(originalElem, nd0Idx_orig);
     insertedEdge.isBoundary = false;
     insertedEdge.toSplit = true;
-//    insertedFace->edges[nd1Idx_orig]=insertedEdge;
-//    originalElem->edges[nd0Idx_orig]=insertedEdge;
 
     Edge insertedEdge_adj = Edge(oppositeNode, split);
     insertedEdge_adj.AddElement(insertedFace_adj, nd1Idx_adj);
@@ -453,8 +451,6 @@ void icy::Geometry::CarefulSplitBoundaryElem(Element *originalElem, Node *nd,
     insertedEdge.AddElement(originalElem, nd0Idx);
     insertedEdge.isBoundary = false;
     insertedEdge.toSplit = true;
-//    insertedFace->edges[nd1Idx]=insertedEdge;
-//    originalElem->edges[nd0Idx]=insertedEdge;
 
     Edge exteriorEdge1 = Edge(split, nd1);
     exteriorEdge1.isBoundary = true;

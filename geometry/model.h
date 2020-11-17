@@ -55,6 +55,7 @@ public:
     long IdentifyDisconnectedRegions();
     void UnsafeUpdateGeometry(double simulationTime, SimParams &prms); // to be called from the main thread
     void RestoreFromSerializationBuffers(SimParams &prms); // called from controller after loading data from a file
+    QMutex mutex; // to prevent modifying mesh data while updating VTK representation
 
 private:
     icy::LinearSystem ls;
@@ -62,7 +63,6 @@ private:
     long LocalSubstep(SimParams &prms, double timeStep, double totalTime);
 
     // synchronize VTK visualization and internal representation
-    QMutex mutex; // to prevent modifying mesh data while updating VTK representation
     bool topologyInvalid = true;        // topology changed (means that displacements and values also changed)
     bool displacementsInvalid = true;   // displacements changed since VTK last updated
     bool valuesInvalid = true;          // visualization changed (e.g. via GUI comobobox)

@@ -22,7 +22,6 @@ class icy::Element
 public:
     icy::Node* nds[3];          // initialized when the geometry is loaded or remeshed
     icy::Edge edges[3];        // element's edges opposite to nd 0,1,2
-//    bool edgeIsBoundary[3];     // whether the edge is boundary (opposite to node 0,1,2)
     icy::Element* adj_elems[3]; // nullptr of no adjacent element
     unsigned short region;
     unsigned short traversal;             // for traversal when identifying region connectivity
