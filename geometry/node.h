@@ -11,8 +11,8 @@
 #include "linearsystem.h"
 #include "edge.h"
 
-#include <concurrent_vector.h>
-#include <concurrent_unordered_map.h>
+#include <tbb/concurrent_vector.h>
+#include <tbb/concurrent_unordered_map.h>
 
 namespace icy { class Node; class SimParams; class Edge; class Element; class Geometry; }
 

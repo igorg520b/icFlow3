@@ -9,9 +9,8 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-set(CXXFLAGS -fopenmp)
 
-find_package(Boost 1.71.0)
+find_package(Boost)
 
 find_package(VTK COMPONENTS
   vtkCommonColor
@@ -109,14 +108,11 @@ target_include_directories(fl3 PUBLIC /usr/include/hdf5/serial)
 # some paths need to be set manually
 target_include_directories(fl3 PUBLIC /home/s2/intel/mkl/include)
 target_include_directories(fl3 PUBLIC /home/s2/Projects-libraries/eigen)
-target_include_directories(fl3 PUBLIC /home/s2/Projects-libraries/oneTBB/include/)
-target_include_directories(fl3 PUBLIC /home/s2/Projects-libraries/oneTBB/include/tbb/)
 target_include_directories(fl3 PUBLIC /home/s2/Projects-libraries/vtk/Common/Core/)
 target_include_directories(fl3 PUBLIC ${Boost_INCLUDE_DIRS})
 
 target_link_directories(fl3 PUBLIC /home/s2/intel/mkl/lib/intel64_lin)
 target_link_directories(fl3 PUBLIC /usr/local/lib)
-target_link_directories(fl3 PUBLIC /home/s2/Projects-libraries/oneTBB/build/linux_intel64_gcc_cc9.3.0_libc2.31_kernel5.4.0_release)
 
 target_link_libraries(fl3 PRIVATE Qt5::Widgets Qt5::Charts Qt5::Core)
 target_link_libraries(fl3 PRIVATE ${VTK_LIBRARIES})
@@ -125,3 +121,5 @@ target_link_libraries(fl3 PUBLIC tbb)
 target_link_libraries(fl3 PUBLIC mkl_intel_lp64 mkl_gnu_thread mkl_core gomp pthread m dl)
 target_link_libraries(fl3 PUBLIC hdf5_serial z boost_serialization)
 target_link_libraries(fl3 PUBLIC ${Boost_LIBRARIES})
+
+target_compile_options(fl3 PUBLIC -fopenmp)
