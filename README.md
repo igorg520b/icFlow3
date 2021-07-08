@@ -17,9 +17,10 @@ libboost-dev
 
 libboost-serialization-dev
 
+libvtk9-dev
 
-Intel MKL (provide the necessary path in CMakeLists.txt)
+libvtk9-qt-dev
 
-VTK 9 compiled with Qt
+Intel MKL (update the path in CMakeLists.txt)
 
 ![icyFlow3 screenshot](/screenshot.png?raw=true)
