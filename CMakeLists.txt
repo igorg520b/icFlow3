@@ -11,6 +11,7 @@ set(CMAKE_AUTORCC ON)
 
 
 find_package(Boost)
+find_package(Eigen3 REQUIRED NO_MODULE)
 
 find_package(VTK COMPONENTS
   vtkCommonColor
@@ -107,7 +108,7 @@ target_include_directories(fl3 PUBLIC /usr/include/hdf5/serial)
 
 # some paths need to be set manually
 target_include_directories(fl3 PUBLIC /home/s2/intel/mkl/include)
-target_include_directories(fl3 PUBLIC /home/s2/Projects-libraries/eigen)
+#target_include_directories(fl3 PUBLIC /home/s2/Projects-libraries/eigen)
 target_include_directories(fl3 PUBLIC /home/s2/Projects-libraries/vtk/Common/Core/)
 target_include_directories(fl3 PUBLIC ${Boost_INCLUDE_DIRS})
 
@@ -121,5 +122,6 @@ target_link_libraries(fl3 PUBLIC tbb)
 target_link_libraries(fl3 PUBLIC mkl_intel_lp64 mkl_gnu_thread mkl_core gomp pthread m dl)
 target_link_libraries(fl3 PUBLIC hdf5_serial z boost_serialization)
 target_link_libraries(fl3 PUBLIC ${Boost_LIBRARIES})
+target_link_libraries(fl3 PUBLIC Eigen3::Eigen)
 
 target_compile_options(fl3 PUBLIC -fopenmp)
