@@ -127,7 +127,7 @@ MainWindow::MainWindow(QWidget *parent)
     right_side_container->setLayout(right_side_layout);
     right_side_layout->setSpacing(0);
     right_side_layout->setMargin(0);
-    right_side_layout->addWidget(qt_vtk_widget);
+    right_side_layout->addWidget(qt_vtk_widget,1);
     right_side_layout->addWidget(chartView_benchmark, 1);
     right_side_layout->addWidget(chartView, 1);
 
@@ -136,6 +136,9 @@ MainWindow::MainWindow(QWidget *parent)
     splitter_main->addWidget(splitter_left_panel);
     splitter_main->addWidget(right_side_container);
     setCentralWidget(splitter_main);
+//    splitter_main->setStretchFactor(0,100);
+//    splitter_main->setStretchFactor(1,500);
+    splitter_main->setSizes(QList<int>({100, 500}));
 
     // toolbar - comboboxes
     comboBox_visualizations = new QComboBox();
