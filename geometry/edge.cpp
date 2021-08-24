@@ -108,12 +108,12 @@ icy::Element* icy::Edge::getElementWithNode(icy::Node *nd)
         throw std::runtime_error("getElementWithNode: cannot find element with a given node");
     }
 }
-
+/*
 bool icy::Edge::sameAs(Edge other)
 {
     return (nds[0]==other.nds[0] && nds[1]==other.nds[1]);
 }
-
+*/
 bool icy::Edge::containsNode(Node *nd)
 {
     return (nd==nds[0] || nd==nds[1]);

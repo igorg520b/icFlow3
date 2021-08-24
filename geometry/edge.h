@@ -29,7 +29,7 @@ public:
 
     icy::Element* getElementWithNode(icy::Node *nd);
     icy::Node* getFarNode(icy::Node *nd);
-    bool sameAs(Edge other);
+//    bool sameAs(Edge other);
     bool containsNode(Node *nd);
 
 private:

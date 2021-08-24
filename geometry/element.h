@@ -22,7 +22,7 @@ class icy::Element
 public:
     icy::Node* nds[3];          // initialized when the geometry is loaded or remeshed
     icy::Edge edges[3];        // element's edges opposite to nd 0,1,2
-    icy::Element* adj_elems[3]; // nullptr of no adjacent element
+    icy::Element* adj_elems[3]; // nullptr or an adjacent element
     unsigned short region;
     unsigned short traversal;             // for traversal when identifying region connectivity
 
