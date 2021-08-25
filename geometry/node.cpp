@@ -658,8 +658,6 @@ void icy::Node::PrintoutFan()
     }
     std::cout << "--------------------------------\n";
     std::cout << std::endl;
-    for(int i=0;i<100;i++)
-    std::cout << std::flush;
 }
 
 
