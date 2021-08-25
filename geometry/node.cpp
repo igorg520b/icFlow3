@@ -344,14 +344,9 @@ void icy::Node::AcceptTentativeValues()
 
 void icy::Node::InitializeFan()
 {
+    // assumes that u and v are normalized
     auto get_angle = [](Eigen::Vector2f u, Eigen::Vector2f v)
-    {
-        double dot = u.dot(v);
-//        double dot = u.dot(v)/(u.norm()*v.norm());
-        if(dot > 1) dot = 1.0;
-        else if(dot < -1.0) dot = -1.0;
-        return acos(dot);
-    };
+    { return acos(std::clamp((double)u.dot(v),-1.0,1.0)); };
 
     fan_angle_span = 0;
 
