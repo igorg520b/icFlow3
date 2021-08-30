@@ -34,7 +34,7 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
             {
                 if(nd->timeLoadedAboveThreshold >= temporal_attenuation)
                 {
-                    nd->PrepareFan2();
+                    //nd->PrepareFan2();
                     nd->ComputeFanVariablesAlt(prms);
                     if(nd->max_normal_traction > threashold) breakable_range_concurrent.push_back(nd);
                     else nd->timeLoadedAboveThreshold = 0;
@@ -67,7 +67,7 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
         // insert the recently created crack tips into the breakable range
         for(Node *nct : new_crack_tips)
         {
-            nct->PrepareFan2();
+//            nct->PrepareFan2();
             nct->ComputeFanVariablesAlt(prms);
             nct->timeLoadedAboveThreshold = temporal_attenuation;
             auto find_result = std::find(breakable_range.begin(), breakable_range.end(),nct);
@@ -87,7 +87,7 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
         // update Sector in case if topology changed around this node
         for(Node *nd : breakable_range)
         {
-            nd->PrepareFan2();
+            //nd->PrepareFan2();
             nd->ComputeFanVariablesAlt(prms);
         }
 
