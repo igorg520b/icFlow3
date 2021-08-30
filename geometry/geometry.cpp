@@ -107,8 +107,8 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
 
             // make sure that the Sector information is updated
 
-            maxNode->PrepareFan2();
-            maxNode->ComputeFanVariablesAlt(prms);
+            //maxNode->PrepareFan2();
+            //maxNode->ComputeFanVariablesAlt(prms);
             maxNode->timeLoadedAboveThreshold = 0;
 
 #ifdef QT_DEBUG
