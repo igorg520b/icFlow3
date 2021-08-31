@@ -157,8 +157,8 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
                                 ssr.phi[0], ssr.theta[0], prms.fracture_epsilon,
                                 ssr.e[0], ssr.e[1], ssr.faces[0]);
 
-    Node *split0=nullptr,*split1=nullptr;
-    split0=splitEdge_fw.getOtherNode(nd);
+    Node *split0=splitEdge_fw.getOtherNode(nd);
+    Node *split1=nullptr;
 
     icy::Edge splitEdge_bw;
     if(!isBoundary)
@@ -168,7 +168,6 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
         EstablishSplittingEdge(splitEdge_bw, nd,
                                     ssr.phi[1], ssr.theta[1], prms.fracture_epsilon,
                                     ssr.e[2], ssr.e[3], ssr.faces[1]);
-
         split1=splitEdge_bw.getOtherNode(nd);
     }
 

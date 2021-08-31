@@ -122,7 +122,7 @@ public:
         setHHTalpha(0.3);
 
         normal_traction_threshold = 1e5;
-        fracture_epsilon = 0.1;
+        fracture_epsilon = 0.02;
         CharacteristicLengthMax = 0.5;
         substep_radius = 10;
         substep_radius2 = 150;
