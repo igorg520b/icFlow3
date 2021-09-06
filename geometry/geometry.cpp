@@ -360,7 +360,8 @@ void icy::Geometry::CarefulSplitNonBoundaryElem(Element *originalElem, Element *
     insertedFace->edges[nd0Idx_orig] = originalElem->edges[nd0Idx_orig];
     nd->adjacent_elems.push_back(insertedFace);
     nd1->adjacent_elems.push_back(insertedFace);
-    split->adjacent_elems.push_back(insertedFace);
+
+    //split->adjacent_elems.push_back(insertedFace);
 
     adjElem->nds[nd1Idx_adj] = split;
     insertedFace_adj->nds[oppIdx_adj] = oppositeNode;
@@ -369,7 +370,8 @@ void icy::Geometry::CarefulSplitNonBoundaryElem(Element *originalElem, Element *
     insertedFace_adj->edges[nd0Idx_adj] = adjElem->edges[nd0Idx_adj];
     oppositeNode->adjacent_elems.push_back(insertedFace_adj);
     nd1->adjacent_elems.push_back(insertedFace_adj);
-    split->adjacent_elems.push_back(insertedFace_adj);
+
+    //split->adjacent_elems.push_back(insertedFace_adj);
 
     insertedEdge = Edge(nd, split);
     insertedEdge.AddElement(insertedFace, nd1Idx_orig);
