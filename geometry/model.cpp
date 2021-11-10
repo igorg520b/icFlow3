@@ -44,8 +44,6 @@ void icy::Model::InitialGuessTentativeVals(double timeStep, double beta, double 
 
 long icy::Model::PullFromLinearSystem(double timeStep, double beta, double gamma)
 {
-    spdlog::info("Model: PullFromLinearSystem");
-
     auto t1 = std::chrono::high_resolution_clock::now();
 
     double &h = timeStep;
@@ -79,8 +77,6 @@ long icy::Model::PullFromLinearSystem(double timeStep, double beta, double gamma
 
 long icy::Model::ComputeElasticForcesAndAssemble(SimParams &prms, double timeStep, double totalTime)
 {
-    spdlog::info("Model: ComputeElasticForcesAndAssemble");
-
     std::size_t nNodes = floes.nodes->size();
     std::size_t nElems = floes.elems->size();
 
@@ -127,19 +123,16 @@ void icy::Model::AssembleAndSolve(long &time_clear, long &time_forces, long &tim
 {
     time_clear += ls.ClearAndResize(floes.getFreeNodeCount());
 
-    spdlog::info("Model: UpdateSparseSystemEntries");
     auto t1 = std::chrono::high_resolution_clock::now();
     std::size_t nElems = floes.elems->size();
-//#pragma omp parallel for
+
+#pragma omp parallel for
     for(std::size_t i=0;i<nElems;i++) (*floes.elems)[i]->UpdateSparseSystemEntries(ls);
     auto t2 = std::chrono::high_resolution_clock::now();
     time_structure+= std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 
-    spdlog::info("Model: ls.CreateStructure()");
-
     time_structure += ls.CreateStructure();
     time_forces += ComputeElasticForcesAndAssemble(prms, timeStep, totalTime);
-    spdlog::info("Model: ls.Solve()");
     time_solve += ls.Solve();
     time_pull += PullFromLinearSystem(timeStep, prms.NewmarkBeta, prms.NewmarkGamma);
     resultSqNorm = ls.SqNormOfDx();
