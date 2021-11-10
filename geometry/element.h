@@ -53,10 +53,10 @@ public:
     void ComputeMatrices(SimParams &prms,
                          Eigen::Matrix3d &elasticityMatrix,
                          Eigen::Matrix2d &D_mats,
-                         Eigen::Matrix<double,3,DOFS*3> &bmat_b,
-                         Eigen::Matrix<double,2,DOFS*3> (&bmat_s)[3],
-                         Eigen::Matrix<double,3,DOFS*3> &bmat_m,
-                         Eigen::Matrix<double,DOFS*3,DOFS*3> &K);
+                         Eigen::Matrix<double,3,LinearSystem::DOFS*3> &bmat_b,
+                         Eigen::Matrix<double,2,LinearSystem::DOFS*3> (&bmat_s)[3],
+                         Eigen::Matrix<double,3,LinearSystem::DOFS*3> &bmat_m,
+                         Eigen::Matrix<double,LinearSystem::DOFS*3,LinearSystem::DOFS*3> &K);
 
     // helper functions for fracture
     icy::Node* getOppositeNode(Edge edge);    // return the node across from a given edge

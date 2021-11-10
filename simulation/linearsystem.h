@@ -3,32 +3,30 @@
 #define LINEARSYSTEM_H
 #include <tbb/concurrent_vector.h>
 #include <Eigen/Core>
-#include <map>
-#include <unordered_map>
+#include <initializer_list>
 #include <vector>
 #include <chrono>
-#define DOFS 5
 
 namespace icy { class LinearSystem; }
 
 class icy::LinearSystem
 {
 public:
-    double *vals=nullptr, *rhs=nullptr, *dx=nullptr;   // non-zero values, right-hand side and solution
-    int *csr_rows=nullptr, *csr_cols=nullptr;  // structure arrays of the sparse matrix
-    int N;      // number of variables
-    int nnz;    // number of non-zero entries
-
-    LinearSystem();
+    constexpr static int DOFS = 5;
+    constexpr static int DOFS_SQ = DOFS*DOFS;
 
     // initializing and creating structure
-    long ClearAndResize(std::size_t N);     // size N must be set; return execution time
-    void AddElementToStructure(int row, int column);    // reserve non-zero positions one-by-one (thread-safe)
+    long ClearAndResize(unsigned N_);     // size N must be set; return execution time
     long CreateStructure(); // return execution_time
+    void AddEntriesToStructure(const int* idx_begin, const int* idx_end); // insert nxn matrix of indices of non-zero entries
+
+
+    // add values to non-zero elements
+    void AddToEquation(const double *linearEntries, const double *quadraticEntries, const std::initializer_list<int> ids);
 
     // creating the values array
-    void SubtractRHS(const int idx, const Eigen::Matrix<double,DOFS,1> &vec); // we subtract, because RHS in N-R has opposite sign
-    void AddLHS(const int row, const int column, const Eigen::Matrix<double,DOFS,DOFS> &mat);
+//    void SubtractRHS(const int idx, const Eigen::Matrix<double,DOFS,1> &vec); // we subtract, because RHS in N-R has opposite sign
+//    void AddLHS(const int row, const int column, const Eigen::Matrix<double,DOFS,DOFS> &mat);
     long Solve(int verbosity = 0);  // return execution time
     void AdjustCurrentGuess(int idx, Eigen::Matrix<double,DOFS,1> &vec);  // solution => convenient vector form
 
@@ -39,18 +37,19 @@ public:
     void TestSolve(); // test solver with sample data (below)
 
 private:
-    // concurrent set allows combining the computation of forces with creation of structure
-    std::vector<tbb::concurrent_vector<int>*> rows_Neighbors;
-    int dx_length = 0;      // number of currently allocated elements for dx and rhs
-    int vals_length = 0;    // currently allocated vals
-//    std::vector<std::vector<std::pair<int,int>>*> rows_pcsr;   // per row mappings between columns and offset in "values"
-    std::vector<std::vector<int>*> rows_pcsr;   // per row mappings between columns and offset in "values"
-    int csr_rows_size = 0;
-    int csr_cols_size = 0;
-    int dvalsSize() { return nnz*DOFS*DOFS; }
-    int dxSize() { return N*DOFS; }
+    std::vector<double> vals, rhs, sln;
+    std::vector<int> csr_rows, csr_cols;
+    unsigned N, nnz;
 
-    void ResizeRows();
+    // concurrent set allows combining the computation of forces with creation of structure
+    std::vector<std::unique_ptr<tbb::concurrent_vector<unsigned>>> rows_neighbors;
+
+    void AddNNZEntry(int row, int column);    // reserve non-zero positions one-by-one (thread-safe)
+    void AddToH(const int row, const int column, const double *v);
+    void AddToC(const int idx, const double *v);
+    unsigned get_offset(const int row, const int column) const;
+
+
 };
 
 #endif // LINEARSYSTEM_H

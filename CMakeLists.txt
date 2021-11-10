@@ -15,6 +15,7 @@ find_package(Qt5Charts)
 find_package(HDF5 REQUIRED COMPONENTS C)
 find_package(Boost REQUIRED)
 find_package(Eigen3 REQUIRED NO_MODULE)
+find_package(spdlog REQUIRED)
 
 find_package(VTK 9.0 REQUIRED COMPONENTS
   CommonColor
@@ -113,10 +114,12 @@ target_link_libraries(fl3 PRIVATE Qt5::Widgets Qt5::Charts Qt5::Core)
 target_link_libraries(fl3 PRIVATE ${VTK_LIBRARIES})
 target_link_libraries(fl3 PRIVATE gmsh)
 target_link_libraries(fl3 PRIVATE tbb)
-target_link_libraries(fl3 PRIVATE mkl_intel_lp64 mkl_gnu_thread mkl_core gomp pthread m dl)
+target_link_libraries(fl3 PRIVATE mkl_intel_lp64 mkl_gnu_thread mkl_core gomp m dl)
+#target_link_libraries(fl3 PRIVATE pthread)
 target_link_libraries(fl3 PRIVATE ${HDF5_C_LIBRARIES})
 target_link_libraries(fl3 PRIVATE z boost_serialization)
 target_link_libraries(fl3 PRIVATE ${Boost_LIBRARIES})
 target_link_libraries(fl3 PRIVATE Eigen3::Eigen)
+target_link_libraries(fl3 PRIVATE spdlog::spdlog)
 
 target_compile_options(fl3 PRIVATE -fopenmp)

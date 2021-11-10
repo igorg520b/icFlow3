@@ -51,8 +51,8 @@ public:
     Eigen::Matrix<double,3,1> x_initial;
 
     // at step n: displacement, position, velocity, acceleration
-    Eigen::Matrix<double,DOFS,1> un, xn, vn, an;
-    Eigen::Matrix<double,DOFS,1> ut, xt, vt, at; // at step n+1
+    Eigen::Matrix<double,LinearSystem::DOFS,1> un, xn, vn, an;
+    Eigen::Matrix<double,LinearSystem::DOFS,1> ut, xt, vt, at; // at step n+1
 
     // forces per node (gravity and any test forces)
     void ComputeElasticForce(LinearSystem &ls, SimParams &prms, double timeStep, double totalTime);

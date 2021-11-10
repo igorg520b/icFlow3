@@ -17,16 +17,16 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
     double mass = area*prms.Thickness*prms.IceDensity;
     if(mass <= 0) throw std::runtime_error("zero nodal mass");
 
-    Eigen::Matrix<double,DOFS,1> F;
-    Eigen::Matrix<double,DOFS,DOFS> dF;
+    Eigen::Matrix<double,LinearSystem::DOFS,1> F;
+    Eigen::Matrix<double,LinearSystem::DOFS,LinearSystem::DOFS> dF;
 
-    F = Eigen::Matrix<double,DOFS,1>::Zero();
+//    F = Eigen::Matrix<double,DOFS,1>::Zero();
     F = at*mass;
     //F(2) -= prms.gravity*mass;
     F(3) = 0;
     F(4) = 0;
 
-    dF = Eigen::Matrix<double,DOFS,DOFS>::Identity()*(mass/(beta*timeStep*timeStep));
+    dF = Eigen::Matrix<double,LinearSystem::DOFS,LinearSystem::DOFS>::Identity()*(mass/(beta*timeStep*timeStep));
     dF(3,3) = 0;
     dF(4,4) = 0;
 
@@ -158,8 +158,9 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
 #endif
 
     // assemble
-    ls.SubtractRHS(lsId, F);
-    ls.AddLHS(lsId, lsId, dF);
+    ls.AddToEquation(F.data(),dF.data(),{lsId});
+//    ls.SubtractRHS(lsId, F);
+//    ls.AddLHS(lsId, lsId, dF);
 }
 
 double icy::Node::Smoothstep(double edge0, double edge1, double x)
@@ -295,16 +296,26 @@ double icy::Node::BellShapedPolynomialDx(double x)
 
 void icy::Node::Reset()
 {
-    ut=xt=vt=at=un=xn=vn=an=Eigen::Matrix<double,DOFS,1>::Zero();
-    x_initial=Eigen::Matrix<double,3,1>::Zero();
-    normal_n = Eigen::Vector3d::Zero();
+    ut.setZero();
+    xt.setZero();
+    vt.setZero();
+    at.setZero();
+    un.setZero();
+    xn.setZero();
+    vn.setZero();
+    an.setZero();
+    x_initial.setZero();
+    normal_n.setZero();
+
     area = 0;
     adjacent_elems.reserve(7);
     adjacent_elems.clear();
     crack_tip = support_node = reset_timing = false;
     timeLoadedAboveThreshold = 0;
     max_normal_traction = 0;
-    dir=weakening_direction = Eigen::Vector2f::Zero();
+
+    dir.setZero();
+    weakening_direction.setZero();
 }
 
 void icy::Node::InitializeFromAdjacent(const Node *nd0, const Node *nd1, double f)

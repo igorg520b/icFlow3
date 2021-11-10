@@ -37,10 +37,8 @@ void icy::Element::UpdateSparseSystemEntries(LinearSystem &ls)
 {
     if(nds[0]->lsId < 0 && nds[1]->lsId < 0 && nds[2]->lsId < 0) return;
 
-    // reserve non-zero entries in the sparse matrix structure
-    ls.AddElementToStructure(nds[0]->lsId, nds[1]->lsId);
-    ls.AddElementToStructure(nds[0]->lsId, nds[2]->lsId);
-    ls.AddElementToStructure(nds[1]->lsId, nds[2]->lsId);
+    int idxs[3] {nds[0]->lsId, nds[1]->lsId, nds[2]->lsId};
+    ls.AddEntriesToStructure(std::begin(idxs),std::end(idxs));
 }
 
 
@@ -257,10 +255,10 @@ void icy::Element::AssertEdges()
 void icy::Element::ComputeMatrices(SimParams &prms,
                      Eigen::Matrix3d &elasticityMatrix,
                      Eigen::Matrix2d &D_mats,
-                     Eigen::Matrix<double,3,DOFS*3> &bmat_b,
-                     Eigen::Matrix<double,2,DOFS*3> (&bmat_s)[3],
-                     Eigen::Matrix<double,3,DOFS*3> &bmat_m,
-                     Eigen::Matrix<double,DOFS*3,DOFS*3> &K)
+                     Eigen::Matrix<double,3,LinearSystem::DOFS*3> &bmat_b,
+                     Eigen::Matrix<double,2,LinearSystem::DOFS*3> (&bmat_s)[3],
+                     Eigen::Matrix<double,3,LinearSystem::DOFS*3> &bmat_m,
+                     Eigen::Matrix<double,LinearSystem::DOFS*3,LinearSystem::DOFS*3> &K)
 {
     // translate the element
     Eigen::Vector3d p1, p2;
@@ -326,8 +324,6 @@ void icy::Element::ComputeMatrices(SimParams &prms,
     // K and M depend on rho, Young's modulus and Poisson's ratio,
     // therefore they are computed after these parameters are set
 
-//    Eigen::Matrix<double,DOFS*3,DOFS*3> K_b, K_m, K_s;
-//    K = Eigen::Matrix<double,DOFS*3,DOFS*3>::Zero();
     K = bmat_m.transpose()*elasticityMatrix*bmat_m*(area_initial*thickness);
 
     double coeff = area_initial*thickness*thickness*thickness/12.0;
@@ -342,22 +338,22 @@ void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &pr
 {
     if(nds[0]->lsId < 0 && nds[1]->lsId < 0 && nds[2]->lsId < 0) return;
 
-    Eigen::Matrix<double,3,DOFS*3> bmat_b;
-    Eigen::Matrix<double,2,DOFS*3> bmat_s[3];   // 3 gauss points
-    Eigen::Matrix<double,3,DOFS*3> bmat_m;
-    Eigen::Matrix<double,DOFS*3,DOFS*3> K;    // element stiffness matrix (3 gauss points)
+    Eigen::Matrix<double,3,LinearSystem::DOFS*3> bmat_b;
+    Eigen::Matrix<double,2,LinearSystem::DOFS*3> bmat_s[3];   // 3 gauss points
+    Eigen::Matrix<double,3,LinearSystem::DOFS*3> bmat_m;
+    Eigen::Matrix<double,LinearSystem::DOFS*3,LinearSystem::DOFS*3> K;    // element stiffness matrix (3 gauss points)
     ComputeMatrices(prms, elasticityMatrix, D_mats, bmat_b, bmat_s, bmat_m, K);
 
-    Eigen::Matrix<double,DOFS*3,1> un;
-    Eigen::Matrix<double,DOFS*3,1> ut;
+    Eigen::Matrix<double,LinearSystem::DOFS*3,1> un;
+    Eigen::Matrix<double,LinearSystem::DOFS*3,1> ut;
     un << nds[0]->un, nds[1]->un, nds[2]->un;
     ut << nds[0]->ut, nds[1]->ut, nds[2]->ut;
 
     // calculate elastic forces and Hessian at step n+1
 
     // absolute position is not important, the origin is set at node 0
-    Eigen::Matrix<double,DOFS*3,1> Fn, Fnp1;     // internal force at steps n and n+1
-    Eigen::Matrix<double,DOFS*3,DOFS*3> &dFnp1=K;
+    Eigen::Matrix<double,LinearSystem::DOFS*3,1> Fn, Fnp1;     // internal force at steps n and n+1
+    Eigen::Matrix<double,LinearSystem::DOFS*3,LinearSystem::DOFS*3> &dFnp1=K;
 
 //    FdF(un, Fn, nullptr);
 //    FdF(ut, Fnp1, &dFnp1);
@@ -366,8 +362,8 @@ void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &pr
 
     // combine the results into a linearized equation of motion with HHT-alpha integration scheme
     double alpha = prms.HHTalpha;
-    Eigen::Matrix<double,DOFS*3,1> F;      // right-hand side of the equation is equal to -F
-    Eigen::Matrix<double,DOFS*3,DOFS*3> dF;
+    Eigen::Matrix<double,LinearSystem::DOFS*3,1> F;      // right-hand side of the equation is equal to -F
+    Eigen::Matrix<double,LinearSystem::DOFS*3,LinearSystem::DOFS*3> dF;
 
     F = Fn*alpha + Fnp1*(1-alpha);
     dF= dFnp1*(1-alpha);
@@ -381,9 +377,11 @@ void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &pr
 #endif
 
     // assemble
+    ls.AddToEquation(F.data(),dF.data(),{nds[0]->lsId,nds[1]->lsId,nds[2]->lsId});
+    /*
     for(int i=0;i<3;i++) {
         int row = nds[i]->lsId;
-        Eigen::Matrix<double,DOFS,1> locF = F.block(i*DOFS,0,DOFS,1);
+        Eigen::Matrix<double,LinearSystem::DOFS,1> locF = F.block(i*LinearSystem::DOFS,0,LinearSystem::DOFS,1);
         ls.SubtractRHS(row, locF);
         for(int j=0;j<3;j++) {
             int col = nds[j]->lsId;
@@ -391,6 +389,7 @@ void icy::Element::ComputeElasticForce(icy::LinearSystem &ls, icy::SimParams &pr
             ls.AddLHS(row, col, loc_dF);
         }
     }
+    */
 }
 
 
@@ -398,13 +397,13 @@ void icy::Element::EvaluateStresses(icy::SimParams &prms,
                                     Eigen::Matrix3d &elasticityMatrix,
                                     Eigen::Matrix2d &D_mats)
 {
-    Eigen::Matrix<double,DOFS*3,1> u;
+    Eigen::Matrix<double,LinearSystem::DOFS*3,1> u;
     u << nds[0]->ut, nds[1]->ut, nds[2]->ut;
 
-    Eigen::Matrix<double,3,DOFS*3> bmat_b;
-    Eigen::Matrix<double,2,DOFS*3> bmat_s[3];   // 3 gauss points
-    Eigen::Matrix<double,3,DOFS*3> bmat_m;
-    Eigen::Matrix<double,DOFS*3,DOFS*3> K;    // element stiffness matrix (3 gauss points)
+    Eigen::Matrix<double,3,LinearSystem::DOFS*3> bmat_b;
+    Eigen::Matrix<double,2,LinearSystem::DOFS*3> bmat_s[3];   // 3 gauss points
+    Eigen::Matrix<double,3,LinearSystem::DOFS*3> bmat_m;
+    Eigen::Matrix<double,LinearSystem::DOFS*3,LinearSystem::DOFS*3> K;    // element stiffness matrix (3 gauss points)
     ComputeMatrices(prms, elasticityMatrix, D_mats, bmat_b, bmat_s, bmat_m, K);
 
     Eigen::Vector3d str_b, str_m, str_b_top;

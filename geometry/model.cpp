@@ -1,6 +1,7 @@
 #include <vtkPointData.h>
 #include <QtGlobal>
 #include "model.h"
+#include <spdlog/spdlog.h>
 
 namespace model = gmsh::model;
 namespace factory = gmsh::model::occ;
@@ -35,7 +36,7 @@ void icy::Model::InitialGuessTentativeVals(double timeStep, double beta, double 
         nd->xt.y() += nd->x_initial.y();
 
         // per free node, calculate velocity and acceleration at step n+1 from given xt
-        Eigen::Matrix<double,DOFS,1> xt_xn = nd->ut - nd->un;
+        Eigen::Matrix<double,LinearSystem::DOFS,1> xt_xn = nd->ut - nd->un;
         nd->at = nd->an*c1 - nd->vn*c2 + xt_xn*c3;
         nd->vt = nd->an*c4 + nd->vn*c5 + xt_xn*c6;
     }
@@ -43,6 +44,8 @@ void icy::Model::InitialGuessTentativeVals(double timeStep, double beta, double 
 
 long icy::Model::PullFromLinearSystem(double timeStep, double beta, double gamma)
 {
+    spdlog::info("Model: PullFromLinearSystem");
+
     auto t1 = std::chrono::high_resolution_clock::now();
 
     double &h = timeStep;
@@ -66,7 +69,7 @@ long icy::Model::PullFromLinearSystem(double timeStep, double beta, double gamma
         nd->xt.x() += nd->x_initial.x();
         nd->xt.y() += nd->x_initial.y();
         // per free node, calculate velocity and acceleration at step n+1 from given xt
-        Eigen::Matrix<double,DOFS,1> xt_xn = nd->ut - nd->un;
+        Eigen::Matrix<double,LinearSystem::DOFS,1> xt_xn = nd->ut - nd->un;
         nd->at = nd->an*c1 - nd->vn*c2 + xt_xn*c3;
         nd->vt = nd->an*c4 + nd->vn*c5 + xt_xn*c6;
     }
@@ -76,6 +79,8 @@ long icy::Model::PullFromLinearSystem(double timeStep, double beta, double gamma
 
 long icy::Model::ComputeElasticForcesAndAssemble(SimParams &prms, double timeStep, double totalTime)
 {
+    spdlog::info("Model: ComputeElasticForcesAndAssemble");
+
     std::size_t nNodes = floes.nodes->size();
     std::size_t nElems = floes.elems->size();
 
@@ -122,15 +127,19 @@ void icy::Model::AssembleAndSolve(long &time_clear, long &time_forces, long &tim
 {
     time_clear += ls.ClearAndResize(floes.getFreeNodeCount());
 
+    spdlog::info("Model: UpdateSparseSystemEntries");
     auto t1 = std::chrono::high_resolution_clock::now();
     std::size_t nElems = floes.elems->size();
-#pragma omp parallel for
+//#pragma omp parallel for
     for(std::size_t i=0;i<nElems;i++) (*floes.elems)[i]->UpdateSparseSystemEntries(ls);
     auto t2 = std::chrono::high_resolution_clock::now();
     time_structure+= std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 
+    spdlog::info("Model: ls.CreateStructure()");
+
     time_structure += ls.CreateStructure();
     time_forces += ComputeElasticForcesAndAssemble(prms, timeStep, totalTime);
+    spdlog::info("Model: ls.Solve()");
     time_solve += ls.Solve();
     time_pull += PullFromLinearSystem(timeStep, prms.NewmarkBeta, prms.NewmarkGamma);
     resultSqNorm = ls.SqNormOfDx();
