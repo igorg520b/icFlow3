@@ -20,7 +20,6 @@ void icy::Node::ComputeElasticForce(LinearSystem &ls, SimParams &prms, double ti
     Eigen::Matrix<double,LinearSystem::DOFS,1> F;
     Eigen::Matrix<double,LinearSystem::DOFS,LinearSystem::DOFS> dF;
 
-//    F = Eigen::Matrix<double,DOFS,1>::Zero();
     F = at*mass;
     //F(2) -= prms.gravity*mass;
     F(3) = 0;

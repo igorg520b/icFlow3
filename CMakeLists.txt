@@ -76,10 +76,14 @@ add_executable(fl3
     geometry/solid3d.cpp
     geometry/solid3d.h
 
+    geometry/baseelement.h
+
     geometry/node.cpp
     geometry/node.h
     geometry/edge.cpp
     geometry/edge.h
+
+    geometry/boundaryedge.h
 
     geometry/element.cpp
     geometry/element.h

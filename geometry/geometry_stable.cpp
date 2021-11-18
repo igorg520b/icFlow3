@@ -91,10 +91,10 @@ icy::Node* icy::Geometry::AddNode(icy::Node *otherNd)
 
 icy::Element* icy::Geometry::AddElement()
 {
-    icy::Element* result = s_pool_elems.take();
-    elems->push_back(result);
-    for(int i=0;i<3;i++) result->adj_elems[i]=nullptr;
-    return result;
+    icy::Element* elem = s_pool_elems.take();
+    elem->Reset();
+    elems->push_back(elem);
+    return elem;
 }
 
 void icy::Geometry::ImportFloePatch(QString fileName, double CharacteristicLengthMax)

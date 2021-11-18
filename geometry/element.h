@@ -14,15 +14,16 @@
 #include "parameters_sim.h"
 #include "linearsystem.h"
 #include "node.h"
+#include "baseelement.h"
+
 
 namespace icy { class Element; class Node; class SimParams; class Edge; }
 
-class icy::Element
+class icy::Element : public icy::BaseElement
 {
 public:
     icy::Node* nds[3];          // initialized when the geometry is loaded or remeshed
-    icy::Edge edges[3];        // element's edges opposite to nd 0,1,2
-    icy::Element* adj_elems[3]; // nullptr or an adjacent element
+    icy::BaseElement* incident_elems[3]; // nullptr or an adjacent element
     unsigned short region;
     unsigned short traversal;             // for traversal when identifying region connectivity
 
@@ -31,18 +32,29 @@ public:
     Eigen::Vector3d normal_initial, normal_n;
 
     // sress values / visualization
-    float a_str_b[3], a_str_m[3], a_str_b_top[3];// str_b_top;
-    float a_str_s[3][2];
+    double a_str_b[3], a_str_m[3], a_str_b_top[3];
+    double a_str_s[3][2];
 
-    Eigen::Matrix2f str_top, str_bottom;    // stress on top and bottom surface of the plate, as 3x3 matrix
+    Eigen::Matrix2d str_top, str_bottom;    // stress on top and bottom surface of the plate, as 3x3 matrix
     bool principal_stress_exceeds_threshold;
 
-    void ComputeInitialNormal();
+    Element() { type = ElementType::TElem; }
+    ~Element() = default;
+    Element& operator=(const Element&) = delete;
+
+    void Reset();
+    void Initialize(Node *nd0, Node *nd1, Node *nd2);
+    void PrecomputeInitialArea();
+
+
+    // ELASTIC FORCES AND STRESSES
+public:
 
     void UpdateSparseSystemEntries(LinearSystem &ls);
     void ComputeElasticForce(LinearSystem &ls, SimParams &prms, double timeStep,
                              Eigen::Matrix3d &elasticityMatrix,
                              Eigen::Matrix2d &D_mats);
+
 
     // this is done after the new displacement values are accepted
     void EvaluateStresses(SimParams &prms,
@@ -50,6 +62,10 @@ public:
                           Eigen::Matrix2d &D_mats);
     void DistributeStresses();
 
+private:
+    static double N[3][3]; // barycentric coords of Gauss points
+    constexpr static double degenerate_area_threshold = 1e-8;
+    void ComputeNormal();
     void ComputeMatrices(SimParams &prms,
                          Eigen::Matrix3d &elasticityMatrix,
                          Eigen::Matrix2d &D_mats,
@@ -58,7 +74,42 @@ public:
                          Eigen::Matrix<double,3,LinearSystem::DOFS*3> &bmat_m,
                          Eigen::Matrix<double,LinearSystem::DOFS*3,LinearSystem::DOFS*3> &K);
 
-    // helper functions for fracture
+
+    // FRACTURE ALGORITHM
+    public:
+        std::pair<Node*,Node*> SplitElem(Node *nd, Node *nd0, Node *nd1, double where); // split the element by inserting a node between nd0 and nd1
+
+        bool isBoundary() {return std::any_of(std::begin(nds),std::end(nds),[](Node *nd){return nd->isBoundary;});}
+
+        uint8_t getNodeIdx(const Node* nd) const;
+        void getIdxs(const icy::Node* nd, uint8_t &thisIdx, uint8_t &CWIdx, uint8_t &CCWIdx) const;
+        uint8_t getEdgeIdx(const Node *nd1, const Node *nd2) const;
+        std::pair<Node*,Node*> CW_CCW_Node(const Node* nd) const;
+
+        bool isBoundaryEdge(const uint8_t idx) const {return incident_elems[idx]->type != ElementType::TElem;}
+        bool isOnBoundary(const Node* nd) const;
+        bool isCWBoundary(const Node* nd) const;
+        bool isCCWBoundary(const Node* nd) const;
+        bool isEdgeCW(const Node *nd1, const Node *nd2) const; // true if nd1-nd2 is oriented clockwise
+        bool containsEdge(const Node *nd1, const Node *nd2) const;
+
+        bool containsNode(const Node* nd) const {return (nds[0]==nd || nds[1]==nd || nds[2]==nd);}
+        Eigen::Vector2d getCenter() const {return (nds[0]->x_initial + nds[1]->x_initial + nds[2]->x_initial)/3.0;};
+        icy::Node* getOppositeNode(Node* nd0, Node* nd1);
+        void ReplaceNode(Node* replaceWhat, Node* replaceWith);
+        void ReplaceIncidentElem(const BaseElement* which, BaseElement* withWhat);
+        void ReplaceAdjacentElem(const Element* originalElem, Element* insertedElem, uint8_t idx) override;
+
+    private:
+        constexpr static double threshold_area = 1e-7;
+        Node* SplitBoundaryElem(Node *nd, Node *nd0, Node *nd1, double where);
+        Node* SplitNonBoundaryElem(Node *nd, Node *nd0, Node *nd1, double where);
+
+        BaseElement* getIncidentElementOppositeToNode(Node* nd);
+
+
+/*
+public:
     icy::Node* getOppositeNode(Edge edge);    // return the node across from a given edge
     icy::Node* getOppositeNode(Node *nd0, Node* nd1);
     Eigen::Vector3d getCenter();
@@ -74,18 +125,10 @@ public:
 
     bool ContainsNode(Node *nd){return (nds[0]==nd || nds[1]==nd || nds[2]==nd);}
     void ReplaceNode(Node *replaceWhat, Node *replaceWith);
-    void ComputeNormal();
     void AssertEdges();
+*/
 
-private:
-    static double N[3][3];
-    /*
-    void rotationMatrix(Eigen::Vector3d &p1, Eigen::Vector3d &p2, Eigen::Matrix3d &result,
-                        double &area, Eigen::Vector3d &normal);
-    void rotationMatrix_alt(Eigen::Vector3d &p1, Eigen::Vector3d &p2,
-                            Eigen::Matrix3d &result,
-                            double &area, Eigen::Vector3d &normal);
-                            */
+
 };
 
 #endif // ELEMENT123_H
