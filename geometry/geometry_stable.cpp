@@ -352,7 +352,7 @@ void icy::Geometry::AssignLsIds()
 
 void icy::Geometry::RecomputeElasticityMatrix(SimParams &prms)
 {
-    elasticityMatrix = Eigen::Matrix3d::Zero();
+    elasticityMatrix.setZero();
     double k = prms.YoungsModulus / (1-prms.PoissonsRatio*prms.PoissonsRatio);
     elasticityMatrix(0,0) = elasticityMatrix(1,1) = k;
     elasticityMatrix(0,1) = elasticityMatrix(1,0) = k*prms.PoissonsRatio;

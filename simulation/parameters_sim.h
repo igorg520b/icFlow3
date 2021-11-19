@@ -48,7 +48,7 @@ class icy::SimParams : public QObject
     Q_PROPERTY(double p_Thickness MEMBER Thickness NOTIFY propertyChanged)
 
     // fracture
-    Q_PROPERTY(double f_normal_traction_threshold MEMBER normal_traction_threshold NOTIFY propertyChanged)
+    Q_PROPERTY(double f_TractionThreshold MEMBER FractureTractionThreshold NOTIFY propertyChanged)
     Q_PROPERTY(double f_epsilon MEMBER fracture_epsilon NOTIFY propertyChanged)
     Q_PROPERTY(double f_CharacteristicLengthMax MEMBER CharacteristicLengthMax NOTIFY propertyChanged)
     Q_PROPERTY(int f_substep_radius MEMBER substep_radius NOTIFY propertyChanged)
@@ -56,7 +56,7 @@ class icy::SimParams : public QObject
     Q_PROPERTY(bool f_enable MEMBER fracture_enable NOTIFY propertyChanged)
     Q_PROPERTY(int f_max_substeps MEMBER fracture_max_substeps NOTIFY propertyChanged)
     Q_PROPERTY(int f_substep_iterations MEMBER substep_iterations NOTIFY propertyChanged)
-    Q_PROPERTY(double f_weakening MEMBER weakening_coeff NOTIFY propertyChanged)
+    Q_PROPERTY(double f_weakening MEMBER FractureWeakeningCoeff NOTIFY propertyChanged)
     Q_PROPERTY(double f_temporal_attenuation MEMBER temporal_attenuation NOTIFY propertyChanged)
     Q_PROPERTY(double f_wave_height MEMBER wave_height NOTIFY propertyChanged)
     Q_PROPERTY(double f_wave_start_location MEMBER wave_start_location NOTIFY propertyChanged)
@@ -76,19 +76,22 @@ public:
     int loadType;       // for testing
 
     // fracture
-    float normal_traction_threshold;
-    float fracture_epsilon;
+    double FractureTractionThreshold;
+    double fracture_epsilon;
     double CharacteristicLengthMax; // initial meshing
     int substep_radius, substep_radius2; // how many neighbor levels involved in local substep
     bool fracture_enable;
     int fracture_max_substeps;
     int substep_iterations;
-    float weakening_coeff;
+    double FractureWeakeningCoeff;
     double temporal_attenuation;
     double wave_height;
     double wave_start_location;
     double substepping_timestep_factor;
     double cutoff_coefficient; // used to reduce the computation cost of max_traction
+
+    double FractureAngleThreshold, FractureAreaThreshold;
+
 
     // other
 
@@ -121,7 +124,7 @@ public:
 
         setHHTalpha(0.3);
 
-        normal_traction_threshold = 1e5;
+        FractureTractionThreshold = 1e5;
         fracture_epsilon = 0.02;
         CharacteristicLengthMax = 0.5;
         substep_radius = 10;
@@ -129,12 +132,16 @@ public:
         fracture_enable = true;
         fracture_max_substeps=1000;
         substep_iterations = 2;
-        weakening_coeff = 0.75;
+        FractureWeakeningCoeff = 0.75;
         temporal_attenuation = 0.2;
         wave_height = 0.1;
         substepping_timestep_factor = 0.001;
         wave_start_location = 10;
         cutoff_coefficient = 0.4;
+
+        FractureAngleThreshold = 10;    // in degrees
+        FractureAreaThreshold = 1e-4;
+
 
         emit propertyChanged();
     }

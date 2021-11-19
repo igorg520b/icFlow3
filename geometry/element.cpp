@@ -236,7 +236,7 @@ void icy::Element::EvaluateStresses(icy::SimParams &prms,
     double max_principal_bottom = std::max(s1,s2);
 
     principal_stress_exceeds_threshold =
-            std::max(max_principal_top, max_principal_bottom) > prms.normal_traction_threshold*prms.cutoff_coefficient;
+            std::max(max_principal_top, max_principal_bottom) > prms.FractureTractionThreshold*prms.cutoff_coefficient;
 
     ComputeNormal();
 }
@@ -255,7 +255,7 @@ void icy::Element::DistributeStresses()
     for(int i=0;i<3;i++)
     {
         Node *nd = nds[i];
-        double coeff1 = 1.0/nd->adjacent_elems.size();//area_initial/nd->area;
+        double coeff1 = 1.0/nd->adj_elems.size();//area_initial/nd->area;
         double coeff2 = coeff1/3;//area_initial/(3*nd->area);
 
         for(int j=0;j<3;j++)
@@ -270,8 +270,9 @@ void icy::Element::DistributeStresses()
             nd->str_b_bottom[j] -= a_str_b_top[j]*coeff1;
         }
 
-        float str_s_combined[2] = {};
-        for(int j=0;j<3;j++) {
+        double str_s_combined[2] = {};
+        for(int j=0;j<3;j++)
+        {
             str_s_combined[0] += a_str_s[j][0]*coeff2*N[i][j];
             str_s_combined[1] += a_str_s[j][1]*coeff2*N[i][j];
         }
@@ -306,39 +307,6 @@ uint8_t icy::Element::getNodeIdx(const Node *nd) const
     }
 }
 
-void icy::Element::getIdxs(const icy::Node*nd, uint8_t &thisIdx, uint8_t &CWIdx, uint8_t &CCWIdx) const
-{
-    thisIdx = getNodeIdx(nd);
-    CWIdx = (thisIdx+1)%3;
-    CCWIdx = (thisIdx+2)%3;
-}
-
-std::pair<icy::Node*,icy::Node*> icy::Element::CW_CCW_Node(const Node* nd) const
-{
-    uint8_t idx = getNodeIdx(nd);
-    return {nds[(idx+1)%3],nds[(idx+2)%3]};
-}
-
-
-bool icy::Element::isEdgeCW(const Node *nd1, const Node *nd2) const
-{
-    for(int i=0;i<3;i++)
-    {
-        if(nds[i%3]==nd1 && nds[(i+2)%3]==nd2) return true;
-        if(nds[i%3]==nd1 && nds[(i+1)%3]==nd2) return false;
-    }
-    throw std::runtime_error("icy::Element::isEdgeCW: edge not found");
-}
-
-bool icy::Element::containsEdge(const Node *nd1, const Node *nd2) const
-{
-    for(uint8_t i=0;i<3;i++)
-        if((nds[(i+1)%3]==nd1 && nds[(i+2)%3]==nd2) || (nds[(i+2)%3]==nd1 && nds[(i+1)%3]==nd2))
-            return true;
-    return false;
-}
-
-
 uint8_t icy::Element::getEdgeIdx(const Node *nd1, const Node *nd2) const
 {
     for(uint8_t i=0;i<3;i++)
@@ -347,6 +315,11 @@ uint8_t icy::Element::getEdgeIdx(const Node *nd1, const Node *nd2) const
     throw std::runtime_error("icy::Element::getEdgeIdx: edge not found");
 }
 
+std::pair<icy::Node*,icy::Node*> icy::Element::CW_CCW_Node(const Node* nd) const
+{
+    uint8_t idx = getNodeIdx(nd);
+    return {nds[(idx+1)%3],nds[(idx+2)%3]};
+}
 
 bool icy::Element::isOnBoundary(const Node* nd) const
 {
@@ -371,10 +344,31 @@ bool icy::Element::isCCWBoundary(const Node* nd) const
     return isBoundaryEdge(ccw_idx);
 }
 
-icy::BaseElement* icy::Element::getIncidentElementOppositeToNode(Node *nd)
+bool icy::Element::isEdgeCW(const Node *nd1, const Node *nd2) const
 {
-    return incident_elems[getNodeIdx(nd)];
+    for(int i=0;i<3;i++)
+    {
+        if(nds[i%3]==nd1 && nds[(i+2)%3]==nd2) return true;
+        if(nds[i%3]==nd1 && nds[(i+1)%3]==nd2) return false;
+    }
+    throw std::runtime_error("icy::Element::isEdgeCW: edge not found");
 }
+
+bool icy::Element::containsEdge(const Node *nd1, const Node *nd2) const
+{
+    for(uint8_t i=0;i<3;i++)
+        if((nds[(i+1)%3]==nd1 && nds[(i+2)%3]==nd2) || (nds[(i+2)%3]==nd1 && nds[(i+1)%3]==nd2))
+            return true;
+    return false;
+}
+
+
+
+
+
+
+
+
 
 icy::Node* icy::Element::getOppositeNode(Node *nd0, Node* nd1)
 {
@@ -391,7 +385,10 @@ icy::Node* icy::Element::getOppositeNode(Node *nd0, Node* nd1)
     throw std::runtime_error("getOppositeNode: opposite node not found");
 }
 
-
+icy::BaseElement* icy::Element::getIncidentElementOppositeToNode(Node *nd)
+{
+    return incident_elems[getNodeIdx(nd)];
+}
 
 
 // FRACTURE ALGORITHM
@@ -411,7 +408,6 @@ void icy::Element::ReplaceNode(Node *replaceWhat, Node *replaceWith)
     for(uint8_t idx : {cw_idx,ccw_idx}) incident_elems[idx]->UpdateNodes();
 }
 
-
 void icy::Element::ReplaceIncidentElem(const BaseElement* which, BaseElement* withWhat)
 {
     if(incident_elems[0] == which) incident_elems[0] = withWhat;
@@ -420,10 +416,11 @@ void icy::Element::ReplaceIncidentElem(const BaseElement* which, BaseElement* wi
     else throw std::runtime_error("ReplaceIncidentElem: incident elem not found");
 }
 
-void icy::Element::RecalculatePiMultiplierFromDeformationGradient(Eigen::Matrix2d F_tilda)
+void icy::Element::ReplaceAdjacentElem(const Element* originalElem, Element* insertedElem, uint8_t idx)
 {
-    PiMultiplier = Dm * getDs_at_n().inverse() * F_tilda;
+    ReplaceIncidentElem(originalElem,insertedElem);
 }
+
 
 
 
@@ -435,8 +432,6 @@ std::pair<icy::Node*,icy::Node*> icy::Element::SplitElem(Node *nd, Node *nd0, No
         return {SplitBoundaryElem(nd, nd0, nd1, where),nullptr};
     else if(incident_elem->type == ElementType::TElem)
         return {SplitNonBoundaryElem(nd, nd0, nd1, where),nullptr};
-    else if(incident_elem->type == ElementType::CZ)
-        return SplitElemWithCZ(nd, nd0, nd1, where);
     else throw std::runtime_error("SplitElem: unknown incident element type");
 }
 
@@ -448,8 +443,6 @@ icy::Node* icy::Element::SplitBoundaryElem(Node *nd, Node *nd0, Node *nd1, doubl
     uint8_t ndIdx = getNodeIdx(nd);
     uint8_t nd0Idx = getNodeIdx(nd0);
     uint8_t nd1Idx = getNodeIdx(nd1);
-
-    Eigen::Matrix2d F_orig = getF_at_n();     // save the deformation gradient
 
 
     // insert element
@@ -587,11 +580,6 @@ icy::Node* icy::Element::SplitNonBoundaryElem(Node *nd, Node *nd0, Node *nd1, do
 }
 
 
-
-void icy::Element::ReplaceAdjacentElem(const Element* originalElem, Element* insertedElem, uint8_t idx)
-{
-    ReplaceIncidentElem(originalElem,insertedElem);
-}
 
 
 

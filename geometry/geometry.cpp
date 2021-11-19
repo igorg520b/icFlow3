@@ -32,25 +32,24 @@ long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, 
             icy::Node *nd = nodes->at(i);
             if(nd->potentially_can_fracture)
             {
-                if(nd->timeLoadedAboveThreshold >= temporal_attenuation)
+                if(nd->time_loaded_above_threshold >= temporal_attenuation)
                 {
-                    //nd->PrepareFan2();
-                    nd->ComputeFanVariablesAlt(prms);
+                    nd->ComputeFanVariables(prms);
                     if(nd->max_normal_traction > threashold) breakable_range_concurrent.push_back(nd);
-                    else nd->timeLoadedAboveThreshold = 0;
+                    else nd->time_loaded_above_threshold = 0;
                 }
                 else
                 {
-                    nd->timeLoadedAboveThreshold+=timeStep;
+                    nd->time_loaded_above_threshold += timeStep;
                     nd->max_normal_traction = 0;
-                    nd->dir=Eigen::Vector2f::Zero();
+                    nd->dir.setZero();
                 }
             }
             else
             {
-                nd->timeLoadedAboveThreshold = 0;
+                nd->time_loaded_above_threshold = 0;
                 nd->max_normal_traction = 0;
-                nd->dir=Eigen::Vector2f::Zero();
+                nd->dir.setZero();
             }
         }
         breakable_range.clear();
@@ -210,8 +209,8 @@ long icy::Geometry::SplitNodeAlt(SimParams &prms)
 //    CreateEdges2();
 
 
-    nd->weakening_direction = Eigen::Vector2f::Zero();
-    nd->crack_tip = false;
+    nd->weakening_direction.setZero();
+    nd->isCrackTip = false;
 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();

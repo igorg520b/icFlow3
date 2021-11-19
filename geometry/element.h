@@ -82,7 +82,6 @@ private:
         bool isBoundary() {return std::any_of(std::begin(nds),std::end(nds),[](Node *nd){return nd->isBoundary;});}
 
         uint8_t getNodeIdx(const Node* nd) const;
-        void getIdxs(const icy::Node* nd, uint8_t &thisIdx, uint8_t &CWIdx, uint8_t &CCWIdx) const;
         uint8_t getEdgeIdx(const Node *nd1, const Node *nd2) const;
         std::pair<Node*,Node*> CW_CCW_Node(const Node* nd) const;
 
@@ -94,8 +93,9 @@ private:
         bool containsEdge(const Node *nd1, const Node *nd2) const;
 
         bool containsNode(const Node* nd) const {return (nds[0]==nd || nds[1]==nd || nds[2]==nd);}
-        Eigen::Vector2d getCenter() const {return (nds[0]->x_initial + nds[1]->x_initial + nds[2]->x_initial)/3.0;};
+        Eigen::Vector3d getCenter() const {return (nds[0]->x_initial + nds[1]->x_initial + nds[2]->x_initial)/3.0;};
         icy::Node* getOppositeNode(Node* nd0, Node* nd1);
+
         void ReplaceNode(Node* replaceWhat, Node* replaceWith);
         void ReplaceIncidentElem(const BaseElement* which, BaseElement* withWhat);
         void ReplaceAdjacentElem(const Element* originalElem, Element* insertedElem, uint8_t idx) override;

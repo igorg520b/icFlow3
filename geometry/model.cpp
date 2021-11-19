@@ -103,7 +103,7 @@ void icy::Model::AcceptTentativeValues(SimParams &prms)
     {
         icy::Node *nd = (*floes.nodes)[i];
         nd->AcceptTentativeValues();
-        nd->normal_n = Eigen::Vector3d::Zero(); // allow to accumulate
+        nd->normal_n.setZero(); // allow to accumulate
     }
     floes.DistributeStresses(); // also distribute normals
 

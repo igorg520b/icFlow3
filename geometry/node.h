@@ -18,7 +18,10 @@ namespace icy { class Node; class SimParams; class Edge; class Element; class Ge
 class icy::Node
 {
 public:
-    Node();
+    Node() { Reset(); };
+    ~Node() = default;
+    Node& operator=(Node&) = delete;
+
     void Reset();
     void Initialize(double x, double y);
     void Initialize(const Node *other);
@@ -29,7 +32,7 @@ public:
     int lsId;      // squential number in the system of equations (-1 if prescribed)
     int locId;          // sequential number in a given floe
     double area;        // mass that the node "represents", for applying various forces
-    float vertical_force; // for testing
+    double vertical_force; // for testing
     bool isBoundary;
 
     struct Sector
@@ -85,6 +88,7 @@ public:
     Eigen::Matrix<double,LinearSystem::DOFS,1> ut, xt, vt, at; // at step n+1
 
     Eigen::Vector3d xn3() { return xn.block(0,0,3,1); }
+    Eigen::Vector2d xt2() { return xt.block(0,0,2,1); }
 
     // forces per node (gravity and any test forces)
     void ComputeElasticForce(LinearSystem &ls, SimParams &prms, double timeStep, double totalTime);
@@ -97,11 +101,7 @@ public:
     Eigen::Vector3d normal_n;   // averaged normal of the surrounding elements
 
 
-
-//    void evaluate_tractions(float angle_fwd, SepStressResult &ssr, const float weakening_coeff) const;
-//    float normal_traction(float angle_fwd, float weakening_coeff) const;
-//    void ComputeFanVariablesAlt(SimParams &prms);     // compute tractions - alt version
-
+private:
     void UpdateFan();   // performed when tentative displacements and stress distribution change; invoked from ComputeFanVariables()
     double NormalTraction(double angle_fwd, double weakening_coeff) const;
     void EvaluateTractions(double angle_fwd, SepStressResult &ssr, const double weakening_coeff) const;
