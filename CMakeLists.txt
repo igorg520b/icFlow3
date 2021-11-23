@@ -45,6 +45,7 @@ add_executable(fl3
     gui/icons.qrc
     gui/preferences_gui.h
     simulation/parameters_sim.h
+    simulation/parameters_beam.h
 
     #property browser
     gui/propertybrowser/qtvariantproperty.h
@@ -73,9 +74,6 @@ add_executable(fl3
     simulation/serializer.h
     simulation/SimpleObjectPool.h
 
-    geometry/solid3d.cpp
-    geometry/solid3d.h
-
     geometry/baseelement.h
 
     geometry/node.cpp
@@ -87,17 +85,15 @@ add_executable(fl3
 
     geometry/element.cpp
     geometry/element.h
-    geometry/geometry.cpp
-    geometry/geometry_stable.cpp
-    geometry/geometry.h
-    geometry/model.cpp
-    geometry/model.h
+    geometry/mesh.cpp
+    geometry/mesh.h
+    simulation/modelcontrollerinterface.h
+    simulation/model.cpp
+    simulation/model.h
     geometry/floevisualization.h
     geometry/floevisualization.cpp
 
     simulation/frameinfo.h
-    simulation/modelcontroller.cpp
-    simulation/modelcontroller.h
     gui/backgroundworker.cpp
     gui/backgroundworker.h
 )

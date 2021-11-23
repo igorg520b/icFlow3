@@ -20,13 +20,10 @@ public:
     long CreateStructure(); // return execution_time
     void AddEntriesToStructure(const int* idx_begin, const int* idx_end); // insert nxn matrix of indices of non-zero entries
 
-
     // add values to non-zero elements
     void AddToEquation(const double *linearEntries, const double *quadraticEntries, const std::initializer_list<int> ids);
 
     // creating the values array
-//    void SubtractRHS(const int idx, const Eigen::Matrix<double,DOFS,1> &vec); // we subtract, because RHS in N-R has opposite sign
-//    void AddLHS(const int row, const int column, const Eigen::Matrix<double,DOFS,DOFS> &mat);
     long Solve(int verbosity = 0);  // return execution time
     void AdjustCurrentGuess(int idx, Eigen::Matrix<double,DOFS,1> &vec);  // solution => convenient vector form
 
@@ -48,8 +45,6 @@ private:
     void AddToH(const int row, const int column, const double *v);
     void AddToC(const int idx, const double *v);
     unsigned get_offset(const int row, const int column) const;
-
-
 };
 
 #endif // LINEARSYSTEM_H

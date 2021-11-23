@@ -1,33 +1,171 @@
+#include "mesh.h"
+#include "model.h"
+#include <numeric>
+#include <algorithm>
+#include <iterator>
+#include <spdlog/spdlog.h>
+
+icy::SimpleObjectPool<icy::Node> icy::Mesh::s_pool_nodes(icy::Mesh::reserve_param);
+icy::SimpleObjectPool<icy::Element> icy::Mesh::s_pool_elems(icy::Mesh::reserve_param*2);
+icy::SimpleObjectPool<icy::BoundaryEdge> icy::Mesh::s_pool_edges(icy::Mesh::reserve_param/10);
+
+
+icy::Mesh::Mesh()
+{
+    nodes.reserve(reserve_param);
+    elems.reserve(reserve_param*2);
+    edges.reserve(reserve_param/10);
+}
+
+icy::Mesh::~Mesh()
+{
+    Reset();
+}
+
+void icy::Mesh::Reset(unsigned typeOfSetup_)
+{
+    s_pool_nodes.release(nodes);
+    s_pool_elems.release(elems);
+    s_pool_edges.release(edges);
+
+    length = width = area = 0;
+}
+
+/*
+long icy::Geometry::ComputeFractureDirections(SimParams &prms, double timeStep, bool startingFracture)
+{
+
+    auto t1 = std::chrono::high_resolution_clock::now();
+
+    maxNode=nullptr;
+    double temporal_attenuation = prms.temporal_attenuation;
+
+    float threashold = prms.normal_traction_threshold;
+
+    std::size_t nNodes = nodes->size();
+
+
+    if(startingFracture)
+    {
+        // evaluate all nodes to compute breakable range
+        breakable_range_concurrent.clear();
+
+        EvaluateStresses(prms, (*elems));
+        DistributeStresses();
+
+#pragma omp parallel for
+        for(std::size_t i=0;i<nNodes;i++)
+        {
+            icy::Node *nd = nodes->at(i);
+            if(nd->potentially_can_fracture)
+            {
+                if(nd->time_loaded_above_threshold >= temporal_attenuation)
+                {
+                    nd->ComputeFanVariables(prms);
+                    if(nd->max_normal_traction > threashold) breakable_range_concurrent.push_back(nd);
+                    else nd->time_loaded_above_threshold = 0;
+                }
+                else
+                {
+                    nd->time_loaded_above_threshold += timeStep;
+                    nd->max_normal_traction = 0;
+                    nd->dir.setZero();
+                }
+            }
+            else
+            {
+                nd->time_loaded_above_threshold = 0;
+                nd->max_normal_traction = 0;
+                nd->dir.setZero();
+            }
+        }
+        breakable_range.clear();
+        std::copy(breakable_range_concurrent.begin(), breakable_range_concurrent.end(), std::back_inserter(breakable_range));
+        std::sort(breakable_range.begin(), breakable_range.end(), [](Node *nd1, Node *nd2)
+        {return nd1->max_normal_traction > nd2->max_normal_traction;});
+
+        const unsigned max_breakable_range = 100;
+        if(breakable_range.size() > max_breakable_range) breakable_range.resize(max_breakable_range);
+    }
+    else
+    {
+
+        // insert the recently created crack tips into the breakable range
+        for(Node *nct : new_crack_tips)
+        {
+//            nct->PrepareFan2();
+            nct->ComputeFanVariablesAlt(prms);
+            nct->timeLoadedAboveThreshold = temporal_attenuation;
+            auto find_result = std::find(breakable_range.begin(), breakable_range.end(),nct);
+            bool already_contains = find_result!=breakable_range.end();
+
+            if(!already_contains)
+                breakable_range.push_back(nct);
+        }
+        new_crack_tips.clear();
+
+        // remove the nodes that were affected by the crack on the previous step
+        breakable_range.erase(std::remove_if(breakable_range.begin(), breakable_range.end(),
+                                          [temporal_attenuation](Node *nd)
+                {return nd->max_normal_traction==0 || (nd->timeLoadedAboveThreshold < temporal_attenuation && !nd->crack_tip);}),
+                breakable_range.end());
+
+        // update Sector in case if topology changed around this node
+        for(Node *nd : breakable_range)
+        {
+            //nd->PrepareFan2();
+            nd->ComputeFanVariablesAlt(prms);
+        }
+
+    }
+
+    if(breakable_range.size() > 0)
+    {
+        // take out maximal node from breakable_range
+        auto it_nd = std::max_element(breakable_range.begin(), breakable_range.end(),
+                                      [](Node *nd1, Node *nd2) {
+                if(nd2->crack_tip && nd2->max_normal_traction>0 && !nd1->crack_tip) return true;
+                return nd1->max_normal_traction < nd2->max_normal_traction; });
+
+        if((*it_nd)->max_normal_traction > 0)
+        {
+            maxNode = *it_nd;
+
+            // make sure that the Sector information is updated
+
+            //maxNode->PrepareFan2();
+            //maxNode->ComputeFanVariablesAlt(prms);
+            maxNode->timeLoadedAboveThreshold = 0;
+
+#ifdef QT_DEBUG
+            std::cout << "\n\nselected node " << maxNode->locId << std::endl;
+            std::cout << "breakable range " << breakable_range.size() << "\n";
+            for(Node *nd : breakable_range)
+                std::cout << nd->locId << "; " << nd->max_normal_traction << (nd->crack_tip ? " *" : "") << std::endl;
+#endif
+            breakable_range.erase(it_nd);
+
+        }
+    }
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
+}
+
+
+
+
+
+//========================== ALTERNATIVE ALGORITHM FOR SPLITTING
+
+
 // code from icy::Geometry class that changes less often
 
 #include "geometry.h"
 #include <bits/stdc++.h>
 #include <algorithm>
 
-icy::Geometry::Geometry()
-{
-    breakable_range.reserve(100);
-    neighbors_of_crack_tip.reserve(100);
-    local_support.reserve(100);
 
-    const std::size_t expected_size = 16384;
-    nodes->reserve(expected_size);
-    elems->reserve(expected_size);
-
-    regions.reserve(100);
-    length = width = area = 0;
-
-    s_pool_nodes.reserve(5000);
-    s_pool_elems.reserve(5000);
-}
-
-void icy::Geometry::Reset()
-{
-    qDebug() << "icy::Geometry::Reset()";
-    ResizeNodes(0);
-    ResizeElems(0);
-    length = width = area = 0;
-}
 
 
 void icy::Geometry::ResizeNodes(std::size_t newSize)
@@ -79,13 +217,12 @@ void icy::Geometry::ResizeElems(std::size_t newSize)
     }
 }
 
-icy::Node* icy::Geometry::AddNode(icy::Node *otherNd)
+icy::Node* icy::Geometry::AddNode()
 {
     icy::Node* result = s_pool_nodes.take();
     result->Reset();
     result->locId = nodes->size();
     nodes->push_back(result);
-    if(otherNd!=nullptr) result->InitializeFromAnother(otherNd);
     return result;
 }
 
@@ -111,7 +248,7 @@ void icy::Geometry::ImportFloePatch(QString fileName, double CharacteristicLengt
 
     qDebug() << "patch import successful";
     // for testing
-//    for(std::size_t i=0;i<boundary.size();i++) nodes[boundary[i]].prescribed = true;
+    //    for(std::size_t i=0;i<boundary.size();i++) nodes[boundary[i]].prescribed = true;
 }
 
 void icy::Geometry::Remesh(double CharacteristicLengthMax)
@@ -350,19 +487,9 @@ void icy::Geometry::AssignLsIds()
     }
 }
 
-void icy::Geometry::RecomputeElasticityMatrix(SimParams &prms)
-{
-    elasticityMatrix.setZero();
-    double k = prms.YoungsModulus / (1-prms.PoissonsRatio*prms.PoissonsRatio);
-    elasticityMatrix(0,0) = elasticityMatrix(1,1) = k;
-    elasticityMatrix(0,1) = elasticityMatrix(1,0) = k*prms.PoissonsRatio;
-    elasticityMatrix(2,2) = prms.YoungsModulus/((1+prms.PoissonsRatio)*2.0);
-    D_mats = Eigen::Matrix2d::Identity();
-    D_mats *= ((5.0/6.0)*prms.YoungsModulus/((1+prms.PoissonsRatio)*2.0));
-}
 
 void icy::Geometry::WriteToHD5(unsigned offset_nodes, unsigned offset_elems,
-                hid_t ds_nodes_handle, hid_t ds_elems_handle)
+                               hid_t ds_nodes_handle, hid_t ds_elems_handle)
 {
 
     std::size_t nNodes = nodes->size();
@@ -440,8 +567,8 @@ void icy::Geometry::WriteToHD5(unsigned offset_nodes, unsigned offset_elems,
 }
 
 void icy::Geometry::RestoreFromHD5(unsigned offset_nodes, unsigned offset_elems,
-                    unsigned nNodes, unsigned nElems,
-                    hid_t ds_nodes_handle, hid_t ds_elems_handle)
+                                   unsigned nNodes, unsigned nElems,
+                                   hid_t ds_nodes_handle, hid_t ds_elems_handle)
 {
     ResizeNodes(nNodes);
     ResizeElems(nElems);
@@ -611,80 +738,18 @@ long icy::Geometry::IdentifyDisconnectedRegions()
     }
 
     // for testing
-//    std::cout << "printing regions:\n";
-//    for(std::tuple<unsigned, double, unsigned> &r : regions)
-//        std::cout << std::get<0>(r) << ": " << std::get<1>(r) << "; " << std::get<2>(r) <<  std::endl;
-//    std::cout << "============= \n";
+    //    std::cout << "printing regions:\n";
+    //    for(std::tuple<unsigned, double, unsigned> &r : regions)
+    //        std::cout << std::get<0>(r) << ": " << std::get<1>(r) << "; " << std::get<2>(r) <<  std::endl;
+    //    std::cout << "============= \n";
     // std::cout << "Regions " << regions.size() << std::endl;
 
     auto t2 = std::chrono::high_resolution_clock::now();
     return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
 }
-/*
-long icy::Geometry::RemoveDegenerateFragments()
-{
-    auto t1 = std::chrono::high_resolution_clock::now();
-    double avg_elem_area = area/elems->size();
-    bool region_was_removed;
-    do
-    {
-        region_was_removed = false;
-        auto iter = std::min_element(regions.begin(), regions.end(),
-                                      [](std::tuple<unsigned, double, unsigned> r1,
-                                      std::tuple<unsigned, double, unsigned> r2)
-        {return std::get<2>(r1) < std::get<2>(r2);});
-        if(std::get<2>(*iter) <= 2)
-        {
-            unsigned idx = std::get<0>(*iter);
-            RemoveRegion(idx);
-            regions.erase(iter);
-            region_was_removed = true;
-        }
 
-        iter = std::min_element(regions.begin(), regions.end(),
-                                [](std::tuple<unsigned, double, unsigned> r1,
-                                std::tuple<unsigned, double, unsigned> r2)
-        {return std::get<1>(r1) < std::get<1>(r2);});
 
-        if(std::get<1>(*iter) < avg_elem_area*1.5)
-        {
-            unsigned idx = std::get<0>(*iter);
-            RemoveRegion(idx);
-            regions.erase(iter);
-            region_was_removed = true;
-        }
-
-    } while(region_was_removed && regions.size() > 0);
-
-    auto t2 = std::chrono::high_resolution_clock::now();
-    return std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count();
-}
-
-void icy::Geometry::RemoveRegion(unsigned idx)
-{
-    std::unordered_set<icy::Node*>nds;
-    for(icy::Element *elem : *elems)
-    {
-        if(elem->region == idx) {
-            for(int k=0;k<3;k++) nds.insert(elem->nds[k]);
-            pool_elems.free(elem);
-        }
-    }
-
-    elems->erase(std::remove_if(elems->begin(), elems->end(),
-                                [idx](icy::Element *elem){return elem->region==idx;}), elems->end());
-
-    for(icy::Node *nd : nds) pool_nodes.destroy(nd);
-
-    nodes->erase(std::remove_if(nodes->begin(), nodes->end(),
-                                [nds](icy::Node *nd){return nds.find(nd)!=nds.end();}), nodes->end());
-
-    for(std::size_t i=0;i<nodes->size();i++) (*nodes)[i]->locId=i;
-
-    CreateEdges2();
-}
-*/
-long icy::Geometry::InferLocalSupport(SimParams &prms)
+    long icy::Geometry::InferLocalSupport(SimParams &prms)
 {
     auto t1 = std::chrono::high_resolution_clock::now();
     if(maxNode==nullptr) throw std::runtime_error("CreateSupportRange nullptr");
@@ -703,10 +768,10 @@ long icy::Geometry::InferLocalSupport(SimParams &prms)
     CreateSupportRange(prms.substep_radius2, local_elems2);
     for(icy::Node *nd : *nodes) nd->reset_timing = nd->support_node = false;
     for(Element *e : local_elems2) for(int k=0;k<3;k++)
-    {
-        e->nds[k]->timeLoadedAboveThreshold=0;
-        e->nds[k]->reset_timing=true;
-    }
+        {
+            e->nds[k]->timeLoadedAboveThreshold=0;
+            e->nds[k]->reset_timing=true;
+        }
 
     // for visualization - mark support range (stored in breakable_range)
     for(icy::Node *nd : local_support) nd->support_node = true; // for visualization
@@ -751,3 +816,216 @@ void icy::Geometry::CreateSupportRange(int neighborLevel, std::vector<Element*> 
         }
     }
 }
+*/
+
+
+
+/*
+void icy::GeneratorTool::GenerateBeam(BeamParams *beamParams, Mesh *outMesh)
+{
+    outMesh->isDeformable = true;
+    double CharacteristicLengthMax = beamParams->CharacteristicLengthMax;
+    double rm = beamParams->RefinementMultiplier;
+    double a = beamParams->beamA; // beamA
+    double b = beamParams->beamB; // beamB
+    double l1 = beamParams->beamL1;
+    double l2 = beamParams->beamL2;
+    double c = beamParams->beamGap; // beam gap
+    double d = beamParams->beamMargin; // beam margin
+    double h = beamParams->beamThickness; // thickness
+
+gmsh::clear();
+gmsh::option::setNumber("General.Terminal", 1);
+model::add("beam1");
+
+double dy = l1 + c + d;
+double dx = c+d;
+
+int point1 = factory::addPoint(dx + 0, dy + 0, 0, rm);
+int point2 = factory::addPoint(dx + l2, dy + 0, 0, rm);
+int point22 = factory::addPoint(dx + l2 / 2,dy + 0, 0, rm);
+int point3 = factory::addPoint(dx + l2, dy - a, 0, rm);
+int point4 = factory::addPoint(dx + 0,dy - l1 + c / 2, 0, rm);
+int point5 = factory::addPoint(dx - c,dy - l1 + c / 2, 0, rm);
+int point6 = factory::addPoint(dx - c / 2,dy - l1 + c / 2, 0, rm);
+int point7 = factory::addPoint(dx - c, dy + c, 0, 1.0);
+int point8 = factory::addPoint(dx + l2 + c, dy + c, 0, 1.0);
+int point9 = factory::addPoint(dx + l2 + c, dy - a - c, 0, 1.0);
+int point10 = factory::addPoint(dx + b + 2 * c,dy - a, 0, rm);
+int point11 = factory::addPoint(dx + b,dy - a - 2 * c, 0, rm);
+int point12 = factory::addPoint(dx + b + 2 * c,dy - a - 2 * c,0, rm);
+int point13 = factory::addPoint(dx + b + 2 * c,dy - a - c, 0, rm);
+int point14 = factory::addPoint(dx + b + c,dy - a - 2 * c, 0, rm);
+int point15 = factory::addPoint(dx + b,dy - l1 + c / 2, 0, rm);
+int point16 = factory::addPoint(dx + b + c,dy - l1 + c / 2, 0, rm);
+int point17 = factory::addPoint(dx + b + c / 2,dy - l1 + c / 2, 0, rm);
+int point18 = factory::addPoint(-d, dy + c + d, 0, 1.0);
+int point19 = factory::addPoint(dx + l2 + c + d, dy + c + d, 0, 1.0);
+int point20 = factory::addPoint(dx + l2 + c + d, dy - l1 - c - 2*d, 0, 1.0);
+int point21 = factory::addPoint(-d, -d, 0, rm);
+int point23 = factory::addPoint(dx/4 + l2/4 + c/4 + d/4, -d , 0, rm);
+int point24 = factory::addPoint(-d, dy/4 + c/4 + d/4, 0, rm);
+int point25 = factory::addPoint(-d , dy/2 + c/2 + d/2, 0, 1.0);
+int point26 = factory::addPoint(dx/2 + l2/2 + c/2 + d/2, -d, 0, 1.0);
+
+int circle1 = factory::addCircleArc(point4, point6, point5);
+int circle8 = factory::addCircleArc(point10, point12, point11);
+int circle11 = factory::addCircleArc(point13, point12, point14);
+int circle14 = factory::addCircleArc(point16, point17, point15);
+
+int line2 = factory::addLine(point1, point22);
+int line19 = factory::addLine(point22, point2);
+int line3 = factory::addLine(point2, point3);
+int line4 = factory::addLine(point4, point1);
+int line5 = factory::addLine(point5, point7);
+int line6 = factory::addLine(point7, point8);
+int line7 = factory::addLine(point8, point9);
+int line9 = factory::addLine(point3, point10);
+int line10 = factory::addLine(point9, point13);
+int line12 = factory::addLine(point11, point15);
+int line13 = factory::addLine(point14, point16);
+int line15 = factory::addLine(point18, point19);
+int line16 = factory::addLine(point19, point20);
+int line17 = factory::addLine(point20, point26);
+int line18 = factory::addLine(point26, point23);
+int line20 = factory::addLine(point23, point21);
+int line21 = factory::addLine(point21, point24);
+int line22 = factory::addLine(point24, point25);
+int line23 = factory::addLine(point25, point18);
+
+std::vector<int> curveTags;
+curveTags.push_back(line15);
+curveTags.push_back(line16);
+curveTags.push_back(line17);
+curveTags.push_back(line18);
+curveTags.push_back(line20);
+curveTags.push_back(line21);
+curveTags.push_back(line22);
+curveTags.push_back(line23);
+int loop2 = factory::addCurveLoop(curveTags);
+
+curveTags.clear();
+curveTags.push_back(line6);
+curveTags.push_back(line7);
+curveTags.push_back(line10);
+curveTags.push_back(circle11);
+curveTags.push_back(line13);
+curveTags.push_back(circle14);
+curveTags.push_back(-line12);
+curveTags.push_back(-circle8);
+curveTags.push_back(-line9);
+curveTags.push_back(-line3);
+curveTags.push_back(-line19);
+curveTags.push_back(-line2);
+curveTags.push_back(-line4);
+curveTags.push_back(circle1);
+curveTags.push_back(line5);
+int loop3 = factory::addCurveLoop(curveTags);
+
+std::vector<int> loops;
+loops.push_back(loop2);
+loops.push_back(loop3);
+factory::addPlaneSurface(loops);
+
+factory::synchronize();
+
+gmsh::vectorpair vp;
+gmsh::vectorpair vpOut;
+
+model::getEntities(vp, 2);
+factory::extrude(vp, 0, 0, h, vpOut);
+
+factory::synchronize();
+gmsh::option::setNumber("Mesh.CharacteristicLengthMax", CharacteristicLengthMax);
+model::mesh::generate(3);
+
+// process the result
+
+std::vector<std::size_t> nodeTags3;
+std::vector<double> nodeCoords3, parametricCoords3;
+model::mesh::getNodes(nodeTags3, nodeCoords3, parametricCoords3, -1, -1, false, false);
+
+// retrieve elements
+std::vector<std::size_t> elementTags, nodeTagsInElems;
+model::mesh::getElementsByType(4, elementTags, nodeTagsInElems);
+outMesh->elems.resize(elementTags.size());
+
+// get triangles
+std::vector<std::size_t> faceTags, nodeTagsInFaces;
+model::mesh::getElementsByType(2, faceTags, nodeTagsInFaces);
+outMesh->faces.resize(faceTags.size());
+
+// compile a set of node tags that are present in elements
+std::unordered_set<int> usedNodes;
+for(int i=0;i<(int)nodeTagsInElems.size();i++) usedNodes.insert(nodeTagsInElems[i]);
+for(int i=0;i<(int)nodeTagsInFaces.size();i++) usedNodes.insert(nodeTagsInFaces[i]);
+
+std::map<int,int> nodeTagMap; // "gmsh tag" -> "sequential tag"
+int count = 0;
+outMesh->nodes.resize(usedNodes.size());
+for(int i=0;i<(int)nodeTags3.size();i++) {
+    int tag = nodeTags3[i];
+    if(usedNodes.find(tag)!=usedNodes.end() && nodeTagMap.find(tag)==nodeTagMap.end())
+    {
+        if(count >= (int)usedNodes.size()) throw std::runtime_error("generator tool error");
+        outMesh->nodes[count].Initialize(nodeCoords3[i*3+0], nodeCoords3[i*3+1], nodeCoords3[i*3+2], count);
+        nodeTagMap[tag]=count;
+        count++;
+    }
+}
+
+// elements & faces
+for(int i=0;i<(int)elementTags.size();i++)
+{
+    Element *elem = &(outMesh->elems[i]);
+    for(int j=0;j<4;j++) {
+        int ndidx = nodeTagsInElems[i*4+j];
+        int newIdx = nodeTagMap[ndidx];
+        elem->vrts[j] = &(outMesh->nodes[newIdx]);
+    }
+}
+
+for(int i=0;i<(int)faceTags.size();i++)
+{
+    Face &fc = outMesh->faces[i];
+    for(int j=0;j<3;j++) {
+        int ndidx = nodeTagsInFaces[i*3+j];
+        int newIdx = nodeTagMap[ndidx];
+        fc.vrts[j]=&(outMesh->nodes[newIdx]);
+    }
+}
+outMesh->ComputeBoundingBox();
+
+// region of cz insertion
+std::vector<p2d> region;
+region.push_back(std::make_pair(dx + l2*0.6, dy+c/2));
+region.push_back(std::make_pair(dx + b + 2*c, dy -a-c/2));
+region.push_back(std::make_pair(dx + b + c/2, dy - a - 2*c));
+region.push_back(std::make_pair(dx + b + c/2, dy - l1 - c - d/2));
+region.push_back(std::make_pair(dx - c/2, dy - l1 - c - d/2));
+region.push_back(std::make_pair(dx - c/2, dy - l1 / 2));
+region.push_back(std::make_pair(dx - c / 2, dy + c / 2));
+
+
+// exterior point for the region
+double maxX = -DBL_MAX;
+double maxY = -DBL_MAX;
+for(auto &pt : region) {
+    if(pt.first > maxX) maxX=pt.first;
+    if(pt.second > maxY) maxY=pt.second;
+}
+p2d exteriorPt = std::make_pair(maxX+1, maxY+1);
+
+count = 2;
+for(auto &elem : outMesh->elems) {
+    double centerX = 0, centerY = 0;
+    for(int i=0;i<4;i++) {
+        centerX+=elem.vrts[i]->x0/4;
+        centerY+=elem.vrts[i]->y0/4;
+    }
+    p2d elemCenter = std::make_pair(centerX, centerY);
+    if(PointInsideLoop(elemCenter, region, exteriorPt)) elem.tag = count++;
+    else elem.tag = 1;
+}
+}
+*/

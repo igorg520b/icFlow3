@@ -14,6 +14,8 @@
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 
+#include "parameters_beam.h"
+
 // variables related to the formulation of the model
 
 namespace icy { class SimParams; }
@@ -43,8 +45,10 @@ class icy::SimParams : public QObject
     Q_PROPERTY(double p_Gravity_z MEMBER gravity NOTIFY propertyChanged)
     Q_PROPERTY(double p_WaterDensity MEMBER WaterDensity NOTIFY propertyChanged)
     Q_PROPERTY(double p_IceDensity MEMBER IceDensity NOTIFY propertyChanged)
-    Q_PROPERTY(double p_YoungsModulus MEMBER YoungsModulus NOTIFY propertyChanged)
-    Q_PROPERTY(double p_PoissonsRatio MEMBER PoissonsRatio NOTIFY propertyChanged)
+
+    Q_PROPERTY(double p_YoungsModulus READ getYoungsModulus WRITE setYoungsModulus)
+    Q_PROPERTY(double p_PoissonsRatio READ getPoissonsRatio WRITE setPoissonsRatio)
+
     Q_PROPERTY(double p_Thickness MEMBER Thickness NOTIFY propertyChanged)
 
     // fracture
@@ -92,7 +96,8 @@ public:
 
     double FractureAngleThreshold, FractureAreaThreshold;
 
-
+    Eigen::Matrix3d elasticityMatrix;        // this has to be pre-computed whenever Y and nu change
+    Eigen::Matrix2d D_mats;
     // other
 
     SimParams() { Reset(); }
@@ -142,8 +147,33 @@ public:
         FractureAngleThreshold = 10;    // in degrees
         FractureAreaThreshold = 1e-4;
 
-
+        RecomputeMatrices();
         emit propertyChanged();
+    }
+
+    void RecomputeMatrices()
+    {
+        elasticityMatrix.setZero();
+        double k = YoungsModulus / (1.0 - PoissonsRatio*PoissonsRatio);
+        elasticityMatrix(0,0) = elasticityMatrix(1,1) = k;
+        elasticityMatrix(0,1) = elasticityMatrix(1,0) = k*PoissonsRatio;
+        elasticityMatrix(2,2) = YoungsModulus/((1.0 + PoissonsRatio)*2.0);
+        D_mats.setIdentity();
+        D_mats *= ((5.0/6.0)*YoungsModulus/((1.0 + PoissonsRatio)*2.0));
+    }
+
+    double getYoungsModulus() {return YoungsModulus;}
+    void setYoungsModulus(double ym)
+    {
+        YoungsModulus=ym;
+        RecomputeMatrices();
+    }
+
+    double getPoissonsRatio() {return PoissonsRatio;}
+    void setPoissonsRatio(double nu)
+    {
+        PoissonsRatio=nu;
+        RecomputeMatrices();
     }
 
     // integration

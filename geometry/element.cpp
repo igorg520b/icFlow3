@@ -504,10 +504,6 @@ icy::Node* icy::Element::SplitNonBoundaryElem(Node *nd, Node *nd0, Node *nd1, do
     uint8_t nd0Idx_orig = getNodeIdx(nd0);
     uint8_t nd1Idx_orig = getNodeIdx(nd1);
 
-    // preserve deformation gradient
-    Eigen::Matrix2d F_orig = getF_at_n();
-    Eigen::Matrix2d F_adj = adjElem->getF_at_n();
-
     Node *oppositeNode = adjElem->getOppositeNode(nd0, nd1);
     uint8_t nd0Idx_adj = adjElem->getNodeIdx(nd0);
     uint8_t nd1Idx_adj = adjElem->getNodeIdx(nd1);
@@ -567,12 +563,6 @@ icy::Node* icy::Element::SplitNonBoundaryElem(Node *nd, Node *nd0, Node *nd1, do
     insertedElem->PrecomputeInitialArea();
     adjElem->PrecomputeInitialArea();
     insertedElem_adj->PrecomputeInitialArea();
-
-    // "fix" palsticity on all four elements
-    this->RecalculatePiMultiplierFromDeformationGradient(F_orig);
-    insertedElem->RecalculatePiMultiplierFromDeformationGradient(F_orig);
-    adjElem->RecalculatePiMultiplierFromDeformationGradient(F_adj);
-    insertedElem_adj->RecalculatePiMultiplierFromDeformationGradient(F_adj);
 
     oppositeNode->PrepareFan();
     nd1->PrepareFan();
