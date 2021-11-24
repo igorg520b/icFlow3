@@ -71,7 +71,7 @@
 #include "objectpropertybrowser.h"
 #include "preferences_gui.h"
 
-#include "modelcontroller.h"
+#include "model.h"
 #include "backgroundworker.h"
 
 QT_BEGIN_NAMESPACE
@@ -154,10 +154,9 @@ private slots:
     void on_actionScreenshot_every_step_triggered();
 
 private:
-    PreferencesGUI prefsGUI;
-    QDir outputDirectory;
-    icy::ModelController controller;   // simulation algorithms
+    icy::Model model;
     BackgroundWorker *worker;
+    QDir outputDirectory;
 
     QString m_sSettingsFile = "ic_config";
     QLabel *statusLabel;                    // statusbar
@@ -213,7 +212,6 @@ private:
     QMenu *menuSolidIndividual;
     QTreeWidgetItem *tiParams_sim;
     QTreeWidgetItem *tiFloes;
-//    QTreeWidgetItem *tiSolids;
 
     const QString wtitle = "icFlow3: Finite Element Simulation of Ice - ";
 

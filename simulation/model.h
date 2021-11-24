@@ -9,93 +9,101 @@
 #include <algorithm>
 #include <chrono>
 #include <unordered_set>
-
-#include <gmsh.h>
+#include <string>
 
 #include "parameters_sim.h"
+#include "parameters_beam.h"
+
 #include "mesh.h"
+#include "modelcontrollerinterface.h"
 #include "linearsystem.h"
 #include "floevisualization.h"
+#include "serializer.h"
 
 namespace icy { class Model; class Node; class Element;}
 
-class icy::Model : public QObject
+class icy::Model : public QObject, public ModelControllerInterface
 {
     Q_OBJECT
 
-    Q_PROPERTY(int in_Elems READ getElemCount)
-    Q_PROPERTY(int in_Nodes READ getNodeCount)
-    Q_PROPERTY(int in_Regions READ getRegionCount)
-    Q_PROPERTY(double in_length READ getLength)
-    Q_PROPERTY(double in_width READ getWidth)
-    Q_PROPERTY(double in_area READ getArea)
+    // CONTROLLER
+public:
+    void Reset(unsigned setup);
+    void Prepare() override;        // invoked once, at simulation start
+    bool Step() override;           // either invoked by Worker or via GUI
+    void RequestAbort() override;   // invoked from GUI
 
-public:    
-    // visualization options
-    enum LoadOpt { stretch_x, stretch_xy, indentation, waterfall, waves_x, waves_xy, waves_diag, waves_wind};
-    Q_ENUM(LoadOpt)
-
-    void Reset();   // erases all geometry
-
-    icy::Mesh mesh;
-    icy::FloeVisualization floes_vtk;
-
-    void InitialGuessTentativeVals(double timeStep, double beta, double gamma);
-
-    // moved from controller
-    void AssembleAndSolve(long &time_clear, long &time_forces, long &time_structure,
-                          long &time_assemble, long &time_solve, long &time_pull,
-                          SimParams &prms, double timeStep, double totalTime, double &resultSqNorm);
-
-    long PullFromLinearSystem(double timeStep, double beta, double gamma);
-    void AcceptTentativeValues(SimParams &prms);
-    void FractureStep(SimParams &prms, double timeStep, double totalTime, long &b_substep, long &b_directions, long &b_split, long &b_support);
-    long IdentifyDisconnectedRegions();
-    void UnsafeUpdateGeometry(double simulationTime, SimParams &prms); // to be called from the main thread
-    void RestoreFromSerializationBuffers(SimParams &prms); // called from controller after loading data from a file
-    QMutex mutex; // to prevent modifying mesh data while updating VTK representation
+    void GoToStep(int step) override;                // only works if serializer has a file open
+    void SaveAs(std::string fileName) override;
+    void Load(std::string fileName) override;
 
 private:
-    icy::LinearSystem ls;
-    long ComputeElasticForcesAndAssemble(SimParams &prms, double timeStep, double totalTime);
-    long LocalSubstep(SimParams &prms, double timeStep, double totalTime);
-
-    // synchronize VTK visualization and internal representation
-    bool topologyInvalid = true;        // topology changed (means that displacements and values also changed)
-    bool displacementsInvalid = true;   // displacements changed since VTK last updated
-    bool valuesInvalid = true;          // visualization changed (e.g. via GUI comobobox)
-
-    // signal has been sent to the main thread asking to invoke UnsafeUpdateGeometry()
-    // this is to prevent emitting multiple requests before the existing request is processed
-    bool updateRequested = false;
-
-    double getElemCount() { return floes.elems->size(); }
-    double getNodeCount() { return floes.nodes->size(); }
-    double getRegionCount() {return floes.regions.size(); }
-    double getLength() {return floes.length; }
-    double getWidth() {return floes.width; }
-    double getArea() {return floes.area; }
+    Serializer serializer;
+    bool abortRequested = false;
+    void Aborting();       // called before exiting Step() if aborted
+    constexpr static int colWidth = 12;    // table column width when logging
 
 signals:
-    void requestGeometryUpdate(); // this goes to the main thread, which calls UnsafeUpdateGeometry()
-    void propertyChanged();
+    void stepCompleted();
+    void stepAborted();
+    void fractureProgress();    // signals that the VTK view of mesh is not in sync with internal representation
+
+
+    // MODEL
+public:
+    SimParams prms;
+    BeamParams prms_beam;
+    icy::Mesh mesh;
+    icy::FloeVisualization vtk_representation;
+    icy::LinearSystem ls;
+
+    int currentStep;
+    double timeStepFactor, simulationTime;
+
+    // loading options
+    enum LoadOpt { stretch_x, stretch_xy, indentation, waterfall, waves_x, waves_xy, waves_diag, waves_wind, L_beam};
+    Q_ENUM(LoadOpt)
+
+    void SetIndenterPosition(double position);
+
+private:
+    void Fracture(double timeStep);
+    void Fracture_LocalSubstep();    // part of Fracture()
+    void InitialGuess(double timeStep, double timeStepFactor);
+    bool AssembleAndSolve(double timeStep, bool enable_collisions, bool enable_spring,
+                          std::vector<icy::Node*> &nodes, std::vector<icy::Element*> &elems);  // return true if solved
+    bool AcceptTentativeValues(double timeStep);    // return true if plastic deformation occurred
+    void IdentifyDisconnectedRegions();
+
+    // Visualization
+public:
+    void UnsafeSynchronizeVTK();    // synchronize what VTK shows with internal mesh representation; invoke from the main thread
+    void ChangeVisualizationOption(int option);  // invoke from the main thread
+    bool topologyInvalid = true;
+    bool displacementsInvalid = true;
+
+private:
+    QMutex vtk_update_mutex; // to prevent modifying mesh data while updating VTK representation
+    bool vtk_update_requested = false;  // true when signal has been already emitted to update vtk geometry
+
+private:
+    void UnsafeUpdateGeometry(double simulationTime, SimParams &prms); // to be called from the main thread
+    void RestoreFromSerializationBuffers(SimParams &prms); // called from controller after loading data from a file
+
+
 };
 
 #endif // MESHCOLLECTION_H
 
 
 /*
-   Serializer serializer;
     std::vector<icy::FrameInfo> stepStats;  // information about each time step
     icy::FrameInfo ts;  // tentative step info (the step itself may fail)
     bool requestToStop = false; // ModelController request backgroundworker to stop calling Step()
 
-    void SaveAs(QString fileName);
-    void Load(QString fileName);        // load initial setup from file
     void ImportFloePatch(QString fileName);
     void Remesh();
     void Reset();                       // reset simulation to pristine state; erase model
-    void GoToStep(int step);            // load data from file for presentation
     void Trim();                        // remove subsequent steps
     void Prepare();                     // compute constant matrices - call once before first Step()
     void Step();                        // perform one computation step
