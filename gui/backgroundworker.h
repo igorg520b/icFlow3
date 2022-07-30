@@ -30,8 +30,9 @@ private:
     QWaitCondition condition;
     bool kill = false; // set "true" and call Resume() to finish run()
 
-signals:
+Q_SIGNALS:
     void workerPaused();
+    void stepCompleted();
 };
 
 #endif // BACKGROUNDWORKER_H

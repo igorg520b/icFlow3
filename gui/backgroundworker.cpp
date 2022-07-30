@@ -23,14 +23,11 @@ void BackgroundWorker::Pause()
 // exit the worker thread
 void BackgroundWorker::Finalize()
 {
-    qDebug() << "BackgroundWorker::Finalize()";
     controller->RequestAbort();
     kill=true;
     condition.wakeOne();
     bool result = wait();
-    qDebug() << "BackgroundWorker::Finalize() terminated";
-    qDebug() << "QThread wait() returns " << result;
-    running = false;
+    qDebug() << "BackgroundWorker::Finalize() terminated; " << result;
 }
 
 void BackgroundWorker::run()
@@ -39,18 +36,19 @@ void BackgroundWorker::run()
     {
         if (timeToPause)
         {
-            mutex.lock();
-            running = false;
-            emit workerPaused();
-            condition.wait(&mutex);
             timeToPause = false;
-            running = true;
+            running = false;
+            Q_EMIT workerPaused();
+            mutex.lock();
+            condition.wait(&mutex);
             mutex.unlock();
+            running = true;
         }
         if(kill) break;
 
         bool result = controller->Step();
         if(!result) timeToPause = true;
+        Q_EMIT stepCompleted();
     }
     qDebug() << "BackgroundWorker::run() terminated";
 }

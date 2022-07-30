@@ -54,8 +54,6 @@ add_executable(fl3
 
     simulation/linearsystem.cpp
     simulation/linearsystem.h
-    simulation/serializer.cpp
-    simulation/serializer.h
     simulation/SimpleObjectPool.h
 
     geometry/baseelement.h
@@ -80,6 +78,7 @@ add_executable(fl3
     simulation/frameinfo.h
     gui/backgroundworker.cpp
     gui/backgroundworker.h
+    gui/modelcontrollerinterface.h
 )
 
 target_link_libraries(fl3 PRIVATE Qt5::Widgets Qt5::Charts Qt5::Core)

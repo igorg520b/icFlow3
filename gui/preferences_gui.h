@@ -62,7 +62,7 @@ public:
         ShowWaterLevel = settings.value("PreferencesGUI.ShowWaterLevel").toBool();
     }
 
-signals:
+Q_SIGNALS:
     void propertyChanged();
 };
 

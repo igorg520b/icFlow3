@@ -17,33 +17,37 @@
 #include "mesh.h"
 #include "modelcontrollerinterface.h"
 #include "linearsystem.h"
-#include "floevisualization.h"
-#include "serializer.h"
+#include "modelcontrollerinterface.h"
 
 namespace icy { class Model; class Node; class Element;}
 
-class icy::Model : public QObject, public ModelControllerInterface
+class icy::Model : public ModelControllerInterface
 {
-    Q_OBJECT
+public:
+    Model();
+    ~Model();
+    void Reset();
+
+    void Prepare() override;        // invoked once, at simulation start
+    bool Step() override;           // either invoked by Worker or via GUI
+    void RequestAbort() override;   // invoked from GUI
+
+
 
     // CONTROLLER
 public:
     void Reset(unsigned setup);
-    void Prepare() override;        // invoked once, at simulation start
-    bool Step() override;           // either invoked by Worker or via GUI
-    void RequestAbort() override;   // invoked from GUI
 
     void GoToStep(int step) override;                // only works if serializer has a file open
     void SaveAs(std::string fileName) override;
     void Load(std::string fileName) override;
 
 private:
-    Serializer serializer;
     bool abortRequested = false;
     void Aborting();       // called before exiting Step() if aborted
     constexpr static int colWidth = 12;    // table column width when logging
 
-signals:
+Q_SIGNALS:
     void stepCompleted();
     void stepAborted();
     void fractureProgress();    // signals that the VTK view of mesh is not in sync with internal representation
@@ -95,41 +99,3 @@ private:
 
 #endif // MESHCOLLECTION_H
 
-
-/*
-    std::vector<icy::FrameInfo> stepStats;  // information about each time step
-    icy::FrameInfo ts;  // tentative step info (the step itself may fail)
-    bool requestToStop = false; // ModelController request backgroundworker to stop calling Step()
-
-    void ImportFloePatch(QString fileName);
-    void Remesh();
-    void Reset();                       // reset simulation to pristine state; erase model
-    void Trim();                        // remove subsequent steps
-    void Prepare();                     // compute constant matrices - call once before first Step()
-    void Step();                        // perform one computation step
-    void Fracture();
-    void RequestAbort();                // cancel current step; invoked by GUI thread
-
-    // progress summary
-    int getTotalSteps() {
-        std::size_t n = stepStats.size();
-        if(n>0) n--;
-        return n;
-    }
-    int getCurrentStep() { return current_step; }
-
-private:
-    unsigned current_step = 0;
-    bool abort_requested = false;
-    void Aborting();       // called before exiting Step() if aborted
-
-    // parts of Step();
-    void _BeginStep();  // make initial guess, initialize FrameInfo
-    void _Write();
-
-signals:
-    void stepCompleted();
-    void fractureUpdated();
-    void stepAborted();
-    void progressUpdated();
-*/
